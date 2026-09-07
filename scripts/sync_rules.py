@@ -18,6 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--destination", type=Path, required=True)
     parser.add_argument("--backup-dir", type=Path, required=True)
     parser.add_argument("--label", required=True)
+    parser.add_argument("--replace", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -30,8 +31,10 @@ def render(core_path: Path, adapter_path: Path) -> str:
     return adapter.replace("{{CORE_RULES}}", core).strip()
 
 
-def merge(original: str, rendered: str) -> str:
+def merge(original: str, rendered: str, replace: bool = False) -> str:
     managed = f"{START}\n{rendered}\n{END}"
+    if replace:
+        return managed + "\n"
     has_start = START in original
     has_end = END in original
     if has_start != has_end:
@@ -49,7 +52,7 @@ def main() -> int:
     args = parse_args()
     destination = args.destination.expanduser()
     original = destination.read_text(encoding="utf-8") if destination.exists() else ""
-    updated = merge(original, render(args.core, args.adapter))
+    updated = merge(original, render(args.core, args.adapter), replace=args.replace)
     if updated == original:
         print(f"rules unchanged: {destination}")
         return 0
