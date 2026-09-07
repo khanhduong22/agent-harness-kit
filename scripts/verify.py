@@ -78,12 +78,40 @@ def main() -> int:
         if ABSOLUTE_USER_RE.search(content):
             errors.append(f"{candidate}: contains a machine-specific home path")
 
+    # Validate native manifests and marketplace catalogs
+    manifest_files = [
+        ROOT / ".agents" / "plugins" / "marketplace.json",
+        ROOT / ".claude-plugin" / "plugin.json",
+        ROOT / ".claude-plugin" / "marketplace.json",
+        ROOT / ".codex-plugin" / "plugin.json",
+    ]
+    import json
+    for mf in manifest_files:
+        if not mf.is_file():
+            errors.append(f"missing required manifest: {mf.relative_to(ROOT)}")
+            continue
+        try:
+            mdata = json.loads(mf.read_text(encoding="utf-8"))
+            if not mdata.get("name"):
+                errors.append(f"{mf.relative_to(ROOT)}: missing or empty 'name' field")
+        except json.JSONDecodeError as exc:
+            errors.append(f"{mf.relative_to(ROOT)}: invalid JSON ({exc})")
+
+    # Validate profiles
+    profile_dir = ROOT / "profiles"
+    if not profile_dir.is_dir():
+        errors.append("missing profiles/ directory")
+    else:
+        for req_profile in ["core/rules.md", "index/workspace.md", "index/api.md", "index/cms.md"]:
+            if not (profile_dir / req_profile).is_file():
+                errors.append(f"missing profile document: profiles/{req_profile}")
+
     if errors:
         print("verification failed:", file=sys.stderr)
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print(f"verified {len(skill_dirs)} skills; structure and portability checks passed")
+    print(f"verified {len(skill_dirs)} skills, manifests, and profiles; checks passed")
     return 0
 
 
