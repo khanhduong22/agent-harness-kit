@@ -9,8 +9,13 @@ install_rules=false
 rules_mode="merge"
 force_conflicts=false
 dry_run=false
+install_index=false
+project_path=""
+rollback_target=""
 backup_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_root="${AGENT_HARNESS_BACKUP_DIR:-${kit_home_root}/.agent-harness-backups}/${backup_stamp}"
+receipt_file="${backup_root}/receipt.json"
+receipt_initialized=false
 
 usage() {
   /bin/cat <<'EOF'
@@ -22,6 +27,11 @@ Options:
   --rules       Merge the managed global-rule block
   --rules-mode merge|replace
                 Preserve other rule content (merge) or back it up and replace it
+  --index       Install the Index project pack
+  --project-path <path>
+                Target directory for project-level pack injection (default: $PWD)
+  --rollback [latest|<timestamp>]
+                Rollback a previous installation run using its receipt
   --force       Back up and replace conflicting skill entries
   --dry-run     Print changes without writing
   -h, --help
@@ -46,6 +56,23 @@ while (($#)); do
       rules_mode="${2:?--rules-mode requires a value}"
       shift 2
       ;;
+    --index)
+      install_index=true
+      shift
+      ;;
+    --project-path)
+      project_path="${2:?--project-path requires a value}"
+      shift 2
+      ;;
+    --rollback)
+      if [[ $# -ge 2 && "$2" != --* ]]; then
+        rollback_target="$2"
+        shift 2
+      else
+        rollback_target="latest"
+        shift 1
+      fi
+      ;;
     --force)
       force_conflicts=true
       shift
@@ -66,6 +93,19 @@ while (($#)); do
   esac
 done
 
+if [[ -n "$rollback_target" ]]; then
+  backup_base_dir="${AGENT_HARNESS_BACKUP_DIR:-${kit_home_root}/.agent-harness-backups}"
+  rollback_args=(
+    --backup-root "$backup_base_dir"
+    --target "$rollback_target"
+  )
+  if [[ "$dry_run" == true ]]; then
+    rollback_args+=(--dry-run)
+  fi
+  /usr/bin/env python3 "$kit_root/scripts/rollback.py" "${rollback_args[@]}"
+  exit $?
+fi
+
 case "$install_mode" in
   symlink|copy) ;;
   *)
@@ -85,6 +125,65 @@ esac
 if [[ "$target_csv" == "all" ]]; then
   target_csv="codex,claude,gemini"
 fi
+
+if [[ "$install_index" == true ]]; then
+  project_path="${project_path:-$PWD}"
+  if [[ ! -d "$project_path" ]]; then
+    printf 'Error: target project directory does not exist: %s\n' "$project_path" >&2
+    exit 2
+  fi
+  project_path="$(cd "$project_path" && pwd)"
+fi
+
+init_receipt() {
+  if [[ "$dry_run" == true || "$receipt_initialized" == true ]]; then
+    return
+  fi
+  /bin/mkdir -p "$backup_root"
+  /usr/bin/env python3 -c '
+import json, sys, os
+receipt_file, timestamp, cmd = sys.argv[1:4]
+if not os.path.exists(receipt_file):
+    data = {
+        "timestamp": timestamp,
+        "command": cmd,
+        "actions": []
+    }
+    with open(receipt_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+' "$receipt_file" "$backup_stamp" "$0 $*"
+  
+  local backup_base_dir="$(dirname "$backup_root")"
+  /bin/ln -sfn "$backup_root" "$backup_base_dir/latest"
+  receipt_initialized=true
+}
+
+record_receipt_action() {
+  local action_type="$1"
+  local destination="$2"
+  local existed="$3"
+  local backup_path="${4:-}"
+  if [[ "$dry_run" == true ]]; then
+    return
+  fi
+  /usr/bin/env python3 -c '
+import json, sys
+receipt_file, action_type, destination, existed, backup_path = sys.argv[1:6]
+try:
+    with open(receipt_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    data = {"actions": []}
+data.setdefault("actions", []).append({
+    "type": action_type,
+    "destination": destination,
+    "existed": existed == "true",
+    "backup_path": backup_path if backup_path else None
+})
+with open(receipt_file, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+' "$receipt_file" "$action_type" "$destination" "$existed" "$backup_path"
+}
 
 skill_destination() {
   case "$1" in
@@ -116,9 +215,10 @@ install_one_skill() {
   local source_skill="$1"
   local destination_root="$2"
   local label="$3"
-  local skill_name destination_skill backup_skill current_target
+  local skill_name destination_skill backup_skill current_target existed
   skill_name="${source_skill##*/}"
   destination_skill="${destination_root}/${skill_name}"
+  existed=false
 
   if [[ -L "$destination_skill" ]]; then
     current_target="$(readlink "$destination_skill")"
@@ -130,7 +230,9 @@ install_one_skill() {
     current_target=""
   fi
 
+  backup_skill=""
   if [[ -e "$destination_skill" || -L "$destination_skill" ]]; then
+    existed=true
     if [[ "$force_conflicts" != true ]]; then
       printf 'skipped conflict: %s (use --force to back up and replace)\n' "$destination_skill" >&2
       return
@@ -139,6 +241,7 @@ install_one_skill() {
     if [[ "$dry_run" == true ]]; then
       printf 'would back up: %s -> %s\n' "$destination_skill" "$backup_skill"
     else
+      init_receipt
       /bin/mkdir -p "$(dirname "$backup_skill")"
       /bin/mv "$destination_skill" "$backup_skill"
       printf 'backed up: %s -> %s\n' "$destination_skill" "$backup_skill"
@@ -150,6 +253,7 @@ install_one_skill() {
     return
   fi
 
+  init_receipt
   /bin/mkdir -p "$destination_root"
   if [[ "$install_mode" == "symlink" ]]; then
     /bin/ln -s "$source_skill" "$destination_skill"
@@ -157,6 +261,7 @@ install_one_skill() {
     /bin/cp -R "$source_skill" "$destination_skill"
   fi
   printf 'installed (%s): %s\n' "$install_mode" "$destination_skill"
+  record_receipt_action "symlink" "$destination_skill" "$existed" "$backup_skill"
 }
 
 install_target() {
@@ -168,6 +273,8 @@ install_target() {
   fi
   adapter="$(adapter_name "$target")"
 
+  # Core installation does not run skills install if only --index without skills requested,
+  # but standard install installs portable common skills
   for source_skill in "$kit_root"/skills/*; do
     [[ -d "$source_skill" && -f "$source_skill/SKILL.md" ]] || continue
     install_one_skill "$source_skill" "$destination_root" "$adapter"
@@ -181,6 +288,7 @@ install_target() {
   fi
 
   if [[ "$install_rules" == true ]]; then
+    init_receipt
     destination_rule="$(rule_destination "$target")"
     rule_args=(
       --core "$kit_root/rules/core.md"
@@ -188,6 +296,8 @@ install_target() {
       --destination "$destination_rule"
       --backup-dir "$backup_root"
       --label "$adapter"
+      --marker "agent-harness-kit"
+      --receipt-file "$receipt_file"
     )
     if [[ "$dry_run" == true ]]; then
       rule_args+=(--dry-run)
@@ -197,6 +307,59 @@ install_target() {
     fi
     /usr/bin/env python3 "$kit_root/scripts/sync_rules.py" "${rule_args[@]}"
   fi
+
+  if [[ "$install_index" == true ]]; then
+    install_project_index "$target" "$project_path"
+  fi
+}
+
+install_project_index() {
+  local target="$1"
+  local project_dir="$2"
+  local adapter proj_dest_rule
+  adapter="$(adapter_name "$target")"
+
+  case "$adapter" in
+    claude)
+      if [[ -f "${project_dir}/.claude/CLAUDE.md" ]]; then
+        proj_dest_rule="${project_dir}/.claude/CLAUDE.md"
+      elif [[ -f "${project_dir}/CLAUDE.md" ]]; then
+        proj_dest_rule="${project_dir}/CLAUDE.md"
+      else
+        proj_dest_rule="${project_dir}/.claude/CLAUDE.md"
+      fi
+      ;;
+    codex)
+      if [[ -f "${project_dir}/.codex/AGENTS.md" ]]; then
+        proj_dest_rule="${project_dir}/.codex/AGENTS.md"
+      else
+        proj_dest_rule="${project_dir}/AGENTS.md"
+      fi
+      ;;
+    gemini)
+      if [[ -f "${project_dir}/.gemini/GEMINI.md" ]]; then
+        proj_dest_rule="${project_dir}/.gemini/GEMINI.md"
+      else
+        proj_dest_rule="${project_dir}/GEMINI.md"
+      fi
+      ;;
+    *) return 1 ;;
+  esac
+
+  init_receipt
+  rule_args=(
+    --content "$kit_root/profiles/index/workspace.md"
+    --sub-content "$kit_root/profiles/index/api.md,$kit_root/profiles/index/cms.md"
+    --destination "$proj_dest_rule"
+    --backup-dir "$backup_root"
+    --label "${adapter}-index"
+    --marker "agent-harness-kit:index"
+    --receipt-file "$receipt_file"
+  )
+  if [[ "$dry_run" == true ]]; then
+    rule_args+=(--dry-run)
+  fi
+  /usr/bin/env python3 "$kit_root/scripts/sync_rules.py" "${rule_args[@]}"
 }
 
 seen_adapters="," 

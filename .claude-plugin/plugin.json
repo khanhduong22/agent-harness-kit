@@ -1,0 +1,21 @@
+{
+  "name": "agent-harness-kit",
+  "description": "Company-wide engineering harness: core standards, risk-based workflows, project packs, and verified skills.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Kido",
+    "url": "https://github.com/khanhduong22/agent-harness-kit"
+  },
+  "homepage": "https://github.com/khanhduong22/agent-harness-kit",
+  "repository": "https://github.com/khanhduong22/agent-harness-kit",
+  "license": "MIT",
+  "keywords": [
+    "engineering-harness",
+    "skills",
+    "rules",
+    "workflow",
+    "tdd",
+    "openspec"
+  ],
+  "skills": "./skills/"
+}
