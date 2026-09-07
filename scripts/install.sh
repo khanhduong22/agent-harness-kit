@@ -6,6 +6,7 @@ kit_home_root="${AGENT_HARNESS_HOME:-${HOME}}"
 target_csv="all"
 install_mode="symlink"
 install_rules=false
+rules_mode="merge"
 force_conflicts=false
 dry_run=false
 backup_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -19,6 +20,8 @@ Options:
   --targets all|codex,claude,gemini,antigravity
   --mode symlink|copy
   --rules       Merge the managed global-rule block
+  --rules-mode merge|replace
+                Preserve other rule content (merge) or back it up and replace it
   --force       Back up and replace conflicting skill entries
   --dry-run     Print changes without writing
   -h, --help
@@ -38,6 +41,10 @@ while (($#)); do
     --rules)
       install_rules=true
       shift
+      ;;
+    --rules-mode)
+      rules_mode="${2:?--rules-mode requires a value}"
+      shift 2
       ;;
     --force)
       force_conflicts=true
@@ -63,6 +70,14 @@ case "$install_mode" in
   symlink|copy) ;;
   *)
     printf 'Unsupported install mode: %s\n' "$install_mode" >&2
+    exit 2
+    ;;
+esac
+
+case "$rules_mode" in
+  merge|replace) ;;
+  *)
+    printf 'Unsupported rules mode: %s\n' "$rules_mode" >&2
     exit 2
     ;;
 esac
@@ -176,6 +191,9 @@ install_target() {
     )
     if [[ "$dry_run" == true ]]; then
       rule_args+=(--dry-run)
+    fi
+    if [[ "$rules_mode" == "replace" ]]; then
+      rule_args+=(--replace)
     fi
     /usr/bin/env python3 "$kit_root/scripts/sync_rules.py" "${rule_args[@]}"
   fi

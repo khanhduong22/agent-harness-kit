@@ -34,6 +34,11 @@ for rule_file in "$kit_test_home/.codex/AGENTS.md" "$kit_test_home/.claude/CLAUD
   grep -q '^# Existing .* rule$' "$rule_file"
 done
 
+"$kit_root/scripts/install.sh" --targets claude,gemini --rules --rules-mode replace >/dev/null
+! grep -q '^# Existing Claude rule$' "$kit_test_home/.claude/CLAUDE.md"
+! grep -q '^# Existing Gemini rule$' "$kit_test_home/.gemini/GEMINI.md"
+grep -q '^# Existing Codex rule$' "$kit_test_home/.codex/AGENTS.md"
+
 "$kit_root/scripts/install.sh" --targets claude --force >/dev/null
 [[ -L "$kit_test_home/.claude/skills/triage" ]]
 /usr/bin/find "$kit_test_home/.agent-harness-backups" -path '*/claude/triage/local.txt' -type f | grep -q .

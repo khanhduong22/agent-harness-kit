@@ -2,6 +2,12 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.1] - 2026-09-07
+
+### Added
+
+- Explicit `--rules-mode replace` migration path for legacy global rule files, with automatic backup before replacement.
+
 ## [0.1.0] - 2026-09-07
 
 ### Added

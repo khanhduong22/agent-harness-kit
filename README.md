@@ -24,7 +24,7 @@ cd ~/.agent-harness-kit
 ./scripts/install.sh --targets all --rules
 ```
 
-The default mode is `symlink`. Existing files are skipped. Add `--force` to move conflicts into a timestamped backup under `~/.agent-harness-backups/` before replacing them.
+The default mode is `symlink`. Existing files are skipped. Add `--force` to move skill conflicts into a timestamped backup under `~/.agent-harness-backups/` before replacing them. Rule updates always create a backup when the destination already exists.
 
 Useful variants:
 
@@ -37,6 +37,9 @@ Useful variants:
 
 # Preview every change
 ./scripts/install.sh --targets all --rules --dry-run
+
+# Replace a legacy global rule file after backing it up
+./scripts/install.sh --targets claude,gemini --rules --rules-mode replace
 ```
 
 ## Update
@@ -52,7 +55,7 @@ cd ~/.agent-harness-kit
 
 - Existing skill directories are never overwritten silently.
 - `--force` moves conflicts to a backup; it does not delete them.
-- Rules live between `agent-harness-kit` markers and can be updated without replacing unrelated instructions.
+- Rules live between `agent-harness-kit` markers. `--rules-mode merge` preserves unrelated instructions; `replace` backs up and replaces the complete destination file.
 - No credentials, tokens, MCP settings, hook settings, or machine-specific absolute paths are stored here.
 - Run `./scripts/verify.sh` before publishing a change.
 
