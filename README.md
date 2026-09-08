@@ -69,11 +69,23 @@ Reverts the changes made by an installation run using its recorded `receipt.json
 ./scripts/install.sh --targets claude,gemini --rules --rules-mode replace
 ```
 
-## Update
+## Update & Upstream Sync
 
+### Update local harness & rules
 ```bash
 cd ~/.agent-harness-kit
 ./scripts/update.sh --targets all --rules
+```
+
+### Sync skills from upstream repositories
+Inspect or pull latest prompts and skills from upstream repositories (Matt Pocock, Vercel Labs, Google Gemini):
+
+```bash
+# Check if upstreams have updates
+./scripts/sync-upstream.sh --check
+
+# Fetch and apply upstream updates to skills/
+./scripts/sync-upstream.sh --apply
 ```
 
 ## Safety & Autonomy Model
