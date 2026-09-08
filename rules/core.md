@@ -90,10 +90,18 @@ Whenever any task touches:
 CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
 ================================================================================
 
-## 5. Parallel Change Isolation
-- Before starting or continuing an OpenSpec/code change, inspect whether the current worktree already owns a different active change.
-- Independent changes MUST use their own branch and a managed worktree under `~/.agent-worktrees/<repo>/<branch-slug>`.
-- Dependent changes MUST use a stacked branch or wait for prerequisite merge. Never mix two independent changes into one worktree, commit, or PR.
+## 5. Parallel Change Isolation & Multi-Agent Worktree Orchestration (subagent-worktree-orchestrator)
+- **Parallel Worktree Isolation**:
+  - Before starting or continuing an OpenSpec/code change, inspect whether the current worktree already owns a different active change.
+  - Independent changes MUST use their own branch and a managed worktree under `~/.agent-worktrees/<repo>/<branch-slug>`.
+  - Dependent changes MUST use a stacked branch or wait for prerequisite merge. Never mix two independent changes into one worktree, commit, or PR.
+- **Multi-Agent Cross-Worktree Delegation (`subagent-worktree-orchestrator`)**:
+  - When a task spans multiple services (e.g. Backend in `index-api` + Frontend in `index-admin-cms`), the Master Agent is authorized to orchestrate headless sub-agents (`agy -p` or `claude -p`) running concurrently in their respective isolated worktrees.
+  - **Durable Context Bridges**: Never rely on volatile chat memory when delegating across agents. Pass context through:
+    1. *Briefing Spec Pointer*: Directing the sub-agent to exact OpenSpec artifacts (`proposal.md`, `design.md`, `tasks.md`, Gherkin delta specs).
+    2. *Durable Disk State*: Schemas, DTOs, code, and test suites living in the isolated worktrees.
+    3. *Structured Return Payload*: Capturing stdout/test evidence back into the Master session for contract verification.
+  - **Cross-Verification & Unified Delivery**: The Master Agent must cross-verify contract parity across worktrees and report only the final unified delivery result to the user.
 
 ## 6. Code Quality, Scope Integrity & Evidence Gate
 - **Evidence Before Assertions**: Never claim a task is fixed or complete without running runtime verification commands (`bun test`, `npm test`, `jest`, `bun run lint`) and showing real passing results in output.
