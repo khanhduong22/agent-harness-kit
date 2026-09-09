@@ -4,7 +4,7 @@ One versioned source of truth for company-wide AI agent standards, risk-based wo
 
 The repository contains:
 - **Company Core (`rules/core.md`)**: Shared mindset (7-Rung ladder), strict autonomy boundaries, and tiered risk-based workflow routing (Bugfix vs Feature/Module vs Maintenance with risk-based gates).
-- **Portable Skills (`skills/`)**: 67 modular skills plus Claude-specific SDLC command overlays.
+- **Portable Skills (`skills/`)**: 69 modular skills plus Claude-specific SDLC command overlays.
 - **Native Harness Manifests & Marketplaces**: Standards-compliant manifests and marketplace catalogs for Claude Code (`.claude-plugin/`), OpenAI Codex & Agent tools (`.codex-plugin/`, `.agents/plugins/marketplace.json`).
 - **Idempotent Installer & Rollback**: Safe installation, project-level pack injection without global pollution, conflict backups, and atomic receipt-based rollback (`receipt.json`).
 
