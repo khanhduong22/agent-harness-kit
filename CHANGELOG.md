@@ -2,6 +2,13 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.2] - 2026-09-09
+
+### Added
+
+- `playwright-e2e-testing`: Full lifecycle E2E browser testing workflow with Playwright, form validation guardrails, video recording, Google Drive upload via rclone, and instant Slack notifications.
+- `subagent-worktree-orchestrator`: Multi-agent cross-worktree orchestration rule and delegation skill for headless agents.
+
 ## [0.1.1] - 2026-09-07
 
 ### Added
