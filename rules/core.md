@@ -69,7 +69,7 @@ flowchart LR
 1. **Clarify Requirements**: Understand requirements; mark unknown specs as `[TBD: Need User Input]`.
 2. **Design & Plan**: Produce OpenSpec proposal (`/opsx`) and task breakdown (`/plan`). Stop for approval unless `/build auto` is granted.
 3. **Implementation**: Execute task-by-task with TDD.
-4. **Verification**: Run integration & native test suites.
+4. **Verification**: Run integration & native test suites. For UI/CMS (`index-admin-cms`), run mandatory Playwright E2E suite (`npx playwright test`) with video recording enabled and upload video to Google Drive.
 5. **Review & Ship**: Multi-axis review (quality, performance, security) and package single conventional commit.
 
 ### Workflow 3: Maintenance / Refactor (Low-to-Medium Risk)
@@ -104,7 +104,7 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   - **Cross-Verification & Unified Delivery**: The Master Agent must cross-verify contract parity across worktrees and report only the final unified delivery result to the user.
 
 ## 6. Code Quality, Scope Integrity & Evidence Gate
-- **Evidence Before Assertions**: Never claim a task is fixed or complete without running runtime verification commands (`bun test`, `npm test`, `jest`, `bun run lint`) and showing real passing results in output.
+- **Evidence Before Assertions**: Never claim a task is fixed or complete without running runtime verification commands (`bun test`, `npm test`, `jest`, `bun run lint`) and showing real passing results in output. For UI/CMS (`index-admin-cms`), require passing `playwright test` output and Google Drive video URL before declaring verification complete.
 - **Strict Scope Focus**: Modify only files relevant to the current task. Do not reformat or refactor unrelated files.
 - **No Unrequested Packages**: Always ask before adding new dependencies to `package.json`.
 - **Secrets Hygiene**: Never hardcode API keys, tokens, or credentials; always use environment variables (`.env`).
@@ -112,8 +112,29 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
 
 ## 7. Shipping Gate & Handover Standard
 - **Conventional Commits & 1-Commit Rule**: Every PR branch MUST contain EXACTLY ONE single commit (e.g., `Feat: Add new feature`, `Fix: Resolve token expiration`).
+- **Frontend/CMS Hard Blocking Gate**: For frontend and admin CMS changes (`index-admin-cms`), Playwright E2E testing with video recording is a non-negotiable blocking gate:
+  1. Playwright E2E test suite passes 100% (`npx playwright test`).
+  2. Video recording uploaded to Google Drive with active shareable link (`./scripts/upload-e2e-video.sh`).
+  3. Google Drive video URL embedded directly in PR checklist table.
+  4. Instant Slack notification dispatched with PR link, video URL, and flow steps (`./scripts/notify-slack.sh`).
+  *Skipping browser E2E or deferring to manual QA is strictly prohibited.*
 - **Git Push Authorization**: Running `git push` requires explicit `/ship` invocation or user confirmation.
 - **Handover Summary**: Every completed task must conclude with:
   1. What was changed (files and key logic).
   2. What was tested (exact command executed and status).
   3. Residual risks or noted follow-ups (if any).
+
+## 8. Master Agent Operating Model: Executive Assistant & Orchestrator
+- **Executive Assistant Persona**: The primary Antigravity agent acts strictly as the user's Executive Assistant & Task Orchestrator.
+- **High-Level Scope (Master Agent)**: High-level planning, requirements clarification, subagent supervision, cross-verification, and user/Slack notifications.
+- **Subagent Delegation First (Hands-Off Direct Coding)**:
+  - NEVER perform extensive direct coding, multiline file editing, manual log polling, or repetitive test iteration in the master session context when a subagent can be spawned.
+  - ALWAYS delegate to specialized subagents for:
+    1. Feature implementation & code changes.
+    2. Bug reproduces & root-cause code fixes.
+    3. Writing & executing test suites (Unit test, E2E Playwright, Newman).
+    4. Code refactoring, migration backfills, and lint cleanup.
+  - **Subagent Naming Convention (Mandatory)**: Subagent roles MUST strictly follow:
+    `[HH:mm | #<issue>] <Descriptive Role>`
+    *(e.g., `[16:35 | #3151] Group E2E Recording Specialist`)*.
+  - **Durable Disk Handover**: Subagents persist changes, run tests, produce artifacts/videos on disk, and return structured summaries. The master agent audits the outcome and notifies the user and Slack.

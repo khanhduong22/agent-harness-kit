@@ -11,7 +11,8 @@ Whenever the user invokes `/ship` or requests shipping a feature/task, follow th
 
 1. **Execute Pre-Ship Mandatory Checklist**:
    - Run unit tests: `bun test src/<module>`
-   - Run Postman E2E tests: `bun run test:postman`
+   - Run Postman E2E tests: `bun run test:postman` (for API services)
+   - Run Playwright E2E tests & record video: `npx playwright test` + `./scripts/upload-e2e-video.sh` (mandatory for `index-admin-cms`)
    - Run linter & code simplification check: `bun run build`
 
 2. **Git Commit & Push**:
@@ -26,7 +27,10 @@ Whenever the user invokes `/ship` or requests shipping a feature/task, follow th
    The PR body must contain:
    - **Summary & Motivation**: High-level problem statement and solution.
    - **Key Changes Breakdown**: Detailed bullet points of endpoints, database migrations, security fixes, and refactorings.
-   - **Pre-Ship Mandatory Checklist Table**: 4-step verification table showing passing results for Unit Tests, Postman E2E, Code Simplification, and Build.
+   - **Pre-Ship Mandatory Checklist Table**: Verification table showing passing results for Unit Tests, API/Browser E2E, Code Simplification, Build, and Google Drive Video URL (mandatory for UI/CMS).
 
 5. **Output Direct PR Link**:
    - Display the GitHub Pull Request URL directly to the user.
+
+6. **Slack Handover Notification**:
+   - For UI/CMS tasks, invoke `./scripts/notify-slack.sh` with the PR link, Google Drive video recording link, and key flow steps.
