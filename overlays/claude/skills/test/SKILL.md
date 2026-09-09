@@ -19,7 +19,7 @@ Check the target repo for what's actually available, don't assume a fixed toolch
 2. Typecheck — `tsc --noEmit` for TypeScript repos, or the language's equivalent.
 3. Build — the project's build script, to catch anything a typecheck alone misses (e.g. `nest build`, `next build`).
 4. If the repo has a combined pre-ship script (e.g. `verify-all.ts`, `verify:all`), that's the authoritative gate list — check what it actually runs and whether any step is marked skippable/optional versus a hard blocker, and report which is which rather than treating "the script exited 0" as the whole story if some steps silently downgrade failures to warnings.
-5. e2e/API suites (Postman/Newman, Cypress, Playwright) — these usually need a live server + database. Check what's already running (`lsof`, `docker ps`) before spinning up new infrastructure; prefer reusing an already-running dev DB over starting a fresh stack.
+5. e2e/API suites (Postman/Newman, Cypress, Playwright) — these usually need a live server + database. Check what's already running (`lsof`, `docker ps`) before spinning up new infrastructure; prefer reusing an already-running dev DB over starting a fresh stack. For `index-admin-cms` (UI/CMS), `npx playwright test` with video recording enabled is a mandatory blocking gate — run headless Playwright tests with video on and verify 100% pass before proceeding.
 
 ## Investigating failures
 

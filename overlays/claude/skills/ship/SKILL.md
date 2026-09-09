@@ -32,6 +32,8 @@ If this task is a genuine continuation of an already-open PR's objective (not a 
 
 Don't report a gate as passed without having run it this turn. If the repo has a combined verify script, run it (or its constituent steps if running the whole thing needs infra not available here — say explicitly what was skipped and why, e.g. "e2e needs a live server; started one and ran it" versus "e2e needs a live server that isn't available, skipped"). Distinguish pre-existing/unrelated failures from ones this change introduced — see the `test` skill for how.
 
+For UI/CMS changes (`index-admin-cms`), skipping browser E2E testing or leaving unchecked manual QA items in the PR description is strictly prohibited. The full Playwright E2E suite (`npx playwright test`) must pass with video recording enabled.
+
 If a gate genuinely can't run in this environment (missing external service, no docker, etc.), say so plainly rather than silently marking it done, and let the user decide whether to accept partial verification or provide the missing piece.
 
 ## 5. Archive the OpenSpec change (if one was used)
@@ -40,7 +42,7 @@ If a gate genuinely can't run in this environment (missing external service, no 
 
 ## 6. Commit, push, PR
 
-Apply the commit convention from step 2, push (`--force-with-lease`, never bare `--force`, when updating an existing branch — this fails safely if someone else pushed in the meantime instead of silently clobbering it), and create or update the PR with a summary (what changed, why) and a test-plan checklist reflecting what was actually verified in step 4, including any known pre-existing issues found along the way that are out of scope for this PR.
+Apply the commit convention from step 2, push (`--force-with-lease`, never bare `--force`, when updating an existing branch — this fails safely if someone else pushed in the meantime instead of silently clobbering it), and create or update the PR with a summary (what changed, why) and a test-plan checklist reflecting what was actually verified in step 4, including any known pre-existing issues found along the way that are out of scope for this PR. For UI/CMS (`index-admin-cms`), the PR test checklist table MUST include the Google Drive video URL, and you must invoke `./scripts/notify-slack.sh` with the video link and flow steps.
 
 ## 7. Never take these actions without the user's go-ahead in this conversation
 
