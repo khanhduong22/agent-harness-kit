@@ -135,6 +135,6 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
     3. Writing & executing test suites (Unit test, E2E Playwright, Newman).
     4. Code refactoring, migration backfills, and lint cleanup.
   - **Subagent Naming Convention (Mandatory)**: Subagent roles MUST strictly follow:
-    `[HH:mm | #<issue>] <Descriptive Role>`
-    *(e.g., `[16:35 | #3151] Group E2E Recording Specialist`)*.
+    `[YYYY-MM-DD HH:mm | #<issue>] <Descriptive Role>`
+    *(e.g., `[2026-09-10 16:35 | #3151] Group E2E Recording Specialist`)*.
   - **Durable Disk Handover**: Subagents persist changes, run tests, produce artifacts/videos on disk, and return structured summaries. The master agent audits the outcome and notifies the user and Slack.
