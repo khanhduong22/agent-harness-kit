@@ -18,7 +18,7 @@ Adheres strictly to the **Modular Page Object Model (POM)** pattern, multi-proje
 flowchart TD
     subgraph ConfigAuth["Cấu Hình & Khởi Tạo Phiên (Config & StorageState)"]
         direction TB
-        Config["playwright.config.ts<br/>(1440x900, Video On, StorageState)"] --> Setup["e2e/setup/auth.setup.ts<br/>(One-Time Admin Login)"]
+        Config["playwright.config.ts<br/>(1800x1200, Video On, StorageState)"] --> Setup["e2e/setup/auth.setup.ts<br/>(One-Time Admin Login)"]
         Setup --> SessionFile["e2e/.auth/admin.json<br/>(Persisted Session State)"]
     end
 
@@ -144,7 +144,7 @@ e2e/
 
 ### 4.1. Playwright Multi-Project Configuration (`playwright.config.ts`)
 
-Configures dependency chaining (`setup` -> `e2e-authenticated`), mandatory 1440x900 viewport, and always-on video recording:
+Configures dependency chaining (`setup` -> `e2e-authenticated`), mandatory 1800x1200 viewport (MacBook M4 high-DPI ratio), and always-on video recording:
 
 ```typescript
 import { defineConfig, devices } from '@playwright/test';
@@ -161,10 +161,10 @@ export default defineConfig({
   outputDir: '/tmp/playwright-cms-results/',
   use: {
     baseURL: process.env.CMS_BASE_URL || 'http://127.0.0.1:1337',
-    viewport: { width: 1440, height: 900 },
+    viewport: { width: 1800, height: 1200 },
     video: {
       mode: 'on',
-      size: { width: 1440, height: 900 },
+      size: { width: 1800, height: 1200 },
     },
     screenshot: 'on',
     trace: 'retain-on-failure',
@@ -182,7 +182,7 @@ export default defineConfig({
       testDir: './e2e/specs/auth',
       use: {
         ...devices['Desktop Chrome'],
-        viewport: { width: 1440, height: 900 },
+        viewport: { width: 1800, height: 1200 },
       },
     },
     // 3. Authenticated Business Flows: Reuses session saved by setup
@@ -194,7 +194,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         storageState: STORAGE_STATE_PATH,
-        viewport: { width: 1440, height: 900 },
+        viewport: { width: 1800, height: 1200 },
       },
     },
   ],
@@ -724,7 +724,150 @@ test.describe('Community Group Management - Full 5-Phase CRUD Lifecycle', () => 
 
 ---
 
-## 5. Best Practices & Modal Scoping Rules
+## 5. The Exhaustive Option Matrix Standard (Zero-Skipped-Option Rule)
+
+### 5.1. Rationale & Production Failure Mode
+In real-world feature testing (e.g., User Role change, Group Privacy, Article Status, Ban Duration), automated tests frequently test only a convenient subset (e.g., 2 out of 3 roles such as testing only `ADMIN` and `MEMBER`, while skipping `COMMUNITY_MODERATOR`).
+
+This creates a critical production failure mode:
+- **Serialization & Schema Mismatches**: Untested enum values may fail serialization or deserialization between Strapi CMS plugins, NestJS API gateways, and PostgreSQL enum types.
+- **UI Rendering Crashes**: UI components (status badges, color codes, custom icons, or role-gated action buttons) tied to unverified options may throw runtime errors or render undefined styles.
+- **Silent Logic Bugs**: Transition guards and permission filters might work for common roles but break on intermediate roles like `COMMUNITY_MODERATOR`.
+- **Production Outages**: When an administrator or end-user in production selects the untested enum value, the feature fails or crashes in production.
+
+### 5.2. The Zero-Skipped-Option Rule
+> [!IMPORTANT]
+> **Zero-Skipped-Option Rule**: For **ANY** enum, select dropdown, radio group, segmented button, or multi-option state machine (e.g., Roles, Statuses, Privacies, Durations, Categories, Channels, Access Levels):
+> - **Every single option ($N$ out of $N$, 100%) MUST be explicitly tested and asserted against both UI and backend state.**
+> - **Testing a subset (e.g., 2 out of 3, or $N - 1$ out of $N$ options) is STRICTLY PROHIBITED.**
+> - Each option verification MUST assert:
+>   1. **DOM Availability**: The option is present, clickable, and correctly labeled in the dropdown or radio group.
+>   2. **Network Mutation Payload**: The outbound API request payload contains the exact expected enum value.
+>   3. **Server Response**: The server responds with success (HTTP 200/201) and returns the updated entity with that enum value.
+>   4. **UI State Reflection**: The UI updates immediately to reflect the new state (e.g., updated table badge, status tag, or active radio state).
+>   5. **Database Persistence**: Reloading the page (`page.reload()`) verifies that the state persists accurately in the database.
+
+### 5.3. Concrete Examples & Verification Patterns
+
+#### Pattern A: Sequential Transition Loop (Full Role Matrix)
+When testing a stateful entity where an option can be updated across its entire lifecycle (e.g., Community User Role: `ADMIN` -> `MODERATOR` -> `MEMBER`), iterate through the full enum array sequentially:
+
+```typescript
+// Define exhaustive enum matrix with expected UI labels and badge classes
+export const COMMUNITY_USER_ROLES = [
+  { value: 'COMMUNITY_ADMIN', label: 'Quản trị viên', badgeClass: 'badge-admin' },
+  { value: 'COMMUNITY_MODERATOR', label: 'Kiểm duyệt viên', badgeClass: 'badge-moderator' },
+  { value: 'COMMUNITY_MEMBER', label: 'Thành viên', badgeClass: 'badge-member' },
+] as const;
+
+test('verifies 100% exhaustive role transitions with zero skipped options', async ({
+  userListPage,
+  userModalsPage,
+  page,
+}) => {
+  await userListPage.navigate();
+  const targetUserEmail = 'user-role-matrix-test@index.vn';
+
+  // ❌ STRICTLY PROHIBITED: Testing only ADMIN -> MEMBER and skipping COMMUNITY_MODERATOR
+  // ✅ MANDATORY STANDARD: Iterate through ALL 3 roles without skipping any option
+  for (const role of COMMUNITY_USER_ROLES) {
+    // 1. Open role modal and select role
+    await userListPage.openChangeRoleModal(targetUserEmail);
+    await userModalsPage.selectRole(role.value);
+
+    // 2. Intercept API response to verify backend enum acceptance
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        res => res.url().includes('/api/community/users') && res.request().method() === 'PUT' && res.status() === 200
+      ),
+      userModalsPage.submitRoleChange(),
+    ]);
+
+    const body = await response.json();
+    expect(body.data.role).toBe(role.value);
+
+    // 3. Assert success toast and immediate UI badge update
+    await userListPage.expectToast(/cập nhật vai trò thành công/i);
+    await userListPage.expectUserRoleBadge(targetUserEmail, role.label);
+
+    // 4. Persistence verification: reload page and ensure state remains in database
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await userListPage.expectUserRoleBadge(targetUserEmail, role.label);
+    await userListPage.recordPause(800);
+  }
+});
+```
+
+#### Pattern B: Parametrized Creation Matrix (Full Variant Coverage)
+When entities are created with distinct enum options (e.g., Group Privacy: `PUBLIC`, `PRIVATE`, `RESTRICTED`), write a parametrized test matrix ensuring 100% of options are covered during creation:
+
+```typescript
+export const GROUP_PRIVACY_VARIANTS = [
+  { value: 'PUBLIC', label: 'Công khai', description: 'Ai cũng có thể xem và tham gia' },
+  { value: 'PRIVATE', label: 'Riêng tư', description: 'Cần phê duyệt để tham gia' },
+  { value: 'RESTRICTED', label: 'Hạn chế', description: 'Chỉ thành viên được mời' },
+] as const;
+
+// Parametrized spec: 100% coverage of all privacy variants (Zero Skipped Options)
+for (const variant of GROUP_PRIVACY_VARIANTS) {
+  test(`creates group with privacy variant: ${variant.value}`, async ({
+    groupListPage,
+    groupModalPage,
+    page,
+  }) => {
+    const groupName = `E2E ${variant.value} Group ${Date.now()}`;
+    await groupListPage.navigate();
+    await groupListPage.clickCreateGroup();
+
+    await groupModalPage.fillForm({
+      name: groupName,
+      privacy: variant.value,
+      description: `E2E automated test for ${variant.value} privacy option`,
+    });
+
+    // Intercept creation API call
+    const [response] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/community/groups') && res.status() === 201),
+      groupModalPage.submit(),
+    ]);
+    const body = await response.json();
+    expect(body.data.privacy).toBe(variant.value);
+
+    // Verify UI reflects privacy badge accurately
+    await groupListPage.expectToast(/tạo nhóm thành công/i);
+    await groupListPage.searchGroup(groupName);
+    await groupListPage.expectGroupPrivacyBadge(groupName, variant.label);
+  });
+}
+```
+
+#### Pattern C: DOM Completeness Assertion for Dropdown / Radio Options
+Before interacting with any enum-driven select dropdown or radio group, assert that the DOM lists every single defined option:
+
+```typescript
+/**
+ * Asserts that a select dropdown contains 100% of defined enum options
+ */
+async expectExhaustiveEnumOptionsInDropdown(
+  triggerLocator: Locator,
+  expectedOptions: Array<{ value: string; label: string }>
+): Promise<void> {
+  await triggerLocator.click();
+  const optionLocators = this.page.getByRole('option');
+
+  // 1. Assert option count strictly matches enum definition count
+  await expect(optionLocators).toHaveCount(expectedOptions.length);
+
+  // 2. Assert every single enum option label is visible in DOM
+  for (const opt of expectedOptions) {
+    await expect(optionLocators.filter({ hasText: opt.label })).toBeVisible();
+  }
+}
+```
+
+---
+
+## 6. Best Practices & Modal Scoping Rules
 
 1. **Accessible Role Selectors**:
    - Prefer `page.getByRole('button', { name: '...' })` over loose text or CSS selectors.
@@ -738,7 +881,7 @@ test.describe('Community Group Management - Full 5-Phase CRUD Lifecycle', () => 
 
 ---
 
-## 6. Automated Cloud Reporting Workflow
+## 7. Automated Cloud Reporting Workflow
 
 ### 1. Upload Video to Google Drive
 ```bash
@@ -760,13 +903,14 @@ test.describe('Community Group Management - Full 5-Phase CRUD Lifecycle', () => 
 
 ---
 
-## 7. Verification Checklist Before Handover
+## 8. Verification Checklist Before Handover
 
 - [ ] Playwright test suite passes 100% (`npx playwright test`).
 - [ ] Multi-project setup executed: `setup` generates `.auth/admin.json` and `e2e-authenticated` reuses it.
 - [ ] All specs consume POMs via `fixtures/index.ts` without raw CSS selectors.
+- [ ] Exhaustive Option Matrix verified: 100% of all options in any enum, select dropdown, or radio group are explicitly tested (Zero-Skipped-Option Rule).
 - [ ] For file/data exports: UTF-8 BOM encoding verified and on-screen preview modal rendered for >= 4s.
 - [ ] Deliberate pauses (`recordPause(1500)`) placed between critical UI transitions for video readability.
-- [ ] Video recording generated in output directory at 1440x900 resolution.
+- [ ] Video recording generated in output directory at 1800x1200 resolution (MacBook M4 high-DPI ratio).
 - [ ] Video uploaded to Google Drive with active public shareable link.
 - [ ] Slack webhook notified with issue info, direct PR link, video URL, and step breakdown.
