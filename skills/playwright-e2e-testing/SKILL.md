@@ -3,28 +3,134 @@ name: playwright-e2e-testing
 description: Complete end-to-end (E2E) testing workflow with Playwright, including headless browser test execution, form validation guardrails, full CRUD lifecycle, video recording, automatic Google Drive upload via rclone, and instant Slack notifications.
 ---
 
-# Skill: Playwright E2E Testing & Cloud Video Verification
+# Skill: Playwright E2E Testing & Modular Page Object Model (POM) Architecture
 
 ## Purpose
-Automate high-confidence, full-lifecycle browser testing with Playwright, complete with video recording and cloud reporting. Ensures every feature is rigorously verified against runtime UI/DOM, validation guardrails, and persistent database state before human review.
+Automate high-confidence, full-lifecycle browser testing with Playwright, complete with video recording and cloud reporting. Ensures every administrative and client feature is rigorously verified against runtime UI/DOM, validation guardrails, and persistent database state before human review.
+
+Adheres strictly to the **Modular Page Object Model (POM)** pattern, multi-project authentication caching, custom test fixtures, domain-driven spec hierarchy, and visual proof generation.
+
+---
+
+## 1. Architectural Diagram (Mermaid)
 
 ```mermaid
-flowchart LR
-    A[Playwright E2E Spec] --> B[Phase 1: Form Validation Guardrail]
-    B --> C[Phase 2: CRUD Happy Path]
-    C --> D[Phase 3: Database F5 Persistence]
-    D --> E[Record Video & Screenshots]
-    E --> F[Auto Upload to Google Drive]
-    F --> G[Instant Slack Webhook Notification]
+flowchart TD
+    subgraph ConfigAuth["Cấu Hình & Khởi Tạo Phiên (Config & StorageState)"]
+        direction TB
+        Config["playwright.config.ts<br/>(1440x900, Video On, StorageState)"] --> Setup["e2e/setup/auth.setup.ts<br/>(One-Time Admin Login)"]
+        Setup --> SessionFile["e2e/.auth/admin.json<br/>(Persisted Session State)"]
+    end
+
+    subgraph FixtureLayer["Tầng Fixtures (Test Fixtures)"]
+        Fixtures["e2e/fixtures/index.ts<br/>(Auto-injecting POMs with Preloaded Session)"]
+    end
+
+    subgraph Layer1["Tầng 1: Kịch Bản Nghiệp Vụ (Declarative Specs)"]
+        direction TB
+        SpecAuth["e2e/specs/auth/"]
+        SpecGroups["e2e/specs/community/groups/"]
+        SpecUsers["e2e/specs/community/users/"]
+        SpecContent["e2e/specs/content/"]
+    end
+
+    subgraph Layer2["Tầng 2: Page Object Models (Encapsulated Selectors & Actions)"]
+        direction TB
+        BasePage["BasePage<br/>(Navigation, Toast, AlertDialog, recordPause)"]
+        POMs["LoginPage<br/>GroupListPage | GroupDetailPage | GroupModalPage<br/>UserListPage | UserModalsPage<br/>Top10ArticlesPage"]
+        BasePage --> POMs
+    end
+
+    subgraph Layer3["Tầng 3: Tiện Ích & Bằng Chứng (Visual & Audit Helpers)"]
+        direction TB
+        UtilCSV["utils/csv-preview.ts<br/>(BOM check + Canvas preview)"]
+        UtilVideo["utils/video-helper.ts<br/>(recordPause 1.5s)"]
+        UtilSelectors["utils/selectors.ts<br/>(Accessible Locators & Regex)"]
+    end
+
+    subgraph Delivery["Tầng Xuất Bản & Báo Cáo (Output & Delivery)"]
+        direction TB
+        Artifacts["Test Artifacts<br/>(.webm video + trace.zip)"] --> UploadScript["./scripts/upload-e2e-video.sh<br/>(rclone to Cloud Storage)"]
+        UploadScript --> GDrive["Google Drive<br/>(Public Shareable Link)"]
+        GDrive --> SlackNotify["./scripts/notify-slack.sh<br/>(Slack PR Handover Notification)"]
+    end
+
+    SessionFile --> Fixtures
+    Config --> Layer1
+    Fixtures --> Layer1
+    Layer1 --> Layer2
+    Layer2 --> Layer3
+    Layer1 --> Artifacts
 ```
 
-## Testing Philosophy: 3-Layer Testing Pyramid
+---
+
+## 2. Enterprise Folder Structure
+
+Playwright test suites must follow this modular, domain-driven hierarchy:
+
+```text
+e2e/
+├── .auth/                          # [Gitignored] Session state (admin.json)
+├── setup/                          # Global setup (auth.setup.ts)
+├── fixtures/                       # Custom fixtures (index.ts, mock-api.ts)
+├── pages/                          # POMs (base.page.ts, auth/, community/, content/)
+├── specs/                          # Domain-driven specs (auth/, community/, content/)
+└── utils/                          # Video pause, CSV preview, selectors
+```
+
+### Detailed Monorepo Directory Breakdown
+
+```text
+e2e/
+├── .auth/                                  # Cached browser contexts (MUST be in .gitignore)
+│   └── admin.json                          # Saved cookies, localStorage & session tokens
+├── setup/                                  # Global one-time preparation projects
+│   └── auth.setup.ts                       # Login once and generate storageState
+├── fixtures/                               # Custom test runner extensions
+│   ├── index.ts                            # test.extend injecting typed Page Objects
+│   └── mock-api.ts                         # Network request mock & intercept helpers
+├── pages/                                  # Modular Page Object Models (Encapsulated UI)
+│   ├── base.page.ts                        # Abstract base (toasts, alerts, pauses, goto)
+│   ├── auth/
+│   │   └── login.page.ts                   # Login form fields and submit actions
+│   ├── community/
+│   │   ├── groups/
+│   │   │   ├── group-list.page.ts          # Group table, filters, search, export button
+│   │   │   ├── group-detail.page.ts        # Member list, roles, join requests
+│   │   │   └── group-modal.page.ts         # Create/Edit modal inputs & inline errors
+│   │   └── users/
+│   │       ├── user-list.page.ts           # Community users table & moderation filters
+│   │       └── user-modals.page.ts         # Ban, mute, and role assignment dialogs
+│   └── content/
+│       └── top-10-articles.page.ts         # Top 10 articles reorder, preview & publish
+├── specs/                                  # Declarative domain test specifications
+│   ├── auth/
+│   │   └── admin-login.spec.ts             # Unauthenticated login tests & validation
+│   ├── community/
+│   │   ├── groups/
+│   │   │   ├── group-crud.spec.ts          # 5-phase CRUD & persistence lifecycle
+│   │   │   ├── group-analytics-export.spec.ts # CSV export & UTF-8 BOM verification
+│   │   │   └── group-member-roles.spec.ts  # Member role transitions & permissions
+│   │   └── users/
+│   │       └── user-moderation.spec.ts     # User moderation, ban & role matrix
+│   └── content/
+│       └── top-10-articles.spec.ts         # Top 10 article curation flow
+└── utils/                                  # Visual proof & audit helpers
+    ├── csv-preview.ts                      # UTF-8 BOM check & in-browser canvas modal preview
+    ├── video-helper.ts                     # recordPause for legible video recording
+    └── selectors.ts                        # Accessible locator helpers and common regex
+```
+
+---
+
+## 3. Testing Philosophy: 3-Layer Testing Pyramid
 
 1. **Layer 1: Smoke & Navigation Test**:
    - Verify page loads, navigation links, and SideNav active item highlights.
 2. **Layer 2: Full Lifecycle Functional CRUD (The Core Scenario)**:
    - **Phase 1: Form Validation Guardrails**: Submit empty form, assert inline error text/borders, verify ZERO network requests sent to backend.
-   - **Phase 2: Create (Happy Path)**: Fill valid inputs, submit, assert modal closes and new item appears on UI.
+   - **Phase 2: Create (Happy Path)**: Fill valid inputs, submit, assert modal closes, toast appears, and new item displays on UI.
    - **Phase 3: Update**: Open edit modal with prefilled data, edit fields, save, assert UI updates immediately.
    - **Phase 4: Delete**: Trigger removal, assert confirmation modal (`alertdialog`), confirm deletion, assert item disappears from UI.
    - **Phase 5: Persistence Verification**: Full page reload (`F5`), navigate back, assert database persisted correct state and deleted item is gone.
@@ -32,76 +138,321 @@ flowchart LR
    - Reuse Layer 2 core scenario with parametrized Playwright `storageState` files (`admin.json`, `moderator.json`, `viewer.json`).
    - Assert actions (Add, Edit, Delete) are disabled or hidden for unauthorized roles.
 
-## Configuration Standard (`playwright.config.ts`)
+---
 
-Always configure Playwright with video recording and sufficient timeouts:
+## 4. Code Implementation Patterns & Boilerplates
+
+### 4.1. Playwright Multi-Project Configuration (`playwright.config.ts`)
+
+Configures dependency chaining (`setup` -> `e2e-authenticated`), mandatory 1440x900 viewport, and always-on video recording:
 
 ```typescript
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
+
+const STORAGE_STATE_PATH = path.resolve(__dirname, 'e2e/.auth/admin.json');
 
 export default defineConfig({
-  testDir: './e2e',
-  timeout: 60000, // 60s for full multi-step flows
-  fullyParallel: false,
+  testDir: './e2e/specs',
+  timeout: 60000, // 60s timeout for complete multi-phase CRUD scenarios
+  fullyParallel: false, // Serial execution to prevent state collisions in shared DB
   retries: 0,
+  workers: 1, // Single worker keeps database mutations deterministic
+  outputDir: '/tmp/playwright-cms-results/',
   use: {
     baseURL: process.env.CMS_BASE_URL || 'http://127.0.0.1:1337',
+    viewport: { width: 1440, height: 900 },
     video: {
       mode: 'on',
-      size: { width: 1280, height: 720 },
+      size: { width: 1440, height: 900 },
     },
     screenshot: 'on',
     trace: 'retain-on-failure',
-    viewport: { width: 1280, height: 720 },
   },
-  outputDir: '/tmp/playwright-cms-results/',
+  projects: [
+    // 1. One-time Setup: Authenticates and saves storage state
+    {
+      name: 'setup',
+      testDir: './e2e/setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+    // 2. Unauthenticated Specs (e.g. Login failures, public routes)
+    {
+      name: 'auth-specs',
+      testDir: './e2e/specs/auth',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1440, height: 900 },
+      },
+    },
+    // 3. Authenticated Business Flows: Reuses session saved by setup
+    {
+      name: 'e2e-authenticated',
+      testDir: './e2e/specs',
+      testIgnore: ['**/specs/auth/**'],
+      dependencies: ['setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: STORAGE_STATE_PATH,
+        viewport: { width: 1440, height: 900 },
+      },
+    },
+  ],
 });
 ```
 
-## Best Practices & Lessons Learned
+---
 
-1. **Accessible Role Selectors**:
-   - Prefer `page.getByRole('button', { name: '...' })` over loose text or CSS selectors.
-   - For confirmation popups/dialogs, use `page.getByRole('alertdialog').getByRole('button', { name: '...' })`.
-2. **Handle Dynamic Content & Modals**:
-   - Scope buttons inside modals using `page.getByRole('dialog')` or `page.getByRole('alertdialog')` to prevent Playwright `strict mode violation` errors when multiple buttons share similar labels.
-3. **Explicit Timeout**:
-   - Always set `test.setTimeout(60000);` inside the test function when testing complete CRUD cycles.
+### 4.2. One-Time Global Authentication Setup (`e2e/setup/auth.setup.ts`)
 
-## File Download & CSV Visual Verification Pattern (Headless Playwright)
-
-Because headless browser execution only captures the browser viewport/DOM and cannot capture OS desktop applications (such as Microsoft Excel or Apple Numbers), tests verifying file exports MUST:
-1. **Intercept download** via `page.waitForEvent('download')`.
-2. **Verify file encoding**: Inspect the first 3 bytes to confirm UTF-8 BOM (`0xEF, 0xBB, 0xBF`) for Vietnamese characters compatibility in Microsoft Excel.
-3. **Inject on-screen visual modal preview** via `page.evaluate(...)` rendering the parsed table with Vietnamese headers directly into the browser canvas.
-4. **Pause for at least 3-4 seconds** (`await page.waitForTimeout(4000);`) so the video recording clearly captures the full table.
-
-### Ready-to-Use CSV Download & Visual Modal Snippet
+Performs a single administrative login and dumps browser cookies and localStorage into `admin.json`:
 
 ```typescript
-// 1. Intercept download via page.waitForEvent('download')
-const downloadPromise = page.waitForEvent('download');
-await exportBtn.click();
-const download = await downloadPromise;
+import { test as setup, expect } from '@playwright/test';
+import path from 'node:path';
+import fs from 'node:fs';
 
-// Verify suggested filename format
-const suggestedFilename = download.suggestedFilename();
-expect(suggestedFilename).toMatch(/^community-groups-\d{4}-\d{2}-\d{2}\.csv$/);
+const authDir = path.resolve(__dirname, '../.auth');
+const authFile = path.join(authDir, 'admin.json');
 
-// 2. Read download content and verify UTF-8 BOM + Headers
-const downloadPath = await download.path();
-if (downloadPath) {
+setup('authenticate as admin', async ({ page }) => {
+  if (!fs.existsSync(authDir)) {
+    fs.mkdirSync(authDir, { recursive: true });
+  }
+
+  const email = process.env.CMS_ADMIN_EMAIL || 'admin@index.vn';
+  const password = process.env.CMS_ADMIN_PASSWORD || 'Admin@123456';
+
+  await page.goto('/admin');
+
+  // Skip if already in an active session
+  if (page.url().includes('/admin/content-manager') || page.url().includes('/admin/plugins')) {
+    await page.context().storageState({ path: authFile });
+    return;
+  }
+
+  // Fill credentials using accessible role selectors
+  await page.getByRole('textbox', { name: /email/i }).fill(email);
+  await page.getByRole('textbox', { name: /password|mật khẩu/i }).fill(password);
+  await page.getByRole('button', { name: /đăng nhập|login|sign in/i }).click();
+
+  // Wait for redirect to administrative interface
+  await page.waitForURL(url => !url.pathname.includes('/auth/login') && url.pathname.includes('/admin'), {
+    timeout: 15000,
+  });
+
+  // Verify dashboard navigation bar is visible
+  await expect(page.locator('nav, aside, header').first()).toBeVisible({ timeout: 10000 });
+
+  // Persist session state
+  await page.context().storageState({ path: authFile });
+});
+```
+
+---
+
+### 4.3. Custom Test Fixtures (`e2e/fixtures/index.ts`)
+
+Injects pre-instantiated, typed Page Object Models into specs so individual tests never deal with `new PageObject(page)` boilerplate:
+
+```typescript
+import { test as base, expect } from '@playwright/test';
+import { LoginPage } from '../pages/auth/login.page';
+import { GroupListPage } from '../pages/community/groups/group-list.page';
+import { GroupDetailPage } from '../pages/community/groups/group-detail.page';
+import { GroupModalPage } from '../pages/community/groups/group-modal.page';
+import { UserListPage } from '../pages/community/users/user-list.page';
+import { UserModalsPage } from '../pages/community/users/user-modals.page';
+import { Top10ArticlesPage } from '../pages/content/top-10-articles.page';
+
+export interface CustomFixtures {
+  loginPage: LoginPage;
+  groupListPage: GroupListPage;
+  groupDetailPage: GroupDetailPage;
+  groupModalPage: GroupModalPage;
+  userListPage: UserListPage;
+  userModalsPage: UserModalsPage;
+  top10ArticlesPage: Top10ArticlesPage;
+}
+
+export const test = base.extend<CustomFixtures>({
+  loginPage: async ({ page }, use) => {
+    await use(new LoginPage(page));
+  },
+  groupListPage: async ({ page }, use) => {
+    await use(new GroupListPage(page));
+  },
+  groupDetailPage: async ({ page }, use) => {
+    await use(new GroupDetailPage(page));
+  },
+  groupModalPage: async ({ page }, use) => {
+    await use(new GroupModalPage(page));
+  },
+  userListPage: async ({ page }, use) => {
+    await use(new UserListPage(page));
+  },
+  userModalsPage: async ({ page }, use) => {
+    await use(new UserModalsPage(page));
+  },
+  top10ArticlesPage: async ({ page }, use) => {
+    await use(new Top10ArticlesPage(page));
+  },
+});
+
+export { expect };
+```
+
+---
+
+### 4.4. Base Page Object Model (`e2e/pages/base.page.ts`)
+
+Encapsulates common navigation, notification verification, alertdialog handling, and recording pauses:
+
+```typescript
+import { Page, Locator, expect } from '@playwright/test';
+import { recordPause } from '../utils/video-helper';
+
+export abstract class BasePage {
+  constructor(protected readonly page: Page) {}
+
+  /**
+   * Navigate to target path and wait for network/DOM stabilization
+   */
+  async goto(path: string): Promise<void> {
+    await this.page.goto(path, { waitUntil: 'domcontentloaded' });
+    await this.waitForPageLoaded();
+    await this.recordPause(1000);
+  }
+
+  /**
+   * Deliberate pause between critical user actions for clear video proof
+   */
+  async recordPause(ms: number = 1500): Promise<void> {
+    await recordPause(this.page, ms);
+  }
+
+  /**
+   * Assert notification toast presence and message
+   */
+  async expectToast(message: string | RegExp): Promise<void> {
+    const toast = this.page
+      .locator('[data-testid="toast"], [role="status"], .chakra-toast, .strapi-toast')
+      .filter({ hasText: message });
+    await expect(toast.first()).toBeVisible({ timeout: 5000 });
+    await this.recordPause(1200);
+  }
+
+  /**
+   * Confirm an alertdialog (e.g. Delete or Ban confirmation)
+   */
+  async confirmAlertDialog(confirmButtonName: RegExp = /xác nhận|đồng ý|xóa|confirm|delete/i): Promise<void> {
+    const dialog = this.page.getByRole('alertdialog');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+    await this.recordPause(800);
+    await dialog.getByRole('button', { name: confirmButtonName }).click();
+    await expect(dialog).toBeHidden({ timeout: 5000 });
+    await this.recordPause(1000);
+  }
+
+  /**
+   * Cancel an alertdialog
+   */
+  async cancelAlertDialog(cancelButtonName: RegExp = /hủy|đóng|cancel|close/i): Promise<void> {
+    const dialog = this.page.getByRole('alertdialog');
+    await dialog.getByRole('button', { name: cancelButtonName }).click();
+    await expect(dialog).toBeHidden({ timeout: 5000 });
+  }
+
+  /**
+   * Wait for network idle and dismissal of loading spinners
+   */
+  async waitForPageLoaded(): Promise<void> {
+    await this.page.waitForLoadState('networkidle').catch(() => {});
+    const spinner = this.page.locator('[role="progressbar"], .loading-spinner, [data-testid="loader"]');
+    if (await spinner.count() > 0) {
+      await spinner.first().waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
+    }
+  }
+}
+```
+
+---
+
+### 4.5. Video Helper (`e2e/utils/video-helper.ts`)
+
+Controls playback pacing during test execution. Headless Chromium performs actions in 10-50ms; without controlled pauses, video recordings are too fast for human review.
+
+```typescript
+import { Page } from '@playwright/test';
+
+/**
+ * Deliberate pause between critical user actions during video recording.
+ * Headless automation moves faster than the human eye. Pacing key state transitions
+ * ensures video evidence is clear, readable, and actionable for stakeholders.
+ */
+export async function recordPause(page: Page, ms: number = 1500): Promise<void> {
+  await page.waitForTimeout(ms);
+}
+```
+
+---
+
+### 4.6. CSV Preview & UTF-8 BOM Validator (`e2e/utils/csv-preview.ts`)
+
+Because headless browser testing cannot record native desktop apps (Excel or Numbers), tests verifying data exports must validate UTF-8 BOM encoding and inject an on-screen preview modal:
+
+```typescript
+import { Page, Download, expect } from '@playwright/test';
+import fs from 'node:fs';
+
+export interface CsvPreviewOptions {
+  expectedFilenameRegex?: RegExp;
+  expectedHeaders?: string[];
+  maxPreviewRows?: number;
+  pauseMs?: number;
+}
+
+/**
+ * Validates downloaded CSV encoding (UTF-8 BOM), parses headers/rows,
+ * and renders an in-browser high-contrast canvas modal overlay for video recording audit.
+ */
+export async function verifyCsvAndShowPreview(
+  page: Page,
+  download: Download,
+  options: CsvPreviewOptions = {}
+): Promise<void> {
+  const {
+    expectedFilenameRegex,
+    expectedHeaders = [],
+    maxPreviewRows = 7,
+    pauseMs = 4000,
+  } = options;
+
+  const filename = download.suggestedFilename();
+  if (expectedFilenameRegex) {
+    expect(filename).toMatch(expectedFilenameRegex);
+  }
+
+  const downloadPath = await download.path();
+  if (!downloadPath) {
+    throw new Error(`Failed to retrieve download path for file: ${filename}`);
+  }
+
   const csvBuffer = fs.readFileSync(downloadPath);
-  // Check first 3 bytes are UTF-8 BOM (0xEF, 0xBB, 0xBF)
+
+  // 1. Verify UTF-8 BOM (0xEF, 0xBB, 0xBF) for Vietnamese Excel compatibility
   expect(csvBuffer[0]).toBe(0xEF);
   expect(csvBuffer[1]).toBe(0xBB);
   expect(csvBuffer[2]).toBe(0xBF);
 
   const csvText = csvBuffer.toString('utf-8');
-  expect(csvText).toContain('Tên nhóm');
-  expect(csvText).toContain('Quyền riêng tư');
 
-  // Parse CSV into structured rows
+  // Verify mandatory headers if specified
+  for (const header of expectedHeaders) {
+    expect(csvText).toContain(header);
+  }
+
+  // Parse CSV rows taking quoted commas into account
   const lines = csvText.trim().split(/\r?\n/).filter(Boolean);
   const parsedRows = lines.map(line => {
     const result: string[] = [];
@@ -123,9 +474,10 @@ if (downloadPath) {
   });
 
   const headers = parsedRows[0] || [];
-  const dataRows = parsedRows.slice(1, 8); // Display up to 7 rows
+  const dataRows = parsedRows.slice(1, 1 + maxPreviewRows);
+  const totalRows = Math.max(0, parsedRows.length - 1);
 
-  // 3. Inject Visual Modal Preview of Downloaded CSV File for Video Clarity
+  // 2. Inject modern visual modal preview for clear video demonstration
   await page.evaluate(
     ({ headers, dataRows, totalRows, filename }) => {
       const overlay = document.createElement('div');
@@ -231,17 +583,162 @@ if (downloadPath) {
     {
       headers,
       dataRows,
-      totalRows: parsedRows.length - 1,
-      filename: suggestedFilename,
-    },
+      totalRows,
+      filename,
+    }
   );
 
-  // 4. Pause for at least 3-4 seconds so the recording captures the full table
-  await page.waitForTimeout(4000);
+  // 3. Pause so video recording clearly captures the table
+  await page.waitForTimeout(pauseMs);
+
+  // 4. Remove preview overlay from DOM
+  await page.evaluate(() => {
+    const el = document.getElementById('csv-preview-overlay');
+    if (el) el.remove();
+  });
 }
 ```
 
-## Automated Cloud Reporting Workflow
+---
+
+### 4.7. Page Object Model Example (`e2e/pages/community/groups/group-list.page.ts`)
+
+```typescript
+import { Page, Locator, expect } from '@playwright/test';
+import { BasePage } from '../../base.page';
+
+export class GroupListPage extends BasePage {
+  readonly searchInput: Locator;
+  readonly createButton: Locator;
+  readonly exportButton: Locator;
+  readonly tableRows: Locator;
+
+  constructor(page: Page) {
+    super(page);
+    this.searchInput = page.getByPlaceholder(/tìm kiếm nhóm|search group/i);
+    this.createButton = page.getByRole('button', { name: /tạo nhóm|thêm nhóm|create group/i });
+    this.exportButton = page.getByRole('button', { name: /xuất csv|export csv/i });
+    this.tableRows = page.locator('table tbody tr');
+  }
+
+  async navigate(): Promise<void> {
+    await this.goto('/admin/plugins/community/groups');
+  }
+
+  async searchGroup(name: string): Promise<void> {
+    await this.searchInput.fill(name);
+    await this.page.keyboard.press('Enter');
+    await this.waitForPageLoaded();
+    await this.recordPause(1000);
+  }
+
+  async clickCreateGroup(): Promise<void> {
+    await this.createButton.click();
+    await this.recordPause(800);
+  }
+
+  async clickEditGroup(name: string): Promise<void> {
+    const row = this.tableRows.filter({ hasText: name });
+    await row.getByRole('button', { name: /chỉnh sửa|sửa|edit/i }).click();
+    await this.recordPause(800);
+  }
+
+  async deleteGroup(name: string): Promise<void> {
+    const row = this.tableRows.filter({ hasText: name });
+    await row.getByRole('button', { name: /xóa|delete/i }).click();
+    await this.recordPause(800);
+  }
+
+  async expectGroupInList(name: string): Promise<void> {
+    await expect(this.tableRows.filter({ hasText: name })).toBeVisible({ timeout: 5000 });
+  }
+
+  async expectGroupNotInList(name: string): Promise<void> {
+    await expect(this.tableRows.filter({ hasText: name })).toHaveCount(0, { timeout: 5000 });
+  }
+}
+```
+
+---
+
+### 4.8. Declarative Spec Pattern (`e2e/specs/community/groups/group-crud.spec.ts`)
+
+Specs MUST be purely declarative. NEVER write raw CSS selectors or repetitive authentication logic inside specs:
+
+```typescript
+import { test, expect } from '../../../fixtures';
+
+test.describe('Community Group Management - Full 5-Phase CRUD Lifecycle', () => {
+  test.setTimeout(60000);
+
+  const testGroup = {
+    name: `E2E Test Group ${Date.now()}`,
+    slug: `e2e-test-group-${Date.now()}`,
+    privacy: 'Public' as const,
+    description: 'Automated test group created via Playwright POM',
+  };
+
+  test('executes complete 5-phase CRUD and database persistence flow', async ({
+    groupListPage,
+    groupModalPage,
+    page,
+  }) => {
+    // Navigate to Group List
+    await groupListPage.navigate();
+
+    // Phase 1: Form Validation Guardrail (Zero network call on invalid input)
+    await groupListPage.clickCreateGroup();
+    await groupModalPage.submitEmpty();
+    await groupModalPage.expectValidationError('name', /tên nhóm không được để trống/i);
+    await groupModalPage.cancel();
+
+    // Phase 2: Create (Happy Path)
+    await groupListPage.clickCreateGroup();
+    await groupModalPage.fillForm(testGroup);
+    await groupModalPage.submit();
+    await groupListPage.expectToast(/tạo nhóm thành công/i);
+    await groupListPage.searchGroup(testGroup.name);
+    await groupListPage.expectGroupInList(testGroup.name);
+
+    // Phase 3: Update
+    const updatedName = `${testGroup.name} (Updated)`;
+    await groupListPage.clickEditGroup(testGroup.name);
+    await groupModalPage.fillForm({ name: updatedName });
+    await groupModalPage.submit();
+    await groupListPage.expectToast(/cập nhật thành công/i);
+    await groupListPage.expectGroupInList(updatedName);
+
+    // Phase 4: Delete with Confirmation Modal
+    await groupListPage.deleteGroup(updatedName);
+    await groupListPage.confirmAlertDialog();
+    await groupListPage.expectToast(/xóa nhóm thành công/i);
+    await groupListPage.expectGroupNotInList(updatedName);
+
+    // Phase 5: Persistence Verification (F5 Reload)
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await groupListPage.searchGroup(updatedName);
+    await groupListPage.expectGroupNotInList(updatedName);
+  });
+});
+```
+
+---
+
+## 5. Best Practices & Modal Scoping Rules
+
+1. **Accessible Role Selectors**:
+   - Prefer `page.getByRole('button', { name: '...' })` over loose text or CSS selectors.
+   - For confirmation popups/dialogs, use `page.getByRole('alertdialog').getByRole('button', { name: '...' })`.
+2. **Modal Scoping Guardrail**:
+   - Scope action buttons inside modals using `page.getByRole('dialog')` or `page.getByRole('alertdialog')` to prevent Playwright `strict mode violation` errors when multiple buttons share identical labels (e.g., "Hủy" or "Lưu").
+3. **Explicit Timeout**:
+   - Always set `test.setTimeout(60000);` inside multi-step lifecycle specs to prevent premature timeouts during slow network transitions or cloud CI runs.
+4. **Zero Raw Selectors in Specs**:
+   - All locators (`page.locator`, `getByRole`, `getByTestId`) MUST be encapsulated inside POM classes. Test specs must read like plain English/Vietnamese business stories.
+
+---
+
+## 6. Automated Cloud Reporting Workflow
 
 ### 1. Upload Video to Google Drive
 ```bash
@@ -261,9 +758,15 @@ if (downloadPath) {
   "<Flow Steps (Multi-line breakdown of what to watch in video)>"
 ```
 
-## Verification Checklist Before Handover
-- [ ] Playwright test suite passes 100% (`1 passed`).
+---
+
+## 7. Verification Checklist Before Handover
+
+- [ ] Playwright test suite passes 100% (`npx playwright test`).
+- [ ] Multi-project setup executed: `setup` generates `.auth/admin.json` and `e2e-authenticated` reuses it.
+- [ ] All specs consume POMs via `fixtures/index.ts` without raw CSS selectors.
 - [ ] For file/data exports: UTF-8 BOM encoding verified and on-screen preview modal rendered for >= 4s.
-- [ ] Video recording generated in output directory.
-- [ ] Video uploaded to Google Drive with active share link.
-- [ ] Slack webhook notified with issue info, direct PR link, and flow steps.
+- [ ] Deliberate pauses (`recordPause(1500)`) placed between critical UI transitions for video readability.
+- [ ] Video recording generated in output directory at 1440x900 resolution.
+- [ ] Video uploaded to Google Drive with active public shareable link.
+- [ ] Slack webhook notified with issue info, direct PR link, video URL, and step breakdown.
