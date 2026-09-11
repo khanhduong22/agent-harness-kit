@@ -1,0 +1,36 @@
+{
+  "mount": {
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "${PG_LOCAL_URL}"
+      }
+    },
+    "framefit": {
+      "command": "npx",
+      "args": ["-y", "framefit"],
+      "env": {
+        "FIGMA_TOKEN": "${FIGMA_API_KEY}"
+      }
+    }
+  },
+  "export": [
+    "postgres:query",
+    "framefit:get_layout_spec",
+    "framefit:compare_node_to_dom"
+  ],
+  "env": {
+    "local": { "DATABASE_URL": "${PG_LOCAL_URL}" },
+    "dev": { "DATABASE_URL": "${PG_DEV_URL}" },
+    "staging": { "DATABASE_URL": "${PG_STAGING_URL}" }
+  },
+  "defaultEnvironment": "local",
+  "composite": {
+    "verify_ui_against_figma": {
+      "figmaSpecTool": "framefit:get_layout_spec",
+      "domCompareTool": "framefit:compare_node_to_dom",
+      "playwrightReport": "playwright-report/report.json"
+    }
+  }
+}

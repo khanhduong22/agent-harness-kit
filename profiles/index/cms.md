@@ -36,3 +36,33 @@ All commands run from within `index-admin-cms/`:
   2. Embed Google Drive video URL directly in the PR checklist table.
   3. Dispatch Slack notification using `./scripts/notify-slack.sh`.
   4. **Strict Prohibition**: Skipping browser E2E or deferring to manual QA in PR descriptions is strictly prohibited.
+
+## 5. MCP Servers & Tool Allowlist
+The installer renders this block to `<project>/.mcp.json` and to the project
+permission config. `mcp_tools` is declared before the `[mcp.*]` tables so TOML
+parses it as a top-level key. Secrets are `${VAR}` references only.
+
+`framefit`'s `get_variables` and `get_libraries` are deliberately excluded: both
+return 403 on the available Figma token, so allowlisting them would only add
+context.
+
+```toml
+mcp_tools = [
+  "mcp__framefit__get_layout_spec",
+  "mcp__framefit__get_metadata",
+  "mcp__framefit__compare_node_to_dom",
+  "mcp__framefit__get_comments",
+  "mcp__figma-developer-mcp__get_figma_data",
+  "mcp__figma-developer-mcp__download_figma_images",
+]
+
+[mcp.figma-developer-mcp]
+command = "npx"
+args = ["-y", "figma-developer-mcp", "--stdio"]
+env = { FIGMA_API_KEY = "${FIGMA_API_KEY}" }
+
+[mcp.framefit]
+command = "npx"
+args = ["-y", "framefit"]
+env = { FIGMA_TOKEN = "${FIGMA_API_KEY}", MCP_TRANSPORT = "stdio" }
+```

@@ -7,10 +7,65 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sync_rules import parse_profile_mcp  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ABSOLUTE_USER_RE = re.compile(r"/(?:Users|home)/[^/]+/")
+SECRET_KEY_RE = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH", re.IGNORECASE)
+VAR_REF_RE = re.compile(r"^\$\{[A-Za-z_][A-Za-z0-9_]*\}$")
+EMBEDDED_CREDENTIAL_RE = re.compile(r"://[^/\s:@]++:([^/\s@]++)@")
+
+
+def _secret_finding(key_path: str, leaf_key: str, value: str) -> str | None:
+    if SECRET_KEY_RE.search(leaf_key) and not VAR_REF_RE.fullmatch(value):
+        return f"{key_path} holds a literal secret; use a ${{VAR}} reference"
+    embedded = EMBEDDED_CREDENTIAL_RE.search(value)
+    if embedded and not VAR_REF_RE.fullmatch(embedded.group(1)):
+        return f"{key_path} embeds a literal credential; use a ${{VAR}} reference"
+    return None
+
+
+def literal_secret_errors(profile: dict) -> list[str]:
+    """Return `key: reason` findings for MCP values holding a literal secret.
+
+    Profiles may reference credentials only as `${VAR}`. A secret-ish key
+    (TOKEN, KEY, SECRET, PASSWORD, ...) must hold exactly a `${VAR}` reference,
+    and no value may embed `user:password@` credentials in a URL.
+    """
+    findings: list[str] = []
+
+    def walk(key_path: str, leaf_key: str, value: object) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                walk(f"{key_path}.{key}", str(key), item)
+        elif isinstance(value, list):
+            for index, item in enumerate(value):
+                walk(f"{key_path}[{index}]", leaf_key, item)
+        elif isinstance(value, str):
+            finding = _secret_finding(key_path, leaf_key, value)
+            if finding:
+                findings.append(finding)
+
+    for name, spec in (profile.get("mcp") or {}).items():
+        walk(f"mcp.{name}", name, spec)
+    return findings
+
+
+def profile_mcp_errors(profile_dir: Path) -> list[str]:
+    """Parse every profile's MCP block and report malformed toml or literal secrets."""
+    errors: list[str] = []
+    for profile_path in sorted(profile_dir.rglob("*.md")):
+        relative = profile_path.relative_to(ROOT) if profile_path.is_relative_to(ROOT) else profile_path
+        try:
+            profile = parse_profile_mcp(profile_path.read_text(encoding="utf-8"))
+        except ValueError as exc:
+            errors.append(f"{relative}: {exc}")
+            continue
+        errors.extend(f"{relative}: {finding}" for finding in literal_secret_errors(profile))
+    return errors
 
 
 def frontmatter(skill_file: Path) -> dict[str, str]:
@@ -68,8 +123,12 @@ def main() -> int:
             errors.append(f"{skill_file}: duplicate name also used by {names[name]}")
         names[name] = skill_file
 
+    # Vendored dependencies are not ours to fix: npm ships files carrying the
+    # publisher's own home path. Scanning them would fail the portability check
+    # on every `npm install`. Generated output (dist/) is still scanned.
+    scan_skip_dirs = {".git", "node_modules"}
     for candidate in ROOT.rglob("*"):
-        if not candidate.is_file() or ".git" in candidate.parts:
+        if not candidate.is_file() or scan_skip_dirs.intersection(candidate.parts):
             continue
         try:
             content = candidate.read_text(encoding="utf-8")
@@ -105,6 +164,7 @@ def main() -> int:
         for req_profile in ["core/rules.md", "index/workspace.md", "index/api.md", "index/cms.md"]:
             if not (profile_dir / req_profile).is_file():
                 errors.append(f"missing profile document: profiles/{req_profile}")
+        errors.extend(profile_mcp_errors(profile_dir))
 
     if errors:
         print("verification failed:", file=sys.stderr)
