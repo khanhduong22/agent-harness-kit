@@ -724,30 +724,65 @@ test.describe('Community Group Management - Full 5-Phase CRUD Lifecycle', () => 
 
 ---
 
-## 5. The Exhaustive Option Matrix Standard (Zero-Skipped-Option Rule)
+## 5. Two-Dimensional E2E Completeness: Full Flow × Exhaustive Option Matrix
 
-### 5.1. Rationale & Production Failure Mode
-In real-world feature testing (e.g., User Role change, Group Privacy, Article Status, Ban Duration), automated tests frequently test only a convenient subset (e.g., 2 out of 3 roles such as testing only `ADMIN` and `MEMBER`, while skipping `COMMUNITY_MODERATOR`).
+### 5.1. The "Flow-Only" Fallacy vs. True E2E Completeness
+Many engineers and AI agents fall into the **"Flow-Only" Fallacy**: they verify that a high-level user flow works from end-to-end (e.g., Navigate ➔ Open Modal ➔ Fill Fields ➔ Submit ➔ View in Table ➔ Delete). Because the scenario completes without throwing an error, they declare the feature "100% E2E verified."
 
-This creates a critical production failure mode:
-- **Serialization & Schema Mismatches**: Untested enum values may fail serialization or deserialization between Strapi CMS plugins, NestJS API gateways, and PostgreSQL enum types.
-- **UI Rendering Crashes**: UI components (status badges, color codes, custom icons, or role-gated action buttons) tied to unverified options may throw runtime errors or render undefined styles.
-- **Silent Logic Bugs**: Transition guards and permission filters might work for common roles but break on intermediate roles like `COMMUNITY_MODERATOR`.
-- **Production Outages**: When an administrator or end-user in production selects the untested enum value, the feature fails or crashes in production.
+However, within that flow, they picked only **one arbitrary option** (e.g., creating with only the first category, or changing role to `ADMIN` while ignoring `COMMUNITY_MODERATOR`).
 
-### 5.2. The Zero-Skipped-Option Rule
+**The Production Trap:**
+- **Flow passes, but 70-80% of discrete options remain untested**: Enums, switch states, filter tabs, modal variations, and edge permissions never execute in the browser.
+- **Real-World Failure Case Study**: Testing only 2 out of 3 user roles (`ADMIN` and `USER`) allowed an unhandled `COMMUNITY_MODERATOR` role to slip through. In production, selecting that option triggered an instant `400 Bad Request` because the backend Prisma enum was missing the value!
+- **Consequences**:
+  1. **Schema & Serialization Mismatches**: Untested enum values fail validation or deserialization between Strapi CMS plugins, NestJS API gateways, and PostgreSQL enum types.
+  2. **UI Rendering Crashes**: UI components (status badges, color codes, custom icons, or role-gated action buttons) tied to unverified options throw runtime JavaScript errors or render blank styles.
+  3. **Silent Logic & Permission Bugs**: Transition guards work for common states but break on intermediate states (e.g. moderator permissions, restricted privacy).
+
+### 5.2. The Core Principle: Two-Dimensional E2E Completeness
+True production-grade E2E testing must operate across **two orthogonal dimensions**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       TWO-DIMENSIONAL E2E MATRIX                        │
+├────────────────────────────────────┬────────────────────────────────────┤
+│   DIMENSION 1: FLOW COVERAGE       │   DIMENSION 2: OPTION COVERAGE     │
+│   (Horizontal User Journey)        │   (Vertical State & Option Space)  │
+├────────────────────────────────────┼────────────────────────────────────┤
+│ • Navigate to feature page         │ • 100% of Enum Values (Roles, etc.)│
+│ • Open Create / Edit drawers       │ • 100% of Select Dropdown Choices  │
+│ • Fill and submit forms            │ • 100% of Radio Group Options      │
+│ • Trigger lifecycle actions        │ • 100% of Listing Filter Tabs      │
+│ • Handle confirmation dialogs      │ • 100% of Moderation Durations     │
+│ • Assert notifications & toasts    │ • 100% of Search / Sort Fields     │
+│ • Cleanup and deletion             │ • 100% of Dialog Decision Branches │
+└────────────────────────────────────┴────────────────────────────────────┘
+```
+
 > [!IMPORTANT]
-> **Zero-Skipped-Option Rule**: For **ANY** enum, select dropdown, radio group, segmented button, or multi-option state machine (e.g., Roles, Statuses, Privacies, Durations, Categories, Channels, Access Levels):
-> - **Every single option ($N$ out of $N$, 100%) MUST be explicitly tested and asserted against both UI and backend state.**
-> - **Testing a subset (e.g., 2 out of 3, or $N - 1$ out of $N$ options) is STRICTLY PROHIBITED.**
-> - Each option verification MUST assert:
->   1. **DOM Availability**: The option is present, clickable, and correctly labeled in the dropdown or radio group.
->   2. **Network Mutation Payload**: The outbound API request payload contains the exact expected enum value.
->   3. **Server Response**: The server responds with success (HTTP 200/201) and returns the updated entity with that enum value.
->   4. **UI State Reflection**: The UI updates immediately to reflect the new state (e.g., updated table badge, status tag, or active radio state).
->   5. **Database Persistence**: Reloading the page (`page.reload()`) verifies that the state persists accurately in the database.
+> **A test suite that covers 100% of the flows but only 30% of the options is INCOMPLETE and BLOCKED from shipping.** Full E2E requires **Full Flow × Full Option Matrix**.
 
-### 5.3. Concrete Examples & Verification Patterns
+### 5.3. The Zero-Skipped-Option Rule
+> [!IMPORTANT]
+> **Zero-Skipped-Option Rule**: For **ANY** enum, select dropdown, radio group, segmented button, or multi-option state machine across the codebase:
+> - **Roles & RBAC**: Every role in the system (e.g., `USER`, `COMMUNITY_MODERATOR`, `COMMUNITY_ADMIN`).
+> - **Entity Statuses**: Every lifecycle state (e.g., `ACTIVE`, `PENDING`, `SUSPENDED`, `LOCKED`, `DELETED`).
+> - **Privacy & Visibility**: Every scope (e.g., `PUBLIC`, `PRIVATE`, `RESTRICTED`).
+> - **Action Durations**: Every duration choice (e.g., `24h`, `7d`, `PERMANENT`).
+> - **Tabs & Filter Scopes**: Every tab on listing screens (e.g., `All`, `Active`, `Trending`, `Pending`).
+> - **Decision Branches**: Every outcome in modals (Confirm, Cancel, Reject, Validation Error).
+>
+> **Testing Requirements (Zero Exceptions)**:
+> 1. **Every single option ($N$ out of $N$, 100%) MUST be explicitly tested and asserted.**
+> 2. **Testing a subset (e.g., 2 out of 3, or $N - 1$ out of $N$ options) is STRICTLY PROHIBITED.**
+> 3. Each option verification MUST assert:
+>    - **DOM Availability**: The option is present, clickable, and correctly labeled in the dropdown or radio group.
+>    - **Network Mutation Payload**: The outbound API request payload contains the exact expected enum value.
+>    - **Server Response**: The server responds with success (HTTP 200/201) and returns the updated entity with that enum value.
+>    - **UI State Reflection**: The UI updates immediately to reflect the new state (e.g., updated table badge, status tag, or active radio state).
+>    - **Database Persistence**: Reloading the page (`page.reload()`) verifies that the state persists accurately in the database.
+
+### 5.4. Concrete Examples & Verification Patterns
 
 #### Pattern A: Sequential Transition Loop (Full Role Matrix)
 When testing a stateful entity where an option can be updated across its entire lifecycle (e.g., Community User Role: `ADMIN` -> `MODERATOR` -> `MEMBER`), iterate through the full enum array sequentially:
@@ -908,7 +943,7 @@ async expectExhaustiveEnumOptionsInDropdown(
 - [ ] Playwright test suite passes 100% (`npx playwright test`).
 - [ ] Multi-project setup executed: `setup` generates `.auth/admin.json` and `e2e-authenticated` reuses it.
 - [ ] All specs consume POMs via `fixtures/index.ts` without raw CSS selectors.
-- [ ] Exhaustive Option Matrix verified: 100% of all options in any enum, select dropdown, or radio group are explicitly tested (Zero-Skipped-Option Rule).
+- [ ] Two-Dimensional E2E Completeness verified: 100% Full Flow coverage AND 100% of all options in any enum, select dropdown, radio group, or filter tab are explicitly tested (Zero-Skipped-Option Rule).
 - [ ] For file/data exports: UTF-8 BOM encoding verified and on-screen preview modal rendered for >= 4s.
 - [ ] Deliberate pauses (`recordPause(1500)`) placed between critical UI transitions for video readability.
 - [ ] Video recording generated in output directory at 1800x1200 resolution (MacBook M4 high-DPI ratio).
