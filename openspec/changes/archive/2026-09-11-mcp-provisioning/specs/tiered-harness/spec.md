@@ -1,30 +1,4 @@
-# tiered-harness Specification
-
-## Purpose
-TBD - created by archiving change tiered-harness-and-project-packs. Update Purpose after archive.
-## Requirements
-### Requirement: Tiered Harness Routing and Autonomy Boundaries
-The harness MUST support risk-based tiered workflows and explicit autonomy boundaries.
-
-#### Scenario: Fresh Core Install
-GIVEN a clean user environment without pre-existing configurations
-WHEN running `./scripts/install.sh --targets claude,codex,gemini --rules`
-THEN core skills and global rules are installed
-AND project pack configurations (such as Index) are NOT present in global rules or skills
-AND a backup receipt is created under `~/.agent-harness-backups/`
-
-#### Scenario: Lightweight Bugfix Workflow Routing
-GIVEN an AI agent configured with Core rules
-WHEN a task is categorized as a minor bugfix or regression
-THEN the agent does NOT mandate the creation of a full OpenSpec proposal and tasks document
-AND the agent requires reproducing the failure, fixing the root cause, and running native test commands (`bun test`, `jest`)
-AND the agent produces execution evidence before claiming task completion
-
-#### Scenario: High-Risk Action Confirmation Gate
-GIVEN an active implementation task
-WHEN the agent encounters an operation involving database reset, dropping tables, destructive migrations, or pushing to remote git
-THEN the agent MUST pause execution and ask for explicit user authorization
-AND the agent must NOT perform the destructive operation automatically
+## MODIFIED REQUIREMENTS
 
 ### Requirement: Project Pack Isolation and Idempotency
 The harness MUST support injecting modular project packs strictly to project targets with rollback capabilities, including MCP server configuration and tool allowlists.
@@ -55,4 +29,3 @@ WHEN the installer writes MCP configuration for the first project
 THEN the MCP configuration is written only under the first project path
 AND the second project's MCP configuration is left byte-for-byte unchanged
 AND no MCP server declared by a project pack is written to a global harness config
-
