@@ -1,0 +1,25 @@
+{
+  "name": "kido-mcp-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mounts upstream MCP servers and re-exports a curated subset under one endpoint.",
+  "type": "module",
+  "bin": {
+    "kido-mcp-gateway": "dist/src/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "pretest": "npm run build",
+    "test": "node --test \"dist/test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}

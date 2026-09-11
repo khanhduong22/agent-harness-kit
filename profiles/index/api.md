@@ -26,3 +26,26 @@ All commands run from within `index-api/`:
 - **Destructive DB Commands Blocked**: `bun run migrate:reset` and `prisma db push --force-reset` are strictly prohibited without explicit user sign-off.
 - **Manual Migrations**: Follow `bun run db:manual:api` workflow for custom SQL patches.
 - **Unknown APIs**: `[TBD: Need User Input]` Rate limiting policies for third-party public integrations.
+
+## 5. MCP Servers & Tool Allowlist
+The installer renders this block to `<project>/.mcp.json` and to the project
+permission config. `mcp_tools` is declared before the `[mcp.*]` tables so TOML
+parses it as a top-level key. Secrets are `${VAR}` references only.
+
+```toml
+mcp_tools = [
+  "mcp__postgres__query",
+  "mcp__postgres__list_databases",
+  "mcp__redis__get",
+  "mcp__redis__scan",
+  "mcp__redis__list_databases",
+]
+
+[mcp.postgres]
+type = "http"
+url = "http://localhost:33000/pg"
+
+[mcp.redis]
+type = "http"
+url = "http://localhost:33000/redis"
+```
