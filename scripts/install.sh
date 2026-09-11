@@ -360,6 +360,21 @@ install_project_index() {
     rule_args+=(--dry-run)
   fi
   /usr/bin/env python3 "$kit_root/scripts/sync_rules.py" "${rule_args[@]}"
+
+  mcp_args=(
+    --mcp
+    --profile "$kit_root/profiles/index/api.md,$kit_root/profiles/index/cms.md"
+    --project-path "$project_dir"
+    --target "$adapter"
+    --backup-dir "$backup_root"
+    --label "${adapter}-index-mcp"
+    --receipt-file "$receipt_file"
+    --install-mode "$install_mode"
+  )
+  if [[ "$dry_run" == true ]]; then
+    mcp_args+=(--dry-run)
+  fi
+  /usr/bin/env python3 "$kit_root/scripts/sync_rules.py" "${mcp_args[@]}"
 }
 
 seen_adapters="," 
