@@ -102,9 +102,16 @@ def main() -> int:
     if not profile_dir.is_dir():
         errors.append("missing profiles/ directory")
     else:
-        for req_profile in ["core/rules.md", "index/workspace.md", "index/api.md", "index/cms.md"]:
+        for req_profile in ["core/rules.md", "index/workspace.md", "index/api.md", "index/cms.md", "index/mcp/api.json", "index/mcp/cms.json"]:
             if not (profile_dir / req_profile).is_file():
                 errors.append(f"missing profile document: profiles/{req_profile}")
+            elif req_profile.endswith(".json"):
+                try:
+                    pdata = json.loads((profile_dir / req_profile).read_text(encoding="utf-8"))
+                    if "mcpServers" not in pdata or not isinstance(pdata["mcpServers"], dict):
+                        errors.append(f"profiles/{req_profile}: missing or invalid 'mcpServers' object")
+                except json.JSONDecodeError as exc:
+                    errors.append(f"profiles/{req_profile}: invalid JSON ({exc})")
 
     if errors:
         print("verification failed:", file=sys.stderr)

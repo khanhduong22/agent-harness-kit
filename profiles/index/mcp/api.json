@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "type": "http",
+      "url": "http://localhost:33000/pg"
+    },
+    "redis": {
+      "type": "http",
+      "url": "http://localhost:33000/redis"
+    },
+    "prisma": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "prisma",
+        "mcp"
+      ],
+      "disabledTools": [
+        "migrate-reset"
+      ]
+    }
+  }
+}

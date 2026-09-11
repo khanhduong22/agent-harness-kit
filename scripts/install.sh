@@ -332,6 +332,8 @@ install_project_index() {
     codex)
       if [[ -f "${project_dir}/.codex/AGENTS.md" ]]; then
         proj_dest_rule="${project_dir}/.codex/AGENTS.md"
+      elif [[ -f "${project_dir}/AGENTS.md" ]]; then
+        proj_dest_rule="${project_dir}/AGENTS.md"
       else
         proj_dest_rule="${project_dir}/AGENTS.md"
       fi
@@ -339,20 +341,21 @@ install_project_index() {
     gemini)
       if [[ -f "${project_dir}/.gemini/GEMINI.md" ]]; then
         proj_dest_rule="${project_dir}/.gemini/GEMINI.md"
-      else
+      elif [[ -f "${project_dir}/GEMINI.md" ]]; then
         proj_dest_rule="${project_dir}/GEMINI.md"
+      else
+        proj_dest_rule="${project_dir}/.gemini/GEMINI.md"
       fi
       ;;
     *) return 1 ;;
   esac
 
   init_receipt
-  rule_args=(
+  local rule_args=(
     --content "$kit_root/profiles/index/workspace.md"
-    --sub-content "$kit_root/profiles/index/api.md,$kit_root/profiles/index/cms.md"
     --destination "$proj_dest_rule"
     --backup-dir "$backup_root"
-    --label "${adapter}-index"
+    --label "${adapter}-index-workspace"
     --marker "agent-harness-kit:index"
     --receipt-file "$receipt_file"
   )
@@ -360,6 +363,89 @@ install_project_index() {
     rule_args+=(--dry-run)
   fi
   /usr/bin/env python3 "$kit_root/scripts/sync_rules.py" "${rule_args[@]}"
+
+  local sub_profiles=(
+    "api:index-api:index-api/**"
+    "cms:index-admin-cms:index-admin-cms/**"
+  )
+
+  for sub_entry in "${sub_profiles[@]}"; do
+    IFS=':' read -r sub_key sub_name sub_glob <<< "$sub_entry"
+    local sub_src="$kit_root/profiles/index/${sub_key}.md"
+    [[ -f "$sub_src" ]] || continue
+
+    local sub_dest=""
+    local sub_fm=""
+
+    case "$adapter" in
+      claude)
+        sub_dest="${project_dir}/.claude/rules/${sub_name}.md"
+        sub_fm=$(printf -- '---\npaths:\n  - "%s"\n---' "$sub_glob")
+        ;;
+      gemini)
+        sub_dest="${project_dir}/.agents/rules/${sub_name}.md"
+        sub_fm=$(printf -- '---\ntrigger: glob\nglobs:\n  - "%s"\n---' "$sub_glob")
+        ;;
+      codex)
+        sub_dest="${project_dir}/${sub_name}/AGENTS.md"
+        sub_fm=""
+        ;;
+    esac
+
+    local scoped_args=(
+      --content "$sub_src"
+      --destination "$sub_dest"
+      --backup-dir "$backup_root"
+      --label "${adapter}-index-${sub_name}"
+      --marker "agent-harness-kit:index"
+      --receipt-file "$receipt_file"
+    )
+    if [[ -n "$sub_fm" ]]; then
+      scoped_args+=(--frontmatter "$sub_fm")
+    fi
+    if [[ "$dry_run" == true ]]; then
+      scoped_args+=(--dry-run)
+    fi
+    /usr/bin/env python3 "$kit_root/scripts/sync_rules.py" "${scoped_args[@]}"
+  done
+
+  if [[ "$adapter" == "claude" || "$adapter" == "gemini" ]]; then
+    local mcp_sub_profiles=(
+      "api:index-api"
+      "cms:index-admin-cms"
+    )
+    for mcp_entry in "${mcp_sub_profiles[@]}"; do
+      IFS=':' read -r sub_key sub_name <<< "$mcp_entry"
+      local mcp_src="$kit_root/profiles/index/mcp/${sub_key}.json"
+      [[ -f "$mcp_src" ]] || continue
+
+      local mcp_dest=""
+      local target_fmt=""
+      case "$adapter" in
+        claude)
+          mcp_dest="${project_dir}/${sub_name}/.mcp.json"
+          target_fmt="claude"
+          ;;
+        gemini)
+          mcp_dest="${project_dir}/${sub_name}/.agents/mcp_config.json"
+          target_fmt="antigravity"
+          ;;
+      esac
+
+      local mcp_args=(
+        --source "$mcp_src"
+        --target-format "$target_fmt"
+        --destination "$mcp_dest"
+        --backup-dir "$backup_root"
+        --label "${adapter}-index-${sub_name}-mcp"
+        --receipt-file "$receipt_file"
+      )
+      if [[ "$dry_run" == true ]]; then
+        mcp_args+=(--dry-run)
+      fi
+      /usr/bin/env python3 "$kit_root/scripts/sync_mcp.py" "${mcp_args[@]}"
+    done
+  fi
 }
 
 seen_adapters="," 

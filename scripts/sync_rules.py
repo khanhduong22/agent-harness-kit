@@ -15,6 +15,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--adapter", type=Path, help="Adapter markdown path")
     parser.add_argument("--content", type=Path, help="Direct content markdown path")
     parser.add_argument("--sub-content", type=str, help="Comma-separated sub-content markdown paths")
+    parser.add_argument("--frontmatter", type=str, help="YAML frontmatter string to place at top")
     parser.add_argument("--destination", type=Path, required=True)
     parser.add_argument("--backup-dir", type=Path, required=True)
     parser.add_argument("--label", required=True)
@@ -64,6 +65,43 @@ def merge(original: str, rendered: str, marker_prefix: str, replace: bool = Fals
     return original.rstrip() + "\n\n" + managed + "\n"
 
 
+def extract_frontmatter(text: str) -> tuple[str, str]:
+    """Extract frontmatter and remaining body from text.
+    Returns (frontmatter_block, body).
+    If no frontmatter, returns ('', text).
+    """
+    stripped = text.lstrip()
+    if stripped.startswith("---") and (len(stripped) == 3 or stripped[3] in ("\r", "\n")):
+        rest = stripped[3:]
+        lines = rest.splitlines(keepends=True)
+        fm_lines = ["---" + (lines[0] if lines else "\n")]
+        body_start = 0
+        found_closing = False
+        for i, line in enumerate(lines[1:], start=1):
+            if line.strip() == "---":
+                fm_lines.append(line)
+                body_start = i + 1
+                found_closing = True
+                break
+            fm_lines.append(line)
+        if found_closing:
+            fm_text = "".join(fm_lines).strip()
+            body_text = "".join(lines[body_start:]).lstrip("\r\n")
+            return fm_text, body_text
+    return "", text
+
+
+def normalize_frontmatter(fm: str) -> str:
+    fm = fm.strip()
+    if not fm:
+        return ""
+    if not fm.startswith("---"):
+        fm = f"---\n{fm}"
+    if not fm.endswith("---"):
+        fm = f"{fm}\n---"
+    return fm
+
+
 def append_receipt(receipt_file: Path | None, action: dict) -> None:
     if not receipt_file:
         return
@@ -82,8 +120,17 @@ def main() -> int:
     destination = args.destination.expanduser()
     dest_existed = destination.exists()
     original = destination.read_text(encoding="utf-8") if dest_existed else ""
+    orig_fm, orig_body = extract_frontmatter(original)
+
+    desired_fm = normalize_frontmatter(args.frontmatter) if args.frontmatter else orig_fm
+
     rendered = render_content(args)
-    updated = merge(original, rendered, marker_prefix=args.marker, replace=args.replace)
+    merged_body = merge(orig_body, rendered, marker_prefix=args.marker, replace=args.replace)
+
+    if desired_fm:
+        updated = f"{desired_fm}\n\n{merged_body}"
+    else:
+        updated = merged_body
 
     if updated == original:
         print(f"rules unchanged: {destination}")

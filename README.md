@@ -10,13 +10,21 @@ The repository contains:
 
 ## Supported harnesses
 
-| Target | Skills | Global rules | Project pack injection |
-| --- | --- | --- | --- |
-| Codex | `~/.agents/skills/` | `~/.codex/AGENTS.md` | `<project>/AGENTS.md` |
-| Claude Code | `~/.claude/skills/` | `~/.claude/CLAUDE.md` | `<project>/.claude/CLAUDE.md` |
-| Gemini / Antigravity | `~/.gemini/config/skills/` | `~/.gemini/GEMINI.md` | `<project>/.gemini/GEMINI.md` |
+| Target | Skills | Global rules | Project pack injection | Project-scoped MCP |
+| --- | --- | --- | --- | --- |
+| Codex | `~/.agents/skills/` | `~/.codex/AGENTS.md` | Root `<project>/AGENTS.md` + subdirectories `<dir>/AGENTS.md` | N/A |
+| Claude Code | `~/.claude/skills/` | `~/.claude/CLAUDE.md` | Root `<project>/.claude/CLAUDE.md` + `.claude/rules/*.md` (`paths:`) | `<subproject>/.mcp.json` |
+| Gemini / Antigravity | `~/.gemini/config/skills/` | `~/.gemini/GEMINI.md` | Root `<project>/.gemini/GEMINI.md` + `.agents/rules/*.md` (`trigger: glob`) | `<subproject>/.agents/mcp_config.json` |
 
-Antigravity uses the Gemini target because both products share the same global skill and rule locations.
+Antigravity uses the Gemini target because both products share the same global skill and rule locations. Project packs cleanly isolate sub-profile rules using native path-triggering (`paths` for Claude Code, `trigger: glob` for Antigravity, and subdirectory hierarchy for Codex) to prevent context bloat.
+
+### Project-Scoped MCP Configuration
+MCP servers are scoped by project/sub-project rather than dumped into a global configuration:
+- **Claude Code**: `<subproject>/.mcp.json` (committed to git, team-shared). HTTP servers use `"type": "http", "url": "<url>"`; Stdio servers use `"command"`, `"args"`.
+- **Antigravity / Gemini**: `<subproject>/.agents/mcp_config.json` (workspace-scoped MCP config). HTTP servers use `"serverUrl": "<url>"`; Stdio servers use `"command"`, `"args"`.
+- **Index Platform Pack**:
+  - `index-api`: `postgres` (HTTP `localhost:33000/pg`), `redis` (HTTP `localhost:33000/redis`), `prisma` (Stdio `npx -y prisma mcp` with `disabledTools: ["migrate-reset"]`).
+  - `index-admin-cms`: `figma` (HTTP `127.0.0.1:3845/mcp`), `chrome-devtools-mcp` (Stdio `npx -y chrome-devtools-mcp@latest`).
 
 ## Install
 
@@ -97,7 +105,8 @@ Inspect or pull latest prompts and skills from upstream repositories (Matt Pococ
   - **Maintenance**: Invariant behaviors -> Scoped changes -> Compatibility test -> Review.
   - **Risk Gates**: DB schema, auth/RBAC, and public API changes trigger mandatory confirmation.
 - **Strict Project Isolation**: Project packs are injected strictly into the target project repository (`--project-path`). Unrelated projects only see Company Core.
-- **Idempotency & Rollback**: Every install run records actions in `receipt.json` under `~/.agent-harness-backups/<timestamp>/`. Reinstallations detect unchanged links/blocks without duplicates. `--rollback` restores files and removes created symlinks.
+- **Idempotency & Rollback**: Every install run records actions in `receipt.json` under `~/.agent-harness-backups/<timestamp>/`. Reinstallations detect unchanged links/blocks without duplicates. `--rollback` restores files, removes created symlinks, and cleans up empty parent directories.
+- **Project-Scoped MCP Isolation**: MCP servers are scoped directly to subprojects (`<subproject>/.mcp.json` for Claude Code, `<subproject>/.agents/mcp_config.json` for Antigravity) rather than polluting global configs. Tool-level boundaries (e.g. `disabledTools: ["migrate-reset"]` on Prisma) prevent unauthorized destructive operations.
 - **Zero Secrets**: No credentials, tokens, MCP credentials, or machine-specific absolute paths are stored in this repo.
 - Run `./scripts/verify.sh` and `./tests/test_harness.sh` before publishing any change.
 
@@ -115,6 +124,9 @@ profiles/
     workspace.md            Index multi-repo workspace architecture & constraints
     api.md                  Index API sub-profile (NestJS, Prisma, Vitest, Newman)
     cms.md                  Index CMS sub-profile (Strapi v5, Jest, content types)
+    mcp/
+      api.json              Index API MCP server definitions (postgres, redis, prisma)
+      cms.json              Index CMS MCP server definitions (figma, chrome-devtools)
 rules/
   core.md                   Global core rules and autonomy matrix
   adapters/                 Harness-specific wrappers
@@ -123,6 +135,7 @@ overlays/claude/skills/     Claude-specific SDLC command adapters
 scripts/
   install.sh                Idempotent multi-harness & project installer
   sync_rules.py             Rule & profile merge engine
+  sync_mcp.py               Project-scoped MCP configuration generator & merge engine
   rollback.py               Atomic receipt-based rollback engine
   update.sh                 Pull and reinstall
   verify.py                 Structural, manifest, profile, and portability checks

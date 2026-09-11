@@ -65,6 +65,19 @@ def resolve_receipt(backup_root: Path, target: str) -> tuple[Path, dict]:
     return receipt_path, data
 
 
+def cleanup_empty_parents(parent: Path) -> None:
+    current = parent
+    while current and current != current.parent:
+        try:
+            if current.exists() and current.is_dir() and not any(current.iterdir()):
+                current.rmdir()
+                current = current.parent
+            else:
+                break
+        except OSError:
+            break
+
+
 def rollback_action(action: dict, dry_run: bool) -> str:
     action_type = action.get("type")
     dest_path = Path(action["destination"]).expanduser()
@@ -87,9 +100,10 @@ def rollback_action(action: dict, dry_run: bool) -> str:
             if dry_run:
                 return f"would remove created symlink: {dest_path}"
             dest_path.unlink()
+            cleanup_empty_parents(dest_path.parent)
             return f"removed symlink: {dest_path}"
 
-    elif action_type in ("rule", "file"):
+    elif action_type in ("rule", "file", "mcp"):
         if backup_path and backup_path.exists():
             if dry_run:
                 return f"would restore file from backup: {backup_path} -> {dest_path}"
@@ -102,11 +116,13 @@ def rollback_action(action: dict, dry_run: bool) -> str:
             if dry_run:
                 return f"would remove created file: {dest_path}"
             dest_path.unlink()
+            cleanup_empty_parents(dest_path.parent)
             return f"removed created file: {dest_path}"
         else:
             return f"skipped: no backup to restore for {dest_path}"
 
     return f"unknown action type: {action_type}"
+
 
 
 def main() -> int:
