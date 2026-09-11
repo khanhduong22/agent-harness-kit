@@ -101,6 +101,130 @@ Inspect or pull latest prompts and skills from upstream repositories (Matt Pococ
 - **Zero Secrets**: No credentials, tokens, MCP credentials, or machine-specific absolute paths are stored in this repo.
 - Run `./scripts/verify.sh` and `./tests/test_harness.sh` before publishing any change.
 
+## MCP Provisioning
+
+Profiles declare the MCP servers a project needs, and the installer renders them
+into each harness's native, **project-scoped** config.
+
+### Where MCP config actually goes
+
+Claude Code reads `.mcp.json` from a **project root**. It does **not** read
+`~/.claude/.mcp.json` — a file there is inert, and a server declared in it will
+never load, with no error to tell you so. User-scope servers belong in
+`~/.claude.json` (`claude mcp add -s user …`). Check what is actually live with
+`claude mcp list`, which prints a health check per server. This trap cost real
+debugging time; the installer now writes to the project root so nobody repeats it.
+
+### Declaring servers in a profile
+
+Profiles are Markdown. MCP declarations live in a fenced `toml` block, parsed
+with the `tomllib` stdlib module — no third-party dependency:
+
+````markdown
+```toml
+mcp_tools = [
+  "mcp__postgres__query",
+  "mcp__framefit__get_layout_spec",
+]
+
+[mcp.postgres]
+type = "http"
+url = "http://localhost:33000/pg"
+
+[mcp.framefit]
+command = "npx"
+args = ["-y", "framefit"]
+env = { FIGMA_TOKEN = "${FIGMA_API_KEY}" }
+```
+````
+
+Declare `mcp_tools` **above** the `[mcp.*]` tables. In toml a bare key after a
+table header binds to that table; the parser rejects it with that hint rather
+than silently swallowing the allowlist.
+
+### `mcp_tools` is an allowlist, not a blacklist
+
+MCP tools default to on, so a deny list has to name every tool an upstream will
+ever add — it loses that race by construction. Only tools named in `mcp_tools`
+are written to `permissions.allow`; anything else stays out of context as
+upstream servers grow. Entries merge with existing permissions and never
+duplicate on reinstall.
+
+### Secrets
+
+Profiles may contain `${VAR}` references only. `scripts/verify.sh` fails on a
+literal credential — in an `env` value, an argument, or embedded in a URL — and
+names the offending profile and key.
+
+### Target support
+
+`claude` renders `{"mcpServers": {…}}` to `<project>/.mcp.json`. `codex` and
+`gemini` return an explicit unsupported marker rather than a guessed config
+shape; see "Phase 3 verification findings" in the change's `design.md` for what
+was and was not confirmed about each harness.
+
+## MCP Gateway (`kido-mcp-gateway`)
+
+Per-project `.mcp.json` (Layer 1) and the `mcp_tools` allowlist (Layer 2) are
+native and cover most needs. `gateway/` is Layer 3, and it exists only for the
+three things the native configs cannot do: switching environment by parameter,
+tools that span more than one server, and one registration line every harness
+can point at.
+
+### Build and check
+
+```bash
+cd gateway
+npm install
+npm run build
+npm test
+
+# Mount every upstream and report health; exits non-zero if any mount failed.
+node dist/src/cli.js status --config gateway.config.example.json
+```
+
+### Configuration
+
+`gateway.config.example.json` is the full shape. Secrets are never literals —
+only `${VAR}` references, resolved from the environment at mount time.
+
+| Key | Meaning |
+| --- | --- |
+| `mount` | Upstream servers, keyed by the name used in `export`. `command`/`args`/`env` for stdio, `url`/`headers` for streamable HTTP. |
+| `export` | Allowlist of `"<mount>:<tool>"`. `tools/list` returns these and nothing else; the gateway advertises them as `<mount>__<tool>`. |
+| `env` | Named connection sets (`local`, `dev`, `staging`). Their presence adds an `environment` parameter to every exported tool. |
+| `defaultEnvironment` | Environment used when a call omits the parameter. Defaults to the first key of `env`. |
+| `composite.verify_ui_against_figma` | Wires the composite tool to the design-QA upstream tools and the Playwright JSON report. |
+
+An unknown `environment` is refused with an error naming the configured
+environments, and no upstream call is made. A mount that fails to start is
+reported — in `tools/list` `_meta` under `kido-mcp-gateway/mounts`, through the
+`gateway_status` tool, and by the `status` command's non-zero exit — while tools
+from healthy upstreams stay callable.
+
+### Registration per harness
+
+All three harnesses were verified on a real machine (see the Phase 3 findings in
+`openspec/changes/mcp-provisioning/design.md`). Register the gateway once per
+harness; the `export` allowlist is enforced inside the gateway, so it holds even
+on a harness with no per-tool filtering of its own.
+
+```bash
+# Claude Code
+claude mcp add kido-gateway -- node /path/to/gateway/dist/src/cli.js serve --config /path/to/gateway.config.json
+
+# Codex
+codex mcp add kido-gateway -- node /path/to/gateway/dist/src/cli.js serve --config /path/to/gateway.config.json
+
+# Antigravity
+agy mcp add kido-gateway node /path/to/gateway/dist/src/cli.js serve --config /path/to/gateway.config.json
+```
+
+Per-tool filtering support in the harnesses themselves differs — Claude Code
+(`permissions.allow`) and Codex (`enabled_tools`) were confirmed; Antigravity was
+**not**. That asymmetry is why the allowlist lives in the gateway rather than in
+each harness's config.
+
 ## Repository Layout
 
 ```text
@@ -127,6 +251,13 @@ scripts/
   update.sh                 Pull and reinstall
   verify.py                 Structural, manifest, profile, and portability checks
   verify.sh                 Linter and validator runner
+gateway/                    kido-mcp-gateway (Layer 3 MCP aggregator)
+  src/config.ts             GatewayConfig contract, parsing and validation
+  src/upstream.ts           Mount registry: per-environment upstream connections
+  src/gateway.ts            tools/list filtering and tools/call routing
+  src/composite.ts          verify_ui_against_figma composite tool
+  src/cli.ts                serve | status commands
+  test/                     Integration tests with local stub upstreams
 tests/
   test_harness.sh           Comprehensive behavioral and integration test suite
 ```
