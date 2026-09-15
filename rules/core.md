@@ -33,9 +33,9 @@ The agent must strictly operate within designated boundaries based on task scope
 
 | Boundary Level | Allowed Actions | Disallowed / Escalation Triggers |
 | :--- | :--- | :--- |
-| **Independent Execution** | • Read, grep, inspect codebase and logs.<br>• Create and switch task git branches/worktrees.<br>• Write and run tests (`bun test`, `vitest`, `jest`).<br>• Modify scoped code files to resolve task.<br>• Run linter and typecheck (`eslint`, `tsc`).<br>• Self-correct compilation and test failures. | • Modifying code outside the task scope.<br>• Creating mock/fake tests that do not assert real behavior. |
+| **Independent Execution** | • Read, grep, inspect codebase and logs.<br>• Create and switch task git branches/worktrees.<br>• Write and run tests (`bun test`, `vitest`, `jest`).<br>• Modify scoped code files to resolve task.<br>• Run linter and typecheck (`eslint`, `tsc`).<br>• Inspect/analyze `index-web`, pull latest `develop`, run locally (`bun dev` / `next dev`), and execute browser E2E tests for verification videos.<br>• Self-correct compilation and test failures. | • Modifying code outside the task scope.<br>• Creating mock/fake tests that do not assert real behavior. |
 | **Mandatory Escalation (MUST ASK)** | • Proposing schema migrations or data alterations.<br>• Modifying public API contracts or breaking signatures.<br>• Adding new third-party dependencies.<br>• Resolving merge conflicts touching other team members' code.<br>• Pushing git commits to remote repository (outside explicit `/ship`). | • Proceeding with DB reset or data drops without sign-off.<br>• Silently altering business logic without clarification. |
-| **Strictly Prohibited** | *None* | • Suppressing errors with empty `catch {}` blocks.<br>• Silencing type errors with `@ts-ignore` or unchecked `any`.<br>• Hardcoding credentials, API keys, or secrets.<br>• Running destructive commands (`rm -rf`, `drop database`, `prisma migrate reset`) without explicit command from user.<br>• Multiple commits in PR branch (must squash to 1 commit). |
+| **Strictly Prohibited** | *None* | • Modifying, editing, or committing code in `index-web` (read-only for analysis & verification videos).<br>• Suppressing errors with empty `catch {}` blocks.<br>• Silencing type errors with `@ts-ignore` or unchecked `any`.<br>• Hardcoding credentials, API keys, or secrets.<br>• Running destructive commands (`rm -rf`, `drop database`, `prisma migrate reset`) without explicit command from user.<br>• Multiple commits in PR branch (must squash to 1 commit). |
 
 ### Autonomous Run Boundary (`/build auto`)
 When `/build auto` is explicitly invoked:
@@ -69,7 +69,7 @@ flowchart LR
 1. **Clarify Requirements**: Understand requirements; mark unknown specs as `[TBD: Need User Input]`.
 2. **Design & Plan**: Produce OpenSpec proposal (`/opsx`) and task breakdown (`/plan`). Stop for approval unless `/build auto` is granted.
 3. **Implementation**: Execute task-by-task with TDD.
-4. **Verification**: Run integration & native test suites. For UI/CMS (`index-admin-cms`), run mandatory Playwright E2E suite (`npx playwright test`) with video recording enabled and upload video to Google Drive.
+4. **Verification**: Run integration & native test suites. For UI/CMS (`index-admin-cms`), run mandatory Playwright E2E suite (`npx playwright test`) with video recording enabled and upload video to Google Drive. For backend API changes in `index-api` impacting client web displays, pull latest `develop` on `index-web`, run locally (`bun dev` / `next dev` on port 3000), and execute Playwright browser E2E test with video recording.
 5. **Review & Ship**: Multi-axis review (quality, performance, security) and package single conventional commit.
 
 ### Workflow 3: Maintenance / Refactor (Low-to-Medium Risk)
@@ -104,7 +104,7 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   - **Cross-Verification & Unified Delivery**: The Master Agent must cross-verify contract parity across worktrees and report only the final unified delivery result to the user.
 
 ## 6. Code Quality, Scope Integrity & Evidence Gate
-- **Evidence Before Assertions**: Never claim a task is fixed or complete without running runtime verification commands (`bun test`, `npm test`, `jest`, `bun run lint`) and showing real passing results in output. For UI/CMS (`index-admin-cms`), require passing `playwright test` output and Google Drive video URL before declaring verification complete.
+- **Evidence Before Assertions**: Never claim a task is fixed or complete without running runtime verification commands (`bun test`, `npm test`, `jest`, `bun run lint`) and showing real passing results in output. For UI/CMS (`index-admin-cms`) and backend API changes reflecting on client web UI (`index-web`), require passing Playwright E2E test output and Google Drive video URL before declaring verification complete.
 - **Strict Scope Focus**: Modify only files relevant to the current task. Do not reformat or refactor unrelated files.
 - **No Unrequested Packages**: Always ask before adding new dependencies to `package.json`.
 - **Secrets Hygiene**: Never hardcode API keys, tokens, or credentials; always use environment variables (`.env`).
@@ -112,11 +112,12 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
 
 ## 7. Shipping Gate & Handover Standard
 - **Conventional Commits & 1-Commit Rule**: Every PR branch MUST contain EXACTLY ONE single commit (e.g., `Feat: Add new feature`, `Fix: Resolve token expiration`).
-- **Frontend/CMS Hard Blocking Gate**: For frontend and admin CMS changes (`index-admin-cms`), Playwright E2E testing with video recording is a non-negotiable blocking gate:
-  1. Playwright E2E test suite passes 100% (`npx playwright test`).
-  2. Video recording uploaded to Google Drive with active shareable link (`./scripts/upload-e2e-video.sh`).
-  3. Google Drive video URL embedded directly in PR checklist table.
-  4. Instant Slack notification dispatched with PR link, video URL, and flow steps (`./scripts/notify-slack.sh`).
+- **Frontend/CMS & Client Web E2E Video Gate**: Playwright browser E2E testing with video recording is a non-negotiable blocking gate for:
+  1. Frontend and admin CMS changes (`index-admin-cms`).
+  2. Backend API changes (`index-api`) affecting client web features/displays (pull `origin/develop` on `index-web`, run locally on port 3000, and record verification video).
+  3. Video recording uploaded to Google Drive with active shareable link (`./scripts/upload-e2e-video.sh`).
+  4. Google Drive video URL embedded directly in PR checklist table.
+  5. Instant Slack notification dispatched with PR link, video URL, and flow steps (`./scripts/notify-slack.sh`).
   *Skipping browser E2E or deferring to manual QA is strictly prohibited.*
 - **Git Push Authorization**: Running `git push` requires explicit `/ship` invocation or user confirmation.
 - **Handover Summary**: Every completed task must conclude with:

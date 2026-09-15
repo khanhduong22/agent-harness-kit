@@ -40,3 +40,16 @@ message. Delegate accordingly:
 Spawning costs a cold re-derivation of context, so keep these in the master
 session: single-file edits, config/rule changes, reading a file to answer a
 question, and any task where the brief would be longer than the work.
+
+### Two failure modes seen in practice
+
+- **Brief subagents to write to disk early and often.** Claude Code subagents are
+  killed by a no-progress watchdog. Two agents in a row were lost after long
+  silent stretches of planning that produced no file writes; the identical task
+  succeeded once the brief demanded incremental writes. State this in every
+  delegation brief for work larger than a single file.
+- **Never read `$?` after a pipe.** `cmd | tail; echo $?` reports the exit code
+  of `tail`, not of `cmd`. This produced a false "exit code bug" report against a
+  script that was correct, and nearly passed a gateway that looked like it
+  ignored failed mounts. Capture the status without a pipe, or use
+  `${PIPESTATUS[0]}`, whenever an exit code is the evidence.
