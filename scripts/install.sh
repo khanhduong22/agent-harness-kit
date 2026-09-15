@@ -346,10 +346,8 @@ install_project_index() {
     *) return 1 ;;
   esac
 
-  init_receipt
   rule_args=(
     --content "$kit_root/profiles/index/workspace.md"
-    --sub-content "$kit_root/profiles/index/api.md,$kit_root/profiles/index/cms.md"
     --destination "$proj_dest_rule"
     --backup-dir "$backup_root"
     --label "${adapter}-index"
