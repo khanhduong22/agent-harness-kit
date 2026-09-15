@@ -33,9 +33,9 @@ The agent must strictly operate within designated boundaries based on task scope
 
 | Boundary Level | Allowed Actions | Disallowed / Escalation Triggers |
 | :--- | :--- | :--- |
-| **Independent Execution** | • Read, grep, inspect codebase and logs.<br>• Create and switch task git branches/worktrees.<br>• Write and run tests (`bun test`, `vitest`, `jest`).<br>• Modify scoped code files to resolve task.<br>• Run linter and typecheck (`eslint`, `tsc`).<br>• Inspect/analyze `index-web`, pull latest `develop`, run locally (`bun dev` / `next dev`), and execute browser E2E tests for verification videos.<br>• Self-correct compilation and test failures. | • Modifying code outside the task scope.<br>• Creating mock/fake tests that do not assert real behavior. |
+| **Independent Execution** | • Read, grep, inspect codebase and logs.<br>• Create and switch task git branches/worktrees.<br>• Write and run tests (`bun test`, `vitest`, `jest`).<br>• Modify scoped code files to resolve task.<br>• Run linter and typecheck (`eslint`, `tsc`).<br>• Inspect, pull, and run a read-only service locally to execute browser E2E tests for verification videos.<br>• Self-correct compilation and test failures. | • Modifying code outside the task scope.<br>• Creating mock/fake tests that do not assert real behavior. |
 | **Mandatory Escalation (MUST ASK)** | • Proposing schema migrations or data alterations.<br>• Modifying public API contracts or breaking signatures.<br>• Adding new third-party dependencies.<br>• Resolving merge conflicts touching other team members' code.<br>• Pushing git commits to remote repository (outside explicit `/ship`). | • Proceeding with DB reset or data drops without sign-off.<br>• Silently altering business logic without clarification. |
-| **Strictly Prohibited** | *None* | • Modifying, editing, or committing code in `index-web` (read-only for analysis & verification videos).<br>• Suppressing errors with empty `catch {}` blocks.<br>• Silencing type errors with `@ts-ignore` or unchecked `any`.<br>• Hardcoding credentials, API keys, or secrets.<br>• Running destructive commands (`rm -rf`, `drop database`, `prisma migrate reset`) without explicit command from user.<br>• Multiple commits in PR branch (must squash to 1 commit). |
+| **Strictly Prohibited** | *None* | • Modifying, editing, or committing code in any repository the project profile marks read-only (analysis and verification recordings only).<br>• Suppressing errors with empty `catch {}` blocks.<br>• Silencing type errors with `@ts-ignore` or unchecked `any`.<br>• Hardcoding credentials, API keys, or secrets.<br>• Running destructive commands (`rm -rf`, `drop database`, `prisma migrate reset`) without explicit command from user.<br>• Multiple commits in PR branch (must squash to 1 commit). |
 
 ### Autonomous Run Boundary (`/build auto`)
 When `/build auto` is explicitly invoked:
@@ -70,7 +70,7 @@ flowchart LR
 2. **Design & Plan**: Produce OpenSpec proposal (`/opsx`) and task breakdown (`/plan`). Stop for approval unless `/build auto` is granted.
    - **No Shipping in `tasks.md`**: `tasks.md` MUST strictly focus on code implementation, tests, and domain verification. NEVER include shipping, archiving (`openspec archive`), git commit, PR creation, or Slack notification steps in `tasks.md` (these are automated harness lifecycle operations, not specification tasks).
 3. **Implementation**: Execute task-by-task with TDD.
-4. **Verification**: Run integration & native test suites. For UI/CMS (`index-admin-cms`), run mandatory Playwright E2E suite (`npx playwright test`) with video recording enabled and upload video to Google Drive. For backend API changes in `index-api` impacting client web displays, pull latest `develop` on `index-web`, run locally (`bun dev` / `next dev` on port 3000), and execute Playwright browser E2E test with video recording.
+4. **Verification**: Run integration & native test suites. For UI changes, run the project's browser E2E suite with video recording enabled and publish the recording as the project profile requires. For backend changes that alter what a client UI displays, verify against the running client, not just the API response.
 5. **Review & Ship**: Multi-axis review (quality, performance, security) and package single conventional commit.
 
 ### Workflow 3: Maintenance / Refactor (Low-to-Medium Risk)
@@ -97,7 +97,7 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   - Independent changes MUST use their own branch and a managed worktree under `~/.agent-worktrees/<repo>/<branch-slug>`.
   - Dependent changes MUST use a stacked branch or wait for prerequisite merge. Never mix two independent changes into one worktree, commit, or PR.
 - **Multi-Agent Cross-Worktree Delegation (`subagent-worktree-orchestrator`)**:
-  - When a task spans multiple services (e.g. Backend in `index-api` + Frontend in `index-admin-cms`), the Master Agent is authorized to orchestrate headless sub-agents (`agy -p` or `claude -p`) running concurrently in their respective isolated worktrees.
+  - When a task spans multiple services (e.g. a backend service plus the frontend that consumes it), the Master Agent is authorized to orchestrate headless sub-agents (`agy -p` or `claude -p`) running concurrently in their respective isolated worktrees.
   - **Durable Context Bridges**: Never rely on volatile chat memory when delegating across agents. Pass context through:
     1. *Briefing Spec Pointer*: Directing the sub-agent to exact OpenSpec artifacts (`proposal.md`, `design.md`, `tasks.md`, Gherkin delta specs).
     2. *Durable Disk State*: Schemas, DTOs, code, and test suites living in the isolated worktrees.
@@ -105,7 +105,7 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   - **Cross-Verification & Unified Delivery**: The Master Agent must cross-verify contract parity across worktrees and report only the final unified delivery result to the user.
 
 ## 6. Code Quality, Scope Integrity & Evidence Gate
-- **Evidence Before Assertions**: Never claim a task is fixed or complete without running runtime verification commands (`bun test`, `npm test`, `jest`, `bun run lint`) and showing real passing results in output. For UI/CMS (`index-admin-cms`) and backend API changes reflecting on client web UI (`index-web`), require passing Playwright E2E test output and Google Drive video URL before declaring verification complete.
+- **Evidence Before Assertions**: Never claim a task is fixed or complete without running runtime verification commands (`bun test`, `npm test`, `jest`, `bun run lint`) and showing real passing results in output. Where the project profile defines a browser E2E video gate, its passing test output and published recording URL are part of that evidence, not a follow-up.
 - **Strict Scope Focus**: Modify only files relevant to the current task. Do not reformat or refactor unrelated files.
 - **No Unrequested Packages**: Always ask before adding new dependencies to `package.json`.
 - **Secrets Hygiene**: Never hardcode API keys, tokens, or credentials; always use environment variables (`.env`).
@@ -113,12 +113,12 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
 
 ## 7. Shipping Gate & Handover Standard
 - **Conventional Commits & 1-Commit Rule**: Every PR branch MUST contain EXACTLY ONE single commit (e.g., `Feat: Add new feature`, `Fix: Resolve token expiration`).
-- **Frontend/CMS & Client Web E2E Video Gate**: Playwright browser E2E testing with video recording is a non-negotiable blocking gate for:
-  1. Frontend and admin CMS changes (`index-admin-cms`).
-  2. Backend API changes (`index-api`) affecting client web features/displays (pull `origin/develop` on `index-web`, run locally on port 3000, and record verification video).
-  3. Video recording uploaded to Google Drive with active shareable link (`./scripts/upload-e2e-video.sh`).
-  4. Google Drive video URL embedded directly in PR checklist table.
-  5. Instant Slack notification dispatched with PR link, video URL, and flow steps (`./scripts/notify-slack.sh`).
+- **Browser E2E Video Gate**: Where the project profile defines one, browser E2E testing with video recording is a non-negotiable blocking gate for:
+  1. Frontend and admin UI changes.
+  2. Backend changes affecting what a client UI displays — verified against the running client.
+  3. Recording published to the profile's configured destination with an active shareable link.
+  4. Recording URL embedded directly in the PR checklist table.
+  5. Handover notification dispatched with PR link, recording URL, and flow steps.
   *Skipping browser E2E or deferring to manual QA is strictly prohibited.*
 - **In-Video Visual Telemetry Standard**: Every Playwright E2E recording MUST implement:
   - *Floating On-Screen Step Banners (`showStepBanner`)*: Injected at top-center (`STEP X: [ACTION]`) with distinct badge color, clear context subtitle, and 1.5s visual pause.
