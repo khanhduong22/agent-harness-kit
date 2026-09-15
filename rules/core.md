@@ -68,6 +68,7 @@ flowchart LR
 *Trigger: New capability, new API module, workflow change, significant architectural addition.*
 1. **Clarify Requirements**: Understand requirements; mark unknown specs as `[TBD: Need User Input]`.
 2. **Design & Plan**: Produce OpenSpec proposal (`/opsx`) and task breakdown (`/plan`). Stop for approval unless `/build auto` is granted.
+   - **No Shipping in `tasks.md`**: `tasks.md` MUST strictly focus on code implementation, tests, and domain verification. NEVER include shipping, archiving (`openspec archive`), git commit, PR creation, or Slack notification steps in `tasks.md` (these are automated harness lifecycle operations, not specification tasks).
 3. **Implementation**: Execute task-by-task with TDD.
 4. **Verification**: Run integration & native test suites. For UI/CMS (`index-admin-cms`), run mandatory Playwright E2E suite (`npx playwright test`) with video recording enabled and upload video to Google Drive. For backend API changes in `index-api` impacting client web displays, pull latest `develop` on `index-web`, run locally (`bun dev` / `next dev` on port 3000), and execute Playwright browser E2E test with video recording.
 5. **Review & Ship**: Multi-axis review (quality, performance, security) and package single conventional commit.
