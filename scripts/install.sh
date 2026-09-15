@@ -346,6 +346,12 @@ install_project_index() {
     *) return 1 ;;
   esac
 
+  # sync_rules.py writes its own receipt entries, but only init_receipt creates
+  # the `latest` symlink that `--rollback latest` resolves. Without this call an
+  # index install onto an already-provisioned home (nothing left for the skill
+  # or rule paths to record) leaves a stamped receipt no rollback can find.
+  init_receipt
+
   rule_args=(
     --content "$kit_root/profiles/index/workspace.md"
     --destination "$proj_dest_rule"
