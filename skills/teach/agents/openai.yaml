@@ -1,6 +1,0 @@
-interface:
-  display_name: "Teach"
-  short_description: "Teach a topic across multiple sessions"
-  default_prompt: "Use $teach to teach me a topic in this workspace."
-policy:
-  allow_implicit_invocation: false
