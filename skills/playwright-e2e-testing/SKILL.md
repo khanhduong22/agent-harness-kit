@@ -601,7 +601,220 @@ export async function verifyCsvAndShowPreview(
 
 ---
 
-### 4.7. Page Object Model Example (`e2e/pages/community/groups/group-list.page.ts`)
+### 4.7. In-Video Visual Telemetry Standard (Step Banners & End-of-Run Audit Modal)
+
+To ensure Playwright E2E verification videos are **self-documenting, executive-ready, and unambiguous** without requiring voiceover commentary, all E2E test runs MUST implement the two-tier visual telemetry standard:
+
+1. **Floating Step-by-Step Overlay Banner (`showStepBanner`)**:
+   - Injected into the top-center of the browser viewport during state transitions.
+   - Distinctive color coding (`#4F46E5` for info/setup, `#D97706` for actions/warnings, `#DC2626` for deletions/destructive, `#10B981` for successful assertions).
+   - Shows `STEP X: [ACTION]` and contextual subtitle (subject, IDs, assertion targets).
+   - Displayed with deliberate 1.2s - 2.0s pauses before and after actions.
+
+2. **End-of-Run Summary Audit Modal (`showSummaryModal`)**:
+   - Injected before browser context close as a full-screen frosted glass overlay.
+   - Summarizes:
+     - Task ID & Title
+     - Actor / Author identity
+     - Services tested & event contracts (`COMMUNITY_EVENTS.*`)
+     - `✓ 100% VERIFIED` status pill
+     - Database persistence table (Record IDs, types, content, statuses)
+     - Delivery channels table (In-app, SMTP Mailpit, Web Client)
+   - Pauses on-screen for 4.5 seconds to provide a crisp, executive summary slide in the final video frame.
+
+#### Implementation Helper (`e2e/utils/video-telemetry.ts`):
+
+```typescript
+import { Page } from '@playwright/test';
+
+export interface StepBannerOptions {
+  step: number | string;
+  title: string;
+  subtitle?: string;
+  color?: string; // default: '#4F46E5'
+  pauseMs?: number; // default: 1500
+}
+
+export async function showStepBanner(page: Page, options: StepBannerOptions): Promise<void> {
+  const { step, title, subtitle = '', color = '#4F46E5', pauseMs = 1500 } = options;
+  await page.evaluate(
+    ({ step, title, subtitle, color }) => {
+      let el = document.getElementById('step-banner');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'step-banner';
+        document.body.appendChild(el);
+      }
+      el.style.cssText = `
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: ${color};
+        color: white;
+        padding: 12px 24px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        z-index: 9999999;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        border: 1px solid rgba(255,255,255,0.25);
+        backdrop-filter: blur(8px);
+      `;
+      el.innerHTML = `
+        <div style="font-size: 15px; font-weight: 700; letter-spacing: 0.5px;">STEP ${step}: ${title}</div>
+        ${subtitle ? `<div style="font-size: 13px; opacity: 0.92; font-weight: 500;">${subtitle}</div>` : ''}
+      `;
+    },
+    { step, title, subtitle, color }
+  );
+  if (pauseMs > 0) {
+    await page.waitForTimeout(pauseMs);
+  }
+}
+
+export async function removeStepBanner(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const el = document.getElementById('step-banner');
+    if (el) el.remove();
+  });
+}
+
+export interface SummaryModalOptions {
+  taskId: string;
+  taskTitle: string;
+  subtitle?: string;
+  rows: Array<{ id: string; type: string; action: string; content: string; status: string }>;
+  deliveryItems?: Array<{ title: string; subtitle: string; verifiedText: string; color: string }>;
+  footerText?: string;
+  pauseMs?: number; // default: 4500
+}
+
+export async function showSummaryModal(page: Page, options: SummaryModalOptions): Promise<void> {
+  const { taskId, taskTitle, subtitle = '', rows, deliveryItems = [], footerText = 'Ready for PR merge 🚀', pauseMs = 4500 } = options;
+  await page.evaluate(
+    ({ taskId, taskTitle, subtitle, rows, deliveryItems, footerText }) => {
+      const modal = document.createElement('div');
+      modal.id = 'e2e-summary-modal';
+      modal.style.cssText = `
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(15, 23, 42, 0.88);
+        backdrop-filter: blur(10px);
+        z-index: 99999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      `;
+
+      modal.innerHTML = `
+        <div style="
+          background: #ffffff;
+          width: 90%;
+          max-width: 1080px;
+          border-radius: 18px;
+          box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+          overflow: hidden;
+          border: 1px solid #E2E8F0;
+        ">
+          <div style="
+            background: linear-gradient(135deg, #4F46E5 0%, #1E1B4B 100%);
+            padding: 24px 32px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          ">
+            <div>
+              <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
+                ${taskId} Verification Complete
+              </div>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;">
+                ${taskTitle}
+              </h1>
+              ${subtitle ? `<p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9;">${subtitle}</p>` : ''}
+            </div>
+            <div style="
+              background: #10B981;
+              color: white;
+              padding: 8px 18px;
+              border-radius: 24px;
+              font-size: 13px;
+              font-weight: 700;
+              box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            ">
+              ✓ 100% VERIFIED
+            </div>
+          </div>
+
+          <div style="padding: 28px 32px; background: #F8FAFC; display: flex; flex-direction: column; gap: 20px;">
+            ${rows.length > 0 ? `
+              <div style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #E2E8F0; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                <div style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 12px;">
+                  🔔 System Records & Verified State
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                  <thead>
+                    <tr style="background: #F1F5F9; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                      <th style="padding: 10px 12px; color: #475569;">ID</th>
+                      <th style="padding: 10px 12px; color: #475569;">Type</th>
+                      <th style="padding: 10px 12px; color: #475569;">Action</th>
+                      <th style="padding: 10px 12px; color: #475569;">Content</th>
+                      <th style="padding: 10px 12px; color: #475569;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${rows.map(r => `
+                      <tr style="border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 10px 12px; font-weight: 600;">${r.id}</td>
+                        <td style="padding: 10px 12px;">${r.type}</td>
+                        <td style="padding: 10px 12px;"><strong>${r.action}</strong></td>
+                        <td style="padding: 10px 12px; color: #334155;">${r.content}</td>
+                        <td style="padding: 10px 12px; color: #059669; font-weight: 600;">${r.status}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : ''}
+
+            ${deliveryItems.length > 0 ? `
+              <div style="display: grid; grid-template-columns: repeat(${deliveryItems.length}, 1fr); gap: 16px;">
+                ${deliveryItems.map(item => `
+                  <div style="border-left: 4px solid ${item.color}; background: white; padding: 14px 18px; border-radius: 8px; border: 1px solid #E2E8F0;">
+                    <div style="font-size: 13px; font-weight: 700; color: #1E293B;">${item.title}</div>
+                    <div style="font-size: 12px; color: #64748B; margin-top: 4px;">${item.subtitle}</div>
+                    <div style="font-size: 12px; color: #059669; font-weight: 600; margin-top: 6px;">${item.verifiedText}</div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+
+          <div style="padding: 16px 32px; background: white; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #64748B;">
+            <span>E2E Verification Gate • Live Runtime Proof</span>
+            <span style="font-weight: 700; color: #4F46E5;">${footerText}</span>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+    },
+    { taskId, taskTitle, subtitle, rows, deliveryItems, footerText }
+  );
+
+  await page.waitForTimeout(pauseMs);
+}
+```
+
+---
+
+### 4.8. Page Object Model Example (`e2e/pages/community/groups/group-list.page.ts`)
 
 ```typescript
 import { Page, Locator, expect } from '@playwright/test';
