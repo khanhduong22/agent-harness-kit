@@ -119,6 +119,9 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   4. Google Drive video URL embedded directly in PR checklist table.
   5. Instant Slack notification dispatched with PR link, video URL, and flow steps (`./scripts/notify-slack.sh`).
   *Skipping browser E2E or deferring to manual QA is strictly prohibited.*
+- **In-Video Visual Telemetry Standard**: Every Playwright E2E recording MUST implement:
+  - *Floating On-Screen Step Banners (`showStepBanner`)*: Injected at top-center (`STEP X: [ACTION]`) with distinct badge color, clear context subtitle, and 1.5s visual pause.
+  - *End-of-Run Audit Summary Modal (`showSummaryModal`)*: Injected full-screen frosted glass card displaying verified task ID, `✓ 100% VERIFIED` status, persisted database records, and delivery channel statuses, paused for 4.5s before browser teardown.
 - **Git Push Authorization**: Running `git push` requires explicit `/ship` invocation or user confirmation.
 - **Handover Summary**: Every completed task must conclude with:
   1. What was changed (files and key logic).
