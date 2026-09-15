@@ -3,1162 +3,284 @@ name: playwright-e2e-testing
 description: Complete end-to-end (E2E) testing workflow with Playwright, including headless browser test execution, form validation guardrails, full CRUD lifecycle, video recording, automatic Google Drive upload via rclone, and instant Slack notifications.
 ---
 
-# Skill: Playwright E2E Testing & Modular Page Object Model (POM) Architecture
+# Skill: Playwright E2E Testing (index-admin-cms)
 
 ## Purpose
-Automate high-confidence, full-lifecycle browser testing with Playwright, complete with video recording and cloud reporting. Ensures every administrative and client feature is rigorously verified against runtime UI/DOM, validation guardrails, and persistent database state before human review.
+Automate high-confidence, full-lifecycle browser testing with Playwright, complete with video recording and cloud reporting. Every admin/client feature must be verified against runtime UI/DOM, validation guardrails, **downstream side-effect sinks**, and persistent database state before human review.
 
-Adheres strictly to the **Modular Page Object Model (POM)** pattern, multi-project authentication caching, custom test fixtures, domain-driven spec hierarchy, and visual proof generation.
-
----
-
-## 1. Architectural Diagram (Mermaid)
-
-```mermaid
-flowchart TD
-    subgraph ConfigAuth["Cấu Hình & Khởi Tạo Phiên (Config & StorageState)"]
-        direction TB
-        Config["playwright.config.ts<br/>(1800x1200, Video On, StorageState)"] --> Setup["e2e/setup/auth.setup.ts<br/>(One-Time Admin Login)"]
-        Setup --> SessionFile["e2e/.auth/admin.json<br/>(Persisted Session State)"]
-    end
-
-    subgraph FixtureLayer["Tầng Fixtures (Test Fixtures)"]
-        Fixtures["e2e/fixtures/index.ts<br/>(Auto-injecting POMs with Preloaded Session)"]
-    end
-
-    subgraph Layer1["Tầng 1: Kịch Bản Nghiệp Vụ (Declarative Specs)"]
-        direction TB
-        SpecAuth["e2e/specs/auth/"]
-        SpecGroups["e2e/specs/community/groups/"]
-        SpecUsers["e2e/specs/community/users/"]
-        SpecContent["e2e/specs/content/"]
-    end
-
-    subgraph Layer2["Tầng 2: Page Object Models (Encapsulated Selectors & Actions)"]
-        direction TB
-        BasePage["BasePage<br/>(Navigation, Toast, AlertDialog, recordPause)"]
-        POMs["LoginPage<br/>GroupListPage | GroupDetailPage | GroupModalPage<br/>UserListPage | UserModalsPage<br/>Top10ArticlesPage"]
-        BasePage --> POMs
-    end
-
-    subgraph Layer3["Tầng 3: Tiện Ích & Bằng Chứng (Visual & Audit Helpers)"]
-        direction TB
-        UtilCSV["utils/csv-preview.ts<br/>(BOM check + Canvas preview)"]
-        UtilVideo["utils/video-helper.ts<br/>(recordPause 1.5s)"]
-        UtilSelectors["utils/selectors.ts<br/>(Accessible Locators & Regex)"]
-    end
-
-    subgraph Delivery["Tầng Xuất Bản & Báo Cáo (Output & Delivery)"]
-        direction TB
-        Artifacts["Test Artifacts<br/>(.webm video + trace.zip)"] --> UploadScript["./scripts/upload-e2e-video.sh<br/>(rclone to Cloud Storage)"]
-        UploadScript --> GDrive["Google Drive<br/>(Public Shareable Link)"]
-        GDrive --> SlackNotify["./scripts/notify-slack.sh<br/>(Slack PR Handover Notification)"]
-    end
-
-    SessionFile --> Fixtures
-    Config --> Layer1
-    Fixtures --> Layer1
-    Layer1 --> Layer2
-    Layer2 --> Layer3
-    Layer1 --> Artifacts
-```
+> **Nguyên tắc số 1 của skill này**: scaffolding (config, POM, fixtures, helper) **đã tồn tại thật** trong `index-admin-cms/`. Skill này KHÔNG chứa bản copy của chúng — copy sẽ drift và sai. Luôn `Read` file thật trước khi viết spec mới.
 
 ---
 
-## 2. Enterprise Folder Structure
+## 1. Nguồn sự thật: đọc code thật, đừng copy từ doc
 
-Playwright test suites must follow this modular, domain-driven hierarchy:
+| Bạn cần | Đọc file thật | Export chính |
+|---|---|---|
+| Cấu hình runner, project, video | `index-admin-cms/playwright.config.ts` | `defineConfig` (`setup` → `e2e-authenticated`) |
+| Login 1 lần, lưu session | `e2e/setup/auth.setup.ts` | storageState → `e2e/.auth/admin.json` |
+| Inject POM vào spec | `e2e/fixtures/index.ts` | `test`, `expect`, 11 POM fixtures |
+| Helper chung cho POM | `e2e/pages/base.page.ts` | `goto`, `recordPause`, `waitForToast`, `confirmModal`, `cancelModal`, `takeScreenshot` |
+| Nhịp video cho người xem | `e2e/utils/video-helper.ts` | `recordPause(page, ms)` |
+| Banner + modal tổng kết trong video | `e2e/utils/video-telemetry.ts` | `showStepBanner`, `removeStepBanner`, `showSummaryModal` |
+| Verify CSV export + preview | `e2e/utils/csv-preview.ts` | `validateAndPreviewCsv`, `CsvValidationResult` |
+| Locator dùng chung | `e2e/utils/selectors.ts` | `SELECTORS` |
+
+> [!WARNING]
+> **Không bao giờ tự viết lại `playwright.config.ts`, `base.page.ts`, hay bất kỳ file nào ở bảng trên.** Chúng đang chạy được. Ghi đè bằng một phiên bản "chuẩn" trong đầu sẽ phá suite hiện tại. Cần thêm hành vi → mở rộng file thật.
+
+### Cấu trúc thư mục
 
 ```text
-e2e/
-├── .auth/                          # [Gitignored] Session state (admin.json)
-├── setup/                          # Global setup (auth.setup.ts)
-├── fixtures/                       # Custom fixtures (index.ts, mock-api.ts)
-├── pages/                          # POMs (base.page.ts, auth/, community/, content/)
-├── specs/                          # Domain-driven specs (auth/, community/, content/)
-└── utils/                          # Video pause, CSV preview, selectors
+index-admin-cms/
+├── playwright.config.ts            # Multi-project: setup → e2e-authenticated
+└── e2e/
+    ├── .auth/admin.json            # [Gitignored] session cache
+    ├── setup/auth.setup.ts         # Login 1 lần, dump storageState
+    ├── fixtures/index.ts           # test.extend inject POM đã typed
+    ├── pages/                      # POM: base.page.ts + auth/ community/ content/
+    ├── specs/                      # Spec theo domain: auth/ community/ content/
+    └── utils/                      # video-helper, video-telemetry, csv-preview, selectors
 ```
 
-### Detailed Monorepo Directory Breakdown
+POM và spec mới đặt theo domain sẵn có (`community/groups`, `community/users`, `community/topics`, `community/tags`, `community/moderation`, `community/notifications`, `content`). Thêm fixture mới → khai báo trong `e2e/fixtures/index.ts`.
+
+> [!IMPORTANT]
+> `playwright.config.ts` route spec bằng `testMatch` regex có allowlist domain. Tạo thư mục spec ở domain mới mà quên thêm vào regex thì **spec sẽ không chạy và suite vẫn báo xanh**. Luôn kiểm tra spec mới thực sự được pick up (`npx playwright test --list`).
+
+---
+
+## 2. Bước 0 BẮT BUỘC: Side-Effect Discovery (trước khi viết spec)
+
+Đây là bước hay bị bỏ nhất, và là lý do "E2E pass" nhưng production vẫn vỡ.
+
+**Vấn đề**: rule "phải verify email/notification downstream" là rule *có điều kiện* — "nếu action gửi mail thì...". Nhưng khi viết spec cho một feature, agent **không biết** action đó có phát sinh side-effect hay không. Không biết thì không verify, rồi tick "N/A" một cách thành thật. Rule không sai; thiếu **bước đi tìm**.
+
+### 2.1. Quy trình truy vết sink (chạy TRƯỚC khi viết dòng spec đầu tiên)
+
+Với mỗi action sắp test (create/update/delete/moderate/ban/publish...), truy ngược chuỗi này trong `index-api`:
 
 ```text
-e2e/
-├── .auth/                                  # Cached browser contexts (MUST be in .gitignore)
-│   └── admin.json                          # Saved cookies, localStorage & session tokens
-├── setup/                                  # Global one-time preparation projects
-│   └── auth.setup.ts                       # Login once and generate storageState
-├── fixtures/                               # Custom test runner extensions
-│   ├── index.ts                            # test.extend injecting typed Page Objects
-│   └── mock-api.ts                         # Network request mock & intercept helpers
-├── pages/                                  # Modular Page Object Models (Encapsulated UI)
-│   ├── base.page.ts                        # Abstract base (toasts, alerts, pauses, goto)
-│   ├── auth/
-│   │   └── login.page.ts                   # Login form fields and submit actions
-│   ├── community/
-│   │   ├── groups/
-│   │   │   ├── group-list.page.ts          # Group table, filters, search, export button
-│   │   │   ├── group-detail.page.ts        # Member list, roles, join requests
-│   │   │   └── group-modal.page.ts         # Create/Edit modal inputs & inline errors
-│   │   └── users/
-│   │       ├── user-list.page.ts           # Community users table & moderation filters
-│   │       └── user-modals.page.ts         # Ban, mute, and role assignment dialogs
-│   └── content/
-│       └── top-10-articles.page.ts         # Top 10 articles reorder, preview & publish
-├── specs/                                  # Declarative domain test specifications
-│   ├── auth/
-│   │   └── admin-login.spec.ts             # Unauthenticated login tests & validation
-│   ├── community/
-│   │   ├── groups/
-│   │   │   ├── group-crud.spec.ts          # 5-phase CRUD & persistence lifecycle
-│   │   │   ├── group-analytics-export.spec.ts # CSV export & UTF-8 BOM verification
-│   │   │   └── group-member-roles.spec.ts  # Member role transitions & permissions
-│   │   └── users/
-│   │       └── user-moderation.spec.ts     # User moderation, ban & role matrix
-│   └── content/
-│       └── top-10-articles.spec.ts         # Top 10 article curation flow
-└── utils/                                  # Visual proof & audit helpers
-    ├── csv-preview.ts                      # UTF-8 BOM check & in-browser canvas modal preview
-    ├── video-helper.ts                     # recordPause for legible video recording
-    └── selectors.ts                        # Accessible locator helpers and common regex
+1. Catalog sự kiện       index-api/src/community/constants/event.constants.ts   → COMMUNITY_EVENTS
+2. Điểm phát sự kiện     index-api/src/community/emitters/community-event.emitter.ts
+3. Listener fan-out      index-api/src/community/listeners/notification.listener.ts
+                          ├── NotificationService  → bản ghi notification trong DB
+                          └── SmtpService          → email thật
+4. Kênh email            index-api/src/shared/modules/smtp/smtp.service.ts        → Mailpit :8025
+5. Kênh realtime         index-api/src/app/app.gateway.ts  @OnEvent('SEND_NOTIFICATION_TO_USER')
+                                                            → websocket → NotificationBell (index-web)
 ```
+
+Lệnh truy vết nhanh:
+
+```bash
+# Action này có bắn event nào không?
+grep -rn "COMMUNITY_EVENTS\." index-api/src/community --include="*.ts" | grep -i "<entity>"
+
+# Event đó có listener nào bắt, và fan-out đi đâu?
+grep -rn "@OnEvent" index-api/src --include="*.ts"
+
+# Có gửi mail trực tiếp không (không qua event)?
+grep -rln "SmtpService\|sendMail" index-api/src index-admin-cms/src --include="*.ts"
+```
+
+Hoặc dùng `codebase-memory-mcp`: `trace_path(function_name="<serviceMethod>", direction="outward")` để thấy toàn bộ fan-out.
+
+### 2.2. Sink Inventory — bảng bắt buộc điền trước khi viết spec
+
+Kết quả bước 2.1 phải được ghi thành bảng, đính kèm trong PR:
+
+| Action | Sink phát hiện được | Verify trong video | Nếu N/A: lý do |
+|---|---|---|---|
+| `POST /groups` | không có event | — | emitter không có `GROUP.CREATED` |
+| `PUT /users/:id/ban` | `USER.BANNED` → mail + noti | Mailpit + NotificationBell | — |
+| `PUT /posts/:id/hide` | `POST.MODERATED` → noti + public feed | Bell + `/vi/cong-dong` | — |
+
+> [!IMPORTANT]
+> **"N/A" chỉ hợp lệ khi đã chạy bước 2.1 và ghi được lý do cụ thể.** Tick N/A mà không có dòng truy vết tương ứng = chưa làm bước 0, và PR bị chặn.
 
 ---
 
-## 3. Testing Philosophy: 3-Layer Testing Pyramid
+## 3. Testing Philosophy: 4-Layer Pyramid
 
-1. **Layer 1: Smoke & Navigation Test**:
-   - Verify page loads, navigation links, and SideNav active item highlights.
-2. **Layer 2: Full Lifecycle Functional CRUD (The Core Scenario)**:
-   - **Phase 1: Form Validation Guardrails**: Submit empty form, assert inline error text/borders, verify ZERO network requests sent to backend.
-   - **Phase 2: Create (Happy Path)**: Fill valid inputs, submit, assert modal closes, toast appears, and new item displays on UI.
-   - **Phase 3: Update**: Open edit modal with prefilled data, edit fields, save, assert UI updates immediately.
-   - **Phase 4: Delete**: Trigger removal, assert confirmation modal (`alertdialog`), confirm deletion, assert item disappears from UI.
-   - **Phase 5: Persistence Verification**: Full page reload (`F5`), navigate back, assert database persisted correct state and deleted item is gone.
-3. **Layer 3: RBAC (Role-Based Access Control) Matrix**:
-   - Reuse Layer 2 core scenario with parametrized Playwright `storageState` files (`admin.json`, `moderator.json`, `viewer.json`).
-   - Assert actions (Add, Edit, Delete) are disabled or hidden for unauthorized roles.
+1. **Layer 1 — Smoke & Navigation**: page load, nav link, SideNav active state.
+2. **Layer 2 — Full Lifecycle CRUD** (kịch bản lõi):
+   - *Phase 1 — Validation Guardrail*: submit form rỗng, assert inline error, verify **ZERO** request gửi xuống backend.
+   - *Phase 2 — Create*: điền hợp lệ, submit, assert modal đóng + toast + item hiện trên UI.
+   - *Phase 3 — Update*: mở edit modal đã prefill, sửa, lưu, assert UI cập nhật ngay.
+   - *Phase 4 — Delete*: trigger xóa, assert confirm dialog, xác nhận, assert item biến mất.
+   - *Phase 5 — Persistence*: reload (`page.reload()`), quay lại, assert DB đã lưu đúng state.
+3. **Layer 3 — RBAC Matrix**: chạy lại Layer 2 với `storageState` theo từng role (`admin.json`, `moderator.json`, `viewer.json`); assert nút Add/Edit/Delete bị ẩn hoặc disable với role không đủ quyền.
+4. **Layer 4 — Closed-Loop Downstream Verification** — với mọi sink tìm được ở §2:
 
----
-
-## 4. Code Implementation Patterns & Boilerplates
-
-### 4.1. Playwright Multi-Project Configuration (`playwright.config.ts`)
-
-Configures dependency chaining (`setup` -> `e2e-authenticated`), mandatory 1800x1200 viewport (MacBook M4 high-DPI ratio), and always-on video recording:
-
-```typescript
-import { defineConfig, devices } from '@playwright/test';
-import path from 'node:path';
-
-const STORAGE_STATE_PATH = path.resolve(__dirname, 'e2e/.auth/admin.json');
-
-export default defineConfig({
-  testDir: './e2e/specs',
-  timeout: 60000, // 60s timeout for complete multi-phase CRUD scenarios
-  fullyParallel: false, // Serial execution to prevent state collisions in shared DB
-  retries: 0,
-  workers: 1, // Single worker keeps database mutations deterministic
-  outputDir: '/tmp/playwright-cms-results/',
-  use: {
-    baseURL: process.env.CMS_BASE_URL || 'http://127.0.0.1:1337',
-    viewport: { width: 1800, height: 1200 },
-    video: {
-      mode: 'on',
-      size: { width: 1800, height: 1200 },
-    },
-    screenshot: 'on',
-    trace: 'retain-on-failure',
-  },
-  projects: [
-    // 1. One-time Setup: Authenticates and saves storage state
-    {
-      name: 'setup',
-      testDir: './e2e/setup',
-      testMatch: /.*\.setup\.ts/,
-    },
-    // 2. Unauthenticated Specs (e.g. Login failures, public routes)
-    {
-      name: 'auth-specs',
-      testDir: './e2e/specs/auth',
-      use: {
-        ...devices['Desktop Chrome'],
-        viewport: { width: 1800, height: 1200 },
-      },
-    },
-    // 3. Authenticated Business Flows: Reuses session saved by setup
-    {
-      name: 'e2e-authenticated',
-      testDir: './e2e/specs',
-      testIgnore: ['**/specs/auth/**'],
-      dependencies: ['setup'],
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: STORAGE_STATE_PATH,
-        viewport: { width: 1800, height: 1200 },
-      },
-    },
-  ],
-});
-```
+> [!IMPORTANT]
+> **Dừng ở toast nội bộ của CMS là chưa đóng vòng lặp. Mock downstream cũng không tính.** Video phải thực sự điều hướng sang hệ thống nhận, trong cùng một session ghi hình:
+> - **Sink A — Email (Mailpit `http://localhost:8025`)**: mở đúng mail vừa đến, assert subject, kiểm tra HTML template có branding, verify link động (vd token reset trỏ về `https://index.vn/dat-lai-mat-khau?code=...`).
+> - **Sink B — In-App Notification (`index-web` `http://localhost:3000`)**: đăng nhập đúng user nhận, assert badge `NotificationBell` tăng, mở `NotificationPanel`, click item, assert điều hướng đúng route và unread giảm.
+> - **Sink C — Public Feed (`index-web` `/vi/cong-dong`)**: sau khi admin ẩn/xóa/khóa/lưu trữ, vào feed công khai assert nội dung đã bị loại khỏi hiển thị.
+>
+> `index-web` là **read-only** — chỉ chạy và quan sát, tuyệt đối không sửa/commit code trong đó.
 
 ---
 
-### 4.2. One-Time Global Authentication Setup (`e2e/setup/auth.setup.ts`)
+## 4. Two-Dimensional Completeness: Full Flow × Full Option Matrix
 
-Performs a single administrative login and dumps browser cookies and localStorage into `admin.json`:
+### 4.1. Bẫy "Flow-Only"
+Nhiều engineer và AI agent verify được flow chạy từ đầu đến cuối (Navigate ➔ Modal ➔ Fill ➔ Submit ➔ Table ➔ Delete), không lỗi, rồi tuyên bố "100% E2E verified". Nhưng trong flow đó họ chỉ chọn **một option tùy ý** (tạo với category đầu tiên, đổi role thành `ADMIN` và bỏ qua `COMMUNITY_MODERATOR`).
 
-```typescript
-import { test as setup, expect } from '@playwright/test';
-import path from 'node:path';
-import fs from 'node:fs';
+**Hệ quả thật đã gặp**: chỉ test 2/3 role (`ADMIN`, `USER`) khiến `COMMUNITY_MODERATOR` lọt lưới. Lên production, chọn option đó là `400 Bad Request` ngay vì Prisma enum ở backend thiếu giá trị.
 
-const authDir = path.resolve(__dirname, '../.auth');
-const authFile = path.join(authDir, 'admin.json');
+Ba nhóm lỗi hay lọt theo cách này:
+1. **Schema & serialization mismatch** — enum chưa test fail validation giữa Strapi plugin, NestJS gateway và PostgreSQL enum.
+2. **UI rendering crash** — badge, màu, icon, nút gated theo role gắn với option chưa verify sẽ throw runtime error hoặc render rỗng.
+3. **Silent logic/permission bug** — transition guard đúng với state phổ biến, vỡ ở state trung gian.
 
-setup('authenticate as admin', async ({ page }) => {
-  if (!fs.existsSync(authDir)) {
-    fs.mkdirSync(authDir, { recursive: true });
-  }
-
-  const email = process.env.CMS_ADMIN_EMAIL || 'admin@index.vn';
-  const password = process.env.CMS_ADMIN_PASSWORD || 'Admin@123456';
-
-  await page.goto('/admin');
-
-  // Skip if already in an active session
-  if (page.url().includes('/admin/content-manager') || page.url().includes('/admin/plugins')) {
-    await page.context().storageState({ path: authFile });
-    return;
-  }
-
-  // Fill credentials using accessible role selectors
-  await page.getByRole('textbox', { name: /email/i }).fill(email);
-  await page.getByRole('textbox', { name: /password|mật khẩu/i }).fill(password);
-  await page.getByRole('button', { name: /đăng nhập|login|sign in/i }).click();
-
-  // Wait for redirect to administrative interface
-  await page.waitForURL(url => !url.pathname.includes('/auth/login') && url.pathname.includes('/admin'), {
-    timeout: 15000,
-  });
-
-  // Verify dashboard navigation bar is visible
-  await expect(page.locator('nav, aside, header').first()).toBeVisible({ timeout: 10000 });
-
-  // Persist session state
-  await page.context().storageState({ path: authFile });
-});
-```
-
----
-
-### 4.3. Custom Test Fixtures (`e2e/fixtures/index.ts`)
-
-Injects pre-instantiated, typed Page Object Models into specs so individual tests never deal with `new PageObject(page)` boilerplate:
-
-```typescript
-import { test as base, expect } from '@playwright/test';
-import { LoginPage } from '../pages/auth/login.page';
-import { GroupListPage } from '../pages/community/groups/group-list.page';
-import { GroupDetailPage } from '../pages/community/groups/group-detail.page';
-import { GroupModalPage } from '../pages/community/groups/group-modal.page';
-import { UserListPage } from '../pages/community/users/user-list.page';
-import { UserModalsPage } from '../pages/community/users/user-modals.page';
-import { Top10ArticlesPage } from '../pages/content/top-10-articles.page';
-
-export interface CustomFixtures {
-  loginPage: LoginPage;
-  groupListPage: GroupListPage;
-  groupDetailPage: GroupDetailPage;
-  groupModalPage: GroupModalPage;
-  userListPage: UserListPage;
-  userModalsPage: UserModalsPage;
-  top10ArticlesPage: Top10ArticlesPage;
-}
-
-export const test = base.extend<CustomFixtures>({
-  loginPage: async ({ page }, use) => {
-    await use(new LoginPage(page));
-  },
-  groupListPage: async ({ page }, use) => {
-    await use(new GroupListPage(page));
-  },
-  groupDetailPage: async ({ page }, use) => {
-    await use(new GroupDetailPage(page));
-  },
-  groupModalPage: async ({ page }, use) => {
-    await use(new GroupModalPage(page));
-  },
-  userListPage: async ({ page }, use) => {
-    await use(new UserListPage(page));
-  },
-  userModalsPage: async ({ page }, use) => {
-    await use(new UserModalsPage(page));
-  },
-  top10ArticlesPage: async ({ page }, use) => {
-    await use(new Top10ArticlesPage(page));
-  },
-});
-
-export { expect };
-```
-
----
-
-### 4.4. Base Page Object Model (`e2e/pages/base.page.ts`)
-
-Encapsulates common navigation, notification verification, alertdialog handling, and recording pauses:
-
-```typescript
-import { Page, Locator, expect } from '@playwright/test';
-import { recordPause } from '../utils/video-helper';
-
-export abstract class BasePage {
-  constructor(protected readonly page: Page) {}
-
-  /**
-   * Navigate to target path and wait for network/DOM stabilization
-   */
-  async goto(path: string): Promise<void> {
-    await this.page.goto(path, { waitUntil: 'domcontentloaded' });
-    await this.waitForPageLoaded();
-    await this.recordPause(1000);
-  }
-
-  /**
-   * Deliberate pause between critical user actions for clear video proof
-   */
-  async recordPause(ms: number = 1500): Promise<void> {
-    await recordPause(this.page, ms);
-  }
-
-  /**
-   * Assert notification toast presence and message
-   */
-  async expectToast(message: string | RegExp): Promise<void> {
-    const toast = this.page
-      .locator('[data-testid="toast"], [role="status"], .chakra-toast, .strapi-toast')
-      .filter({ hasText: message });
-    await expect(toast.first()).toBeVisible({ timeout: 5000 });
-    await this.recordPause(1200);
-  }
-
-  /**
-   * Confirm an alertdialog (e.g. Delete or Ban confirmation)
-   */
-  async confirmAlertDialog(confirmButtonName: RegExp = /xác nhận|đồng ý|xóa|confirm|delete/i): Promise<void> {
-    const dialog = this.page.getByRole('alertdialog');
-    await expect(dialog).toBeVisible({ timeout: 5000 });
-    await this.recordPause(800);
-    await dialog.getByRole('button', { name: confirmButtonName }).click();
-    await expect(dialog).toBeHidden({ timeout: 5000 });
-    await this.recordPause(1000);
-  }
-
-  /**
-   * Cancel an alertdialog
-   */
-  async cancelAlertDialog(cancelButtonName: RegExp = /hủy|đóng|cancel|close/i): Promise<void> {
-    const dialog = this.page.getByRole('alertdialog');
-    await dialog.getByRole('button', { name: cancelButtonName }).click();
-    await expect(dialog).toBeHidden({ timeout: 5000 });
-  }
-
-  /**
-   * Wait for network idle and dismissal of loading spinners
-   */
-  async waitForPageLoaded(): Promise<void> {
-    await this.page.waitForLoadState('networkidle').catch(() => {});
-    const spinner = this.page.locator('[role="progressbar"], .loading-spinner, [data-testid="loader"]');
-    if (await spinner.count() > 0) {
-      await spinner.first().waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
-    }
-  }
-}
-```
-
----
-
-### 4.5. Video Helper (`e2e/utils/video-helper.ts`)
-
-Controls playback pacing during test execution. Headless Chromium performs actions in 10-50ms; without controlled pauses, video recordings are too fast for human review.
-
-```typescript
-import { Page } from '@playwright/test';
-
-/**
- * Deliberate pause between critical user actions during video recording.
- * Headless automation moves faster than the human eye. Pacing key state transitions
- * ensures video evidence is clear, readable, and actionable for stakeholders.
- */
-export async function recordPause(page: Page, ms: number = 1500): Promise<void> {
-  await page.waitForTimeout(ms);
-}
-```
-
----
-
-### 4.6. CSV Preview & UTF-8 BOM Validator (`e2e/utils/csv-preview.ts`)
-
-Because headless browser testing cannot record native desktop apps (Excel or Numbers), tests verifying data exports must validate UTF-8 BOM encoding and inject an on-screen preview modal:
-
-```typescript
-import { Page, Download, expect } from '@playwright/test';
-import fs from 'node:fs';
-
-export interface CsvPreviewOptions {
-  expectedFilenameRegex?: RegExp;
-  expectedHeaders?: string[];
-  maxPreviewRows?: number;
-  pauseMs?: number;
-}
-
-/**
- * Validates downloaded CSV encoding (UTF-8 BOM), parses headers/rows,
- * and renders an in-browser high-contrast canvas modal overlay for video recording audit.
- */
-export async function verifyCsvAndShowPreview(
-  page: Page,
-  download: Download,
-  options: CsvPreviewOptions = {}
-): Promise<void> {
-  const {
-    expectedFilenameRegex,
-    expectedHeaders = [],
-    maxPreviewRows = 7,
-    pauseMs = 4000,
-  } = options;
-
-  const filename = download.suggestedFilename();
-  if (expectedFilenameRegex) {
-    expect(filename).toMatch(expectedFilenameRegex);
-  }
-
-  const downloadPath = await download.path();
-  if (!downloadPath) {
-    throw new Error(`Failed to retrieve download path for file: ${filename}`);
-  }
-
-  const csvBuffer = fs.readFileSync(downloadPath);
-
-  // 1. Verify UTF-8 BOM (0xEF, 0xBB, 0xBF) for Vietnamese Excel compatibility
-  expect(csvBuffer[0]).toBe(0xEF);
-  expect(csvBuffer[1]).toBe(0xBB);
-  expect(csvBuffer[2]).toBe(0xBF);
-
-  const csvText = csvBuffer.toString('utf-8');
-
-  // Verify mandatory headers if specified
-  for (const header of expectedHeaders) {
-    expect(csvText).toContain(header);
-  }
-
-  // Parse CSV rows taking quoted commas into account
-  const lines = csvText.trim().split(/\r?\n/).filter(Boolean);
-  const parsedRows = lines.map(line => {
-    const result: string[] = [];
-    let cur = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        result.push(cur.trim());
-        cur = '';
-      } else {
-        cur += char;
-      }
-    }
-    result.push(cur.trim());
-    return result.map(c => c.replace(/^"|"$/g, ''));
-  });
-
-  const headers = parsedRows[0] || [];
-  const dataRows = parsedRows.slice(1, 1 + maxPreviewRows);
-  const totalRows = Math.max(0, parsedRows.length - 1);
-
-  // 2. Inject modern visual modal preview for clear video demonstration
-  await page.evaluate(
-    ({ headers, dataRows, totalRows, filename }) => {
-      const overlay = document.createElement('div');
-      overlay.id = 'csv-preview-overlay';
-      overlay.style.cssText = `
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(15, 23, 42, 0.75);
-        backdrop-filter: blur(8px);
-        z-index: 999999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      `;
-
-      overlay.innerHTML = `
-        <div style="
-          background: #ffffff;
-          width: 92%;
-          max-width: 1100px;
-          max-height: 88vh;
-          border-radius: 16px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          border: 1px solid #E2E8F0;
-        ">
-          <!-- Header -->
-          <div style="
-            background: linear-gradient(135deg, #4F46E5 0%, #2563EB 100%);
-            padding: 20px 28px;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-          ">
-            <div style="display: flex; align-items: center; gap: 14px;">
-              <div style="background: rgba(255,255,255,0.2); border-radius: 10px; padding: 10px 12px; font-size: 24px; line-height: 1;">
-                📄
-              </div>
-              <div>
-                <h2 style="margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em;">
-                  XÁC NHẬN NỘI DUNG FILE CSV (UTF-8 BOM VERIFIED)
-                </h2>
-                <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.95; font-weight: 500;">
-                  File đã tải: <strong>\${filename}</strong> • Chuẩn mã hóa: <strong>UTF-8 with BOM</strong> (Tương thích 100% Microsoft Excel & Numbers)
-                </p>
-              </div>
-            </div>
-            <div style="
-              background: #10B981;
-              color: white;
-              padding: 6px 14px;
-              border-radius: 20px;
-              font-size: 12px;
-              font-weight: 700;
-              text-transform: uppercase;
-              letter-spacing: 0.05em;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-            ">
-              ✓ UTF-8 BOM VALID
-            </div>
-          </div>
-
-          <!-- Table Body -->
-          <div style="padding: 20px 24px; overflow: auto; flex: 1; background: #F8FAFC;">
-            <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #E2E8F0;">
-              <thead>
-                <tr style="background: #F1F5F9; border-bottom: 2px solid #CBD5E1;">
-                  \${headers.map(h => \`<th style="padding: 12px 14px; text-align: left; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap;">\${h}</th>\`).join('')}
-                </tr>
-              </thead>
-              <tbody>
-                \${dataRows.map((row, idx) => \`
-                  <tr style="border-bottom: 1px solid #E2E8F0; background: \${idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC'};">
-                    \${row.map(cell => \`<td style="padding: 12px 14px; font-size: 13px; color: #1E293B; font-weight: 500; white-space: nowrap;">\${cell}</td>\`).join('')}
-                  </tr>
-                \`).join('')}
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Footer -->
-          <div style="
-            padding: 14px 28px;
-            background: white;
-            border-top: 1px solid #E2E8F0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 13px;
-            color: #64748B;
-          ">
-            <span>Đang hiển thị <strong>\${dataRows.length}</strong> / <strong>\${totalRows}</strong> bản ghi từ file CSV tải về</span>
-            <span style="font-weight: 600; color: #4F46E5;">Trạng thái: Hoàn tất xuất dữ liệu CSV thành công 🚀</span>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-    },
-    {
-      headers,
-      dataRows,
-      totalRows,
-      filename,
-    }
-  );
-
-  // 3. Pause so video recording clearly captures the table
-  await page.waitForTimeout(pauseMs);
-
-  // 4. Remove preview overlay from DOM
-  await page.evaluate(() => {
-    const el = document.getElementById('csv-preview-overlay');
-    if (el) el.remove();
-  });
-}
-```
-
----
-
-### 4.7. In-Video Visual Telemetry Standard (Step Banners & End-of-Run Audit Modal)
-
-To ensure Playwright E2E verification videos are **self-documenting, executive-ready, and unambiguous** without requiring voiceover commentary, all E2E test runs MUST implement the two-tier visual telemetry standard:
-
-1. **Floating Step-by-Step Overlay Banner (`showStepBanner`)**:
-   - Injected into the top-center of the browser viewport during state transitions.
-   - Distinctive color coding (`#4F46E5` for info/setup, `#D97706` for actions/warnings, `#DC2626` for deletions/destructive, `#10B981` for successful assertions).
-   - Shows `STEP X: [ACTION]` and contextual subtitle (subject, IDs, assertion targets).
-   - Displayed with deliberate 1.2s - 2.0s pauses before and after actions.
-
-2. **End-of-Run Summary Audit Modal (`showSummaryModal`)**:
-   - Injected before browser context close as a full-screen frosted glass overlay.
-   - Summarizes:
-     - Task ID & Title
-     - Actor / Author identity
-     - Services tested & event contracts (`COMMUNITY_EVENTS.*`)
-     - `✓ 100% VERIFIED` status pill
-     - Database persistence table (Record IDs, types, content, statuses)
-     - Delivery channels table (In-app, SMTP Mailpit, Web Client)
-   - Pauses on-screen for 4.5 seconds to provide a crisp, executive summary slide in the final video frame.
-
-#### Implementation Helper (`e2e/utils/video-telemetry.ts`):
-
-```typescript
-import { Page } from '@playwright/test';
-
-export interface StepBannerOptions {
-  step: number | string;
-  title: string;
-  subtitle?: string;
-  color?: string; // default: '#4F46E5'
-  pauseMs?: number; // default: 1500
-}
-
-export async function showStepBanner(page: Page, options: StepBannerOptions): Promise<void> {
-  const { step, title, subtitle = '', color = '#4F46E5', pauseMs = 1500 } = options;
-  await page.evaluate(
-    ({ step, title, subtitle, color }) => {
-      let el = document.getElementById('step-banner');
-      if (!el) {
-        el = document.createElement('div');
-        el.id = 'step-banner';
-        document.body.appendChild(el);
-      }
-      el.style.cssText = `
-        position: fixed;
-        top: 16px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: ${color};
-        color: white;
-        padding: 12px 24px;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        z-index: 9999999;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        text-align: center;
-        pointer-events: none;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        border: 1px solid rgba(255,255,255,0.25);
-        backdrop-filter: blur(8px);
-      `;
-      el.innerHTML = `
-        <div style="font-size: 15px; font-weight: 700; letter-spacing: 0.5px;">STEP ${step}: ${title}</div>
-        ${subtitle ? `<div style="font-size: 13px; opacity: 0.92; font-weight: 500;">${subtitle}</div>` : ''}
-      `;
-    },
-    { step, title, subtitle, color }
-  );
-  if (pauseMs > 0) {
-    await page.waitForTimeout(pauseMs);
-  }
-}
-
-export async function removeStepBanner(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    const el = document.getElementById('step-banner');
-    if (el) el.remove();
-  });
-}
-
-export interface SummaryModalOptions {
-  taskId: string;
-  taskTitle: string;
-  subtitle?: string;
-  rows: Array<{ id: string; type: string; action: string; content: string; status: string }>;
-  deliveryItems?: Array<{ title: string; subtitle: string; verifiedText: string; color: string }>;
-  footerText?: string;
-  pauseMs?: number; // default: 4500
-}
-
-export async function showSummaryModal(page: Page, options: SummaryModalOptions): Promise<void> {
-  const { taskId, taskTitle, subtitle = '', rows, deliveryItems = [], footerText = 'Ready for PR merge 🚀', pauseMs = 4500 } = options;
-  await page.evaluate(
-    ({ taskId, taskTitle, subtitle, rows, deliveryItems, footerText }) => {
-      const modal = document.createElement('div');
-      modal.id = 'e2e-summary-modal';
-      modal.style.cssText = `
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(15, 23, 42, 0.88);
-        backdrop-filter: blur(10px);
-        z-index: 99999999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      `;
-
-      modal.innerHTML = `
-        <div style="
-          background: #ffffff;
-          width: 90%;
-          max-width: 1080px;
-          border-radius: 18px;
-          box-shadow: 0 25px 60px rgba(0,0,0,0.5);
-          overflow: hidden;
-          border: 1px solid #E2E8F0;
-        ">
-          <div style="
-            background: linear-gradient(135deg, #4F46E5 0%, #1E1B4B 100%);
-            padding: 24px 32px;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-          ">
-            <div>
-              <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
-                ${taskId} Verification Complete
-              </div>
-              <h1 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;">
-                ${taskTitle}
-              </h1>
-              ${subtitle ? `<p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9;">${subtitle}</p>` : ''}
-            </div>
-            <div style="
-              background: #10B981;
-              color: white;
-              padding: 8px 18px;
-              border-radius: 24px;
-              font-size: 13px;
-              font-weight: 700;
-              box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-            ">
-              ✓ 100% VERIFIED
-            </div>
-          </div>
-
-          <div style="padding: 28px 32px; background: #F8FAFC; display: flex; flex-direction: column; gap: 20px;">
-            ${rows.length > 0 ? `
-              <div style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #E2E8F0; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-                <div style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 12px;">
-                  🔔 System Records & Verified State
-                </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                  <thead>
-                    <tr style="background: #F1F5F9; border-bottom: 2px solid #E2E8F0; text-align: left;">
-                      <th style="padding: 10px 12px; color: #475569;">ID</th>
-                      <th style="padding: 10px 12px; color: #475569;">Type</th>
-                      <th style="padding: 10px 12px; color: #475569;">Action</th>
-                      <th style="padding: 10px 12px; color: #475569;">Content</th>
-                      <th style="padding: 10px 12px; color: #475569;">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${rows.map(r => `
-                      <tr style="border-bottom: 1px solid #E2E8F0;">
-                        <td style="padding: 10px 12px; font-weight: 600;">${r.id}</td>
-                        <td style="padding: 10px 12px;">${r.type}</td>
-                        <td style="padding: 10px 12px;"><strong>${r.action}</strong></td>
-                        <td style="padding: 10px 12px; color: #334155;">${r.content}</td>
-                        <td style="padding: 10px 12px; color: #059669; font-weight: 600;">${r.status}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            ` : ''}
-
-            ${deliveryItems.length > 0 ? `
-              <div style="display: grid; grid-template-columns: repeat(${deliveryItems.length}, 1fr); gap: 16px;">
-                ${deliveryItems.map(item => `
-                  <div style="border-left: 4px solid ${item.color}; background: white; padding: 14px 18px; border-radius: 8px; border: 1px solid #E2E8F0;">
-                    <div style="font-size: 13px; font-weight: 700; color: #1E293B;">${item.title}</div>
-                    <div style="font-size: 12px; color: #64748B; margin-top: 4px;">${item.subtitle}</div>
-                    <div style="font-size: 12px; color: #059669; font-weight: 600; margin-top: 6px;">${item.verifiedText}</div>
-                  </div>
-                `).join('')}
-              </div>
-            ` : ''}
-          </div>
-
-          <div style="padding: 16px 32px; background: white; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #64748B;">
-            <span>E2E Verification Gate • Live Runtime Proof</span>
-            <span style="font-weight: 700; color: #4F46E5;">${footerText}</span>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(modal);
-    },
-    { taskId, taskTitle, subtitle, rows, deliveryItems, footerText }
-  );
-
-  await page.waitForTimeout(pauseMs);
-}
-```
-
----
-
-### 4.8. Page Object Model Example (`e2e/pages/community/groups/group-list.page.ts`)
-
-```typescript
-import { Page, Locator, expect } from '@playwright/test';
-import { BasePage } from '../../base.page';
-
-export class GroupListPage extends BasePage {
-  readonly searchInput: Locator;
-  readonly createButton: Locator;
-  readonly exportButton: Locator;
-  readonly tableRows: Locator;
-
-  constructor(page: Page) {
-    super(page);
-    this.searchInput = page.getByPlaceholder(/tìm kiếm nhóm|search group/i);
-    this.createButton = page.getByRole('button', { name: /tạo nhóm|thêm nhóm|create group/i });
-    this.exportButton = page.getByRole('button', { name: /xuất csv|export csv/i });
-    this.tableRows = page.locator('table tbody tr');
-  }
-
-  async navigate(): Promise<void> {
-    await this.goto('/admin/plugins/community/groups');
-  }
-
-  async searchGroup(name: string): Promise<void> {
-    await this.searchInput.fill(name);
-    await this.page.keyboard.press('Enter');
-    await this.waitForPageLoaded();
-    await this.recordPause(1000);
-  }
-
-  async clickCreateGroup(): Promise<void> {
-    await this.createButton.click();
-    await this.recordPause(800);
-  }
-
-  async clickEditGroup(name: string): Promise<void> {
-    const row = this.tableRows.filter({ hasText: name });
-    await row.getByRole('button', { name: /chỉnh sửa|sửa|edit/i }).click();
-    await this.recordPause(800);
-  }
-
-  async deleteGroup(name: string): Promise<void> {
-    const row = this.tableRows.filter({ hasText: name });
-    await row.getByRole('button', { name: /xóa|delete/i }).click();
-    await this.recordPause(800);
-  }
-
-  async expectGroupInList(name: string): Promise<void> {
-    await expect(this.tableRows.filter({ hasText: name })).toBeVisible({ timeout: 5000 });
-  }
-
-  async expectGroupNotInList(name: string): Promise<void> {
-    await expect(this.tableRows.filter({ hasText: name })).toHaveCount(0, { timeout: 5000 });
-  }
-}
-```
-
----
-
-### 4.8. Declarative Spec Pattern (`e2e/specs/community/groups/group-crud.spec.ts`)
-
-Specs MUST be purely declarative. NEVER write raw CSS selectors or repetitive authentication logic inside specs:
-
-```typescript
-import { test, expect } from '../../../fixtures';
-
-test.describe('Community Group Management - Full 5-Phase CRUD Lifecycle', () => {
-  test.setTimeout(60000);
-
-  const testGroup = {
-    name: `E2E Test Group ${Date.now()}`,
-    slug: `e2e-test-group-${Date.now()}`,
-    privacy: 'Public' as const,
-    description: 'Automated test group created via Playwright POM',
-  };
-
-  test('executes complete 5-phase CRUD and database persistence flow', async ({
-    groupListPage,
-    groupModalPage,
-    page,
-  }) => {
-    // Navigate to Group List
-    await groupListPage.navigate();
-
-    // Phase 1: Form Validation Guardrail (Zero network call on invalid input)
-    await groupListPage.clickCreateGroup();
-    await groupModalPage.submitEmpty();
-    await groupModalPage.expectValidationError('name', /tên nhóm không được để trống/i);
-    await groupModalPage.cancel();
-
-    // Phase 2: Create (Happy Path)
-    await groupListPage.clickCreateGroup();
-    await groupModalPage.fillForm(testGroup);
-    await groupModalPage.submit();
-    await groupListPage.expectToast(/tạo nhóm thành công/i);
-    await groupListPage.searchGroup(testGroup.name);
-    await groupListPage.expectGroupInList(testGroup.name);
-
-    // Phase 3: Update
-    const updatedName = `${testGroup.name} (Updated)`;
-    await groupListPage.clickEditGroup(testGroup.name);
-    await groupModalPage.fillForm({ name: updatedName });
-    await groupModalPage.submit();
-    await groupListPage.expectToast(/cập nhật thành công/i);
-    await groupListPage.expectGroupInList(updatedName);
-
-    // Phase 4: Delete with Confirmation Modal
-    await groupListPage.deleteGroup(updatedName);
-    await groupListPage.confirmAlertDialog();
-    await groupListPage.expectToast(/xóa nhóm thành công/i);
-    await groupListPage.expectGroupNotInList(updatedName);
-
-    // Phase 5: Persistence Verification (F5 Reload)
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await groupListPage.searchGroup(updatedName);
-    await groupListPage.expectGroupNotInList(updatedName);
-  });
-});
-```
-
----
-
-## 5. Two-Dimensional E2E Completeness: Full Flow × Exhaustive Option Matrix
-
-### 5.1. The "Flow-Only" Fallacy vs. True E2E Completeness
-Many engineers and AI agents fall into the **"Flow-Only" Fallacy**: they verify that a high-level user flow works from end-to-end (e.g., Navigate ➔ Open Modal ➔ Fill Fields ➔ Submit ➔ View in Table ➔ Delete). Because the scenario completes without throwing an error, they declare the feature "100% E2E verified."
-
-However, within that flow, they picked only **one arbitrary option** (e.g., creating with only the first category, or changing role to `ADMIN` while ignoring `COMMUNITY_MODERATOR`).
-
-**The Production Trap:**
-- **Flow passes, but 70-80% of discrete options remain untested**: Enums, switch states, filter tabs, modal variations, and edge permissions never execute in the browser.
-- **Real-World Failure Case Study**: Testing only 2 out of 3 user roles (`ADMIN` and `USER`) allowed an unhandled `COMMUNITY_MODERATOR` role to slip through. In production, selecting that option triggered an instant `400 Bad Request` because the backend Prisma enum was missing the value!
-- **Consequences**:
-  1. **Schema & Serialization Mismatches**: Untested enum values fail validation or deserialization between Strapi CMS plugins, NestJS API gateways, and PostgreSQL enum types.
-  2. **UI Rendering Crashes**: UI components (status badges, color codes, custom icons, or role-gated action buttons) tied to unverified options throw runtime JavaScript errors or render blank styles.
-  3. **Silent Logic & Permission Bugs**: Transition guards work for common states but break on intermediate states (e.g. moderator permissions, restricted privacy).
-
-### 5.2. The Core Principle: Two-Dimensional E2E Completeness
-True production-grade E2E testing must operate across **two orthogonal dimensions**:
+### 4.2. Hai chiều trực giao
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                       TWO-DIMENSIONAL E2E MATRIX                        │
-├────────────────────────────────────┬────────────────────────────────────┤
-│   DIMENSION 1: FLOW COVERAGE       │   DIMENSION 2: OPTION COVERAGE     │
-│   (Horizontal User Journey)        │   (Vertical State & Option Space)  │
+┌────────────────────────────────────┬────────────────────────────────────┐
+│   CHIỀU 1: FLOW COVERAGE           │   CHIỀU 2: OPTION COVERAGE         │
+│   (hành trình ngang)               │   (không gian state/option dọc)    │
 ├────────────────────────────────────┼────────────────────────────────────┤
-│ • Navigate to feature page         │ • 100% of Enum Values (Roles, etc.)│
-│ • Open Create / Edit drawers       │ • 100% of Select Dropdown Choices  │
-│ • Fill and submit forms            │ • 100% of Radio Group Options      │
-│ • Trigger lifecycle actions        │ • 100% of Listing Filter Tabs      │
-│ • Handle confirmation dialogs      │ • 100% of Moderation Durations     │
-│ • Assert notifications & toasts    │ • 100% of Search / Sort Fields     │
-│ • Cleanup and deletion             │ • 100% of Dialog Decision Branches │
+│ • Điều hướng tới trang feature     │ • 100% giá trị Enum (role, status) │
+│ • Mở Create / Edit drawer          │ • 100% lựa chọn Select dropdown    │
+│ • Điền và submit form              │ • 100% option Radio group          │
+│ • Trigger action lifecycle         │ • 100% tab filter trên listing     │
+│ • Xử lý confirm dialog             │ • 100% mốc thời hạn moderation     │
+│ • Assert toast & notification      │ • 100% trường search / sort        │
+│ • Cleanup & xóa                    │ • 100% nhánh quyết định của dialog │
 └────────────────────────────────────┴────────────────────────────────────┘
 ```
 
 > [!IMPORTANT]
-> **A test suite that covers 100% of the flows but only 30% of the options is INCOMPLETE and BLOCKED from shipping.** Full E2E requires **Full Flow × Full Option Matrix**.
+> **Suite phủ 100% flow nhưng chỉ 30% option là INCOMPLETE và bị chặn ship.**
 
-### 5.3. The Zero-Skipped-Option Rule
+### 4.3. Zero-Skipped-Option Rule
+
 > [!IMPORTANT]
-> **Zero-Skipped-Option Rule**: For **ANY** enum, select dropdown, radio group, segmented button, or multi-option state machine across the codebase:
-> - **Roles & RBAC**: Every role in the system (e.g., `USER`, `COMMUNITY_MODERATOR`, `COMMUNITY_ADMIN`).
-> - **Entity Statuses**: Every lifecycle state (e.g., `ACTIVE`, `PENDING`, `SUSPENDED`, `LOCKED`, `DELETED`).
-> - **Privacy & Visibility**: Every scope (e.g., `PUBLIC`, `PRIVATE`, `RESTRICTED`).
-> - **Action Durations**: Every duration choice (e.g., `24h`, `7d`, `PERMANENT`).
-> - **Tabs & Filter Scopes**: Every tab on listing screens (e.g., `All`, `Active`, `Trending`, `Pending`).
-> - **Decision Branches**: Every outcome in modals (Confirm, Cancel, Reject, Validation Error).
->
-> **Testing Requirements (Zero Exceptions)**:
-> 1. **Every single option ($N$ out of $N$, 100%) MUST be explicitly tested and asserted.**
-> 2. **Testing a subset (e.g., 2 out of 3, or $N - 1$ out of $N$ options) is STRICTLY PROHIBITED.**
-> 3. Each option verification MUST assert:
->    - **DOM Availability**: The option is present, clickable, and correctly labeled in the dropdown or radio group.
->    - **Network Mutation Payload**: The outbound API request payload contains the exact expected enum value.
->    - **Server Response**: The server responds with success (HTTP 200/201) and returns the updated entity with that enum value.
->    - **UI State Reflection**: The UI updates immediately to reflect the new state (e.g., updated table badge, status tag, or active radio state).
->    - **Database Persistence**: Reloading the page (`page.reload()`) verifies that the state persists accurately in the database.
+> Với **BẤT KỲ** enum, select, radio group, segmented button, hay state machine đa lựa chọn — role & RBAC, entity status, privacy scope, action duration, tab filter, nhánh quyết định của modal:
+> 1. **Mọi option ($N$/$N$, 100%) phải được test và assert tường minh.**
+> 2. **Test một tập con ($N-1$/$N$) là VI PHẠM.**
+> 3. Mỗi option phải assert đủ 5 tầng:
+>    - **DOM**: option có mặt, click được, label đúng.
+>    - **Network payload**: request gửi lên chứa đúng giá trị enum.
+>    - **Server response**: HTTP 200/201 và entity trả về mang đúng giá trị.
+>    - **UI reflection**: badge/tag/trạng thái cập nhật ngay.
+>    - **DB persistence**: `page.reload()` xong state vẫn đúng.
 
-### 5.4. Concrete Examples & Verification Patterns
+### 4.4. Ba pattern triển khai
 
-#### Pattern A: Sequential Transition Loop (Full Role Matrix)
-When testing a stateful entity where an option can be updated across its entire lifecycle (e.g., Community User Role: `ADMIN` -> `MODERATOR` -> `MEMBER`), iterate through the full enum array sequentially:
+**Pattern A — Vòng lặp chuyển trạng thái tuần tự** (khi một entity đổi option qua toàn bộ vòng đời):
 
 ```typescript
-// Define exhaustive enum matrix with expected UI labels and badge classes
 export const COMMUNITY_USER_ROLES = [
-  { value: 'COMMUNITY_ADMIN', label: 'Quản trị viên', badgeClass: 'badge-admin' },
-  { value: 'COMMUNITY_MODERATOR', label: 'Kiểm duyệt viên', badgeClass: 'badge-moderator' },
-  { value: 'COMMUNITY_MEMBER', label: 'Thành viên', badgeClass: 'badge-member' },
+  { value: 'COMMUNITY_ADMIN', label: 'Quản trị viên' },
+  { value: 'COMMUNITY_MODERATOR', label: 'Kiểm duyệt viên' },
+  { value: 'COMMUNITY_MEMBER', label: 'Thành viên' },
 ] as const;
 
-test('verifies 100% exhaustive role transitions with zero skipped options', async ({
-  userListPage,
-  userModalsPage,
-  page,
-}) => {
-  await userListPage.navigate();
-  const targetUserEmail = 'user-role-matrix-test@index.vn';
+// ❌ CẤM: chỉ test ADMIN → MEMBER rồi bỏ qua COMMUNITY_MODERATOR
+// ✅ CHUẨN: lặp hết mọi role, không bỏ option nào
+for (const role of COMMUNITY_USER_ROLES) {
+  await userListPage.openChangeRoleModal(targetUserEmail);
+  await userModalsPage.selectRole(role.value);
 
-  // ❌ STRICTLY PROHIBITED: Testing only ADMIN -> MEMBER and skipping COMMUNITY_MODERATOR
-  // ✅ MANDATORY STANDARD: Iterate through ALL 3 roles without skipping any option
-  for (const role of COMMUNITY_USER_ROLES) {
-    // 1. Open role modal and select role
-    await userListPage.openChangeRoleModal(targetUserEmail);
-    await userModalsPage.selectRole(role.value);
+  const [response] = await Promise.all([
+    page.waitForResponse(r => r.url().includes('/api/community/users') && r.status() === 200),
+    userModalsPage.submitRoleChange(),
+  ]);
+  expect((await response.json()).data.role).toBe(role.value);
 
-    // 2. Intercept API response to verify backend enum acceptance
-    const [response] = await Promise.all([
-      page.waitForResponse(
-        res => res.url().includes('/api/community/users') && res.request().method() === 'PUT' && res.status() === 200
-      ),
-      userModalsPage.submitRoleChange(),
-    ]);
+  await userListPage.waitForToast(/cập nhật vai trò thành công/i);
+  await userListPage.expectUserRoleBadge(targetUserEmail, role.label);
 
-    const body = await response.json();
-    expect(body.data.role).toBe(role.value);
-
-    // 3. Assert success toast and immediate UI badge update
-    await userListPage.expectToast(/cập nhật vai trò thành công/i);
-    await userListPage.expectUserRoleBadge(targetUserEmail, role.label);
-
-    // 4. Persistence verification: reload page and ensure state remains in database
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await userListPage.expectUserRoleBadge(targetUserEmail, role.label);
-    await userListPage.recordPause(800);
-  }
-});
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await userListPage.expectUserRoleBadge(targetUserEmail, role.label);
+}
 ```
 
-#### Pattern B: Parametrized Creation Matrix (Full Variant Coverage)
-When entities are created with distinct enum options (e.g., Group Privacy: `PUBLIC`, `PRIVATE`, `RESTRICTED`), write a parametrized test matrix ensuring 100% of options are covered during creation:
+**Pattern B — Ma trận tạo mới parametrized** (khi entity được tạo với nhiều biến thể enum):
 
 ```typescript
 export const GROUP_PRIVACY_VARIANTS = [
-  { value: 'PUBLIC', label: 'Công khai', description: 'Ai cũng có thể xem và tham gia' },
-  { value: 'PRIVATE', label: 'Riêng tư', description: 'Cần phê duyệt để tham gia' },
-  { value: 'RESTRICTED', label: 'Hạn chế', description: 'Chỉ thành viên được mời' },
+  { value: 'PUBLIC', label: 'Công khai' },
+  { value: 'PRIVATE', label: 'Riêng tư' },
+  { value: 'RESTRICTED', label: 'Hạn chế' },
 ] as const;
 
-// Parametrized spec: 100% coverage of all privacy variants (Zero Skipped Options)
 for (const variant of GROUP_PRIVACY_VARIANTS) {
-  test(`creates group with privacy variant: ${variant.value}`, async ({
-    groupListPage,
-    groupModalPage,
-    page,
-  }) => {
+  test(`tạo nhóm với privacy: ${variant.value}`, async ({ groupListPage, groupModalPage, page }) => {
     const groupName = `E2E ${variant.value} Group ${Date.now()}`;
     await groupListPage.navigate();
     await groupListPage.clickCreateGroup();
+    await groupModalPage.fillForm({ name: groupName, privacy: variant.value });
 
-    await groupModalPage.fillForm({
-      name: groupName,
-      privacy: variant.value,
-      description: `E2E automated test for ${variant.value} privacy option`,
-    });
-
-    // Intercept creation API call
     const [response] = await Promise.all([
-      page.waitForResponse(res => res.url().includes('/api/community/groups') && res.status() === 201),
+      page.waitForResponse(r => r.url().includes('/api/community/groups') && r.status() === 201),
       groupModalPage.submit(),
     ]);
-    const body = await response.json();
-    expect(body.data.privacy).toBe(variant.value);
+    expect((await response.json()).data.privacy).toBe(variant.value);
 
-    // Verify UI reflects privacy badge accurately
-    await groupListPage.expectToast(/tạo nhóm thành công/i);
-    await groupListPage.searchGroup(groupName);
+    await groupListPage.waitForToast(/tạo nhóm thành công/i);
     await groupListPage.expectGroupPrivacyBadge(groupName, variant.label);
   });
 }
 ```
 
-#### Pattern C: DOM Completeness Assertion for Dropdown / Radio Options
-Before interacting with any enum-driven select dropdown or radio group, assert that the DOM lists every single defined option:
+**Pattern C — Assert DOM có đủ option** (chạy trước khi tương tác với dropdown/radio enum):
 
 ```typescript
-/**
- * Asserts that a select dropdown contains 100% of defined enum options
- */
-async expectExhaustiveEnumOptionsInDropdown(
-  triggerLocator: Locator,
-  expectedOptions: Array<{ value: string; label: string }>
+async expectExhaustiveEnumOptions(
+  trigger: Locator,
+  expected: Array<{ value: string; label: string }>,
 ): Promise<void> {
-  await triggerLocator.click();
-  const optionLocators = this.page.getByRole('option');
-
-  // 1. Assert option count strictly matches enum definition count
-  await expect(optionLocators).toHaveCount(expectedOptions.length);
-
-  // 2. Assert every single enum option label is visible in DOM
-  for (const opt of expectedOptions) {
-    await expect(optionLocators.filter({ hasText: opt.label })).toBeVisible();
+  await trigger.click();
+  const options = this.page.getByRole('option');
+  await expect(options).toHaveCount(expected.length);           // đủ số lượng
+  for (const opt of expected) {
+    await expect(options.filter({ hasText: opt.label })).toBeVisible();
   }
 }
 ```
 
 ---
 
-## 6. Best Practices & Modal Scoping Rules
+## 5. Best Practices & Modal Scoping
 
-1. **Accessible Role Selectors**:
-   - Prefer `page.getByRole('button', { name: '...' })` over loose text or CSS selectors.
-   - For confirmation popups/dialogs, use `page.getByRole('alertdialog').getByRole('button', { name: '...' })`.
-2. **Modal Scoping Guardrail**:
-   - Scope action buttons inside modals using `page.getByRole('dialog')` or `page.getByRole('alertdialog')` to prevent Playwright `strict mode violation` errors when multiple buttons share identical labels (e.g., "Hủy" or "Lưu").
-3. **Explicit Timeout**:
-   - Always set `test.setTimeout(60000);` inside multi-step lifecycle specs to prevent premature timeouts during slow network transitions or cloud CI runs.
-4. **Zero Raw Selectors in Specs**:
-   - All locators (`page.locator`, `getByRole`, `getByTestId`) MUST be encapsulated inside POM classes. Test specs must read like plain English/Vietnamese business stories.
+1. **Accessible role selector**: ưu tiên `page.getByRole('button', { name: ... })` hơn text lỏng hay CSS selector.
+2. **Modal scoping guardrail**: scope nút trong modal bằng `page.getByRole('dialog')` / `getByRole('alertdialog')` để tránh `strict mode violation` khi nhiều nút trùng label ("Hủy", "Lưu").
+3. **Explicit timeout**: spec lifecycle nhiều bước phải đặt `test.setTimeout(60000)`.
+4. **Zero raw selector trong spec**: mọi locator nằm trong POM. Spec phải đọc như một câu chuyện nghiệp vụ bằng tiếng Việt/Anh.
+5. **Nhịp video**: chèn `recordPause(1500)` giữa các chuyển trạng thái quan trọng — headless chạy 10-50ms/action, không pause thì video vô dụng với người xem.
+6. **Telemetry trong video**: dùng `showStepBanner` trước mỗi bước và `showSummaryModal` trước khi đóng browser (xem `e2e/utils/video-telemetry.ts`).
+7. **Credentials**: lấy từ env (`CMS_ADMIN_EMAIL`, `CMS_ADMIN_PASSWORD`). Không hardcode password trong spec, POM, hay tài liệu.
 
 ---
 
-## 7. Automated Cloud Reporting Workflow
+## 6. Cloud Reporting Workflow
 
-### 1. Upload Video to Google Drive
 ```bash
+# 1. Upload video lên Google Drive (rclone → gdrive:Index-E2E-Reports/YYYY-MM-DD/)
 ./scripts/upload-e2e-video.sh <path-to-video.webm> "<Task-Name>"
-```
-- Uploads the video file to Google Drive using `rclone` (`gdrive:Index-E2E-Reports/YYYY-MM-DD/`).
-- Automatically generates a public shareable Google Drive link (`https://drive.google.com/open?id=...`).
 
-### 2. Dispatch Slack Notification
-```bash
+# 2. Bắn Slack handover
 ./scripts/notify-slack.sh \
-  "<Task Name>" \
-  "<GitHub PR URL>" \
-  "<Status Details (Tests passed, typecheck clean)>" \
-  "<Google Drive Video URL>" \
-  "<Issue Info (e.g. #3151: Title)>" \
-  "<Flow Steps (Multi-line breakdown of what to watch in video)>"
+  "<Task Name>" "<GitHub PR URL>" "<Status Details>" \
+  "<Google Drive Video URL>" "<Issue Info>" "<Flow Steps>"
 ```
 
 ---
 
-## 8. Verification Checklist Before Handover
+## 7. Verification Checklist Before Handover
 
-- [ ] Playwright test suite passes 100% (`npx playwright test`).
-- [ ] Multi-project setup executed: `setup` generates `.auth/admin.json` and `e2e-authenticated` reuses it.
-- [ ] All specs consume POMs via `fixtures/index.ts` without raw CSS selectors.
-- [ ] Two-Dimensional E2E Completeness verified: 100% Full Flow coverage AND 100% of all options in any enum, select dropdown, radio group, or filter tab are explicitly tested (Zero-Skipped-Option Rule).
-- [ ] For file/data exports: UTF-8 BOM encoding verified and on-screen preview modal rendered for >= 4s.
-- [ ] Deliberate pauses (`recordPause(1500)`) placed between critical UI transitions for video readability.
-- [ ] Video recording generated in output directory at 1800x1200 resolution (MacBook M4 high-DPI ratio).
-- [ ] Video uploaded to Google Drive with active public shareable link.
-- [ ] Slack webhook notified with issue info, direct PR link, video URL, and step breakdown.
+- [ ] **Sink Inventory (§2.2) đã điền xong** — mọi action đều đã truy vết `COMMUNITY_EVENTS` / `@OnEvent` / `SmtpService`; mỗi dòng có verification step hoặc lý do N/A cụ thể. *(Không điều kiện — luôn phải có bảng này.)*
+- [ ] Mọi sink trong bảng đã được verify thật trong video (Mailpit / NotificationBell / public feed), không mock, không dừng ở toast CMS.
+- [ ] Playwright suite pass 100% (`npx playwright test`).
+- [ ] Spec mới thực sự được `testMatch` pick up (`npx playwright test --list`).
+- [ ] `setup` sinh `.auth/admin.json`, `e2e-authenticated` tái sử dụng được.
+- [ ] Spec dùng POM qua `fixtures/index.ts`, không có raw CSS selector.
+- [ ] Two-Dimensional Completeness: 100% flow **và** 100% option của mọi enum/select/radio/tab (Zero-Skipped-Option Rule).
+- [ ] Export file/dữ liệu: verify UTF-8 BOM và render preview modal ≥ 4s.
+- [ ] `recordPause(1500)` đặt giữa các chuyển trạng thái quan trọng.
+- [ ] `showStepBanner` mỗi bước + `showSummaryModal` cuối run.
+- [ ] Video 1800x1200, đã upload Google Drive và link share công khai còn sống.
+- [ ] Slack đã nhận: issue info, PR link, video URL, breakdown các bước.
