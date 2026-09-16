@@ -2,6 +2,18 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.4] - 2026-09-15
+
+### Fixed
+
+- **Test suites asserted nothing.** macOS ships bash 3.2, where `set -e` does not abort on a failing `[[ ... ]]` or a `! cmd` negation — POSIX exempts both. Almost every assertion in `scripts/test.sh` and `tests/test_harness.sh` was written that way, so both suites printed "passed" while their assertions were false: they had been asserting symlinks for `ask-matt`, `writing-for-agents`, `gemini-api-dev` and `triage`, none of which have been in the kit since those skills were purged. Only a single pipeline (`find | grep -q`) was ever enforced. All assertions now route through `assert`/`refute` in the new `scripts/assert.sh`, which exit explicitly and name the failing expectation.
+- **`--rollback latest` could not find its receipt.** `install_project_index` calls `sync_rules.py` directly, which writes receipt entries but never creates the `latest` symlink — that only happens in `init_receipt`, which the index path never called. An index install onto an already-provisioned home (nothing left for the skill or rule paths to record) left a stamped receipt that rollback could not resolve. `install_project_index` now calls `init_receipt` first. Surfaced by the assertion fix above.
+- Test fixtures now sample real skills from `skills/` instead of hardcoding names, which rot silently on every rename or purge.
+
+### Changed
+
+- **Global rules no longer name Index services.** `rules/core.md` and `rules/adapters/claude.md` referenced `index-api`, `index-admin-cms` and `index-web` in seven places, so every install wrote project-specific policy into every user's global `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`. The harness test asserted this must not happen and had been failing silently. The wording is now generic and defers to the project profile; the Index-specific policy it duplicated already lives in `profiles/index/workspace.md` §4 and `profiles/index/cms.md` §4, so no rule was lost.
+
 ## [0.1.3] - 2026-09-15
 
 ### Added
