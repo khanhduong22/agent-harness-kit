@@ -83,4 +83,23 @@ assert "--force replaces the conflicting directory with the kit symlink" \
 assert "--force backs up the displaced local file" \
   test -n "$(/usr/bin/find "$kit_test_home/.agent-harness-backups" -path "*/claude/$conflict_skill/local.txt" -type f)"
 
+# Pruning orphans. A skill deleted from the kit leaves a dangling link behind on
+# every machine that already installed it; the stale skill then keeps applying.
+# Only kit-owned dangling links may be removed — a foreign link and a real local
+# directory must both survive, or pruning would eat the operator's own work.
+claude_skills="$kit_test_home/.claude/skills"
+/bin/ln -s "$kit_root/skills/__removed_from_kit__" "$claude_skills/__removed_from_kit__"
+/bin/ln -s "$test_root/somewhere-else" "$claude_skills/__foreign_link__"
+/bin/mkdir -p "$claude_skills/__operator_local__"
+printf 'keep me\n' > "$claude_skills/__operator_local__/local.txt"
+
+"$kit_root/scripts/install.sh" --targets claude >/dev/null
+
+assert "a dangling kit link is pruned once its skill leaves the kit" \
+  test ! -L "$claude_skills/__removed_from_kit__"
+assert "a dangling link pointing outside the kit is left alone" \
+  test -L "$claude_skills/__foreign_link__"
+assert "an operator's own skill directory is never pruned" \
+  test -f "$claude_skills/__operator_local__/local.txt"
+
 printf 'installer integration test passed\n'

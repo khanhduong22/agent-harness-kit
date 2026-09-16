@@ -2,11 +2,23 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.6] - 2026-09-16
+
+### Added
+
+- **`scripts/check-skill-ownership.sh`** — fails when a skill name exists in both the kit and a service repo. Wired into `scripts/verify.sh`; skips silently unless a workspace path is passed or `AGENT_HARNESS_WORKSPACE` is set, so a machine without the workspace still verifies clean. The invariant is **disjointness**, not "the kit must be a superset": the longer copy is usually longer because it is coupled to one repo, so a superset rule would pull service internals up into the global layer.
+- **Orphan pruning in `install.sh`.** Deleting a skill from the kit used to leave the deployed link behind on every machine that had installed it, and the stale skill kept applying with nothing reporting it. Only dangling symlinks pointing into this kit are pruned — a foreign link and a real operator directory both survive, and `--mode copy` is left alone because a removed skill is then indistinguishable from a hand-written one. Covered by three assertions in `scripts/test.sh`, verified to fail without the fix.
+
+### Changed
+
+- **Four skills moved out of the kit to the service repo that owns them**: `github-pr-ship`, `postman-api-testing`, `prisma-safe-migration` and `use-constants`. All six duplicated skills had drifted, and in every case the service copy was the richer one — but richer because it hardcodes that service's paths, containers and commands (`prisma-safe-migration` carries `gb_api-db-1`, `greenbull`, `api_shadow`, `prisma/api/...`). Promoting those to the kit would have repeated the 0.1.4 leak one layer down, shipping one service's internals to every project on every machine.
+- **`fix-sonarqube` absorbed the richer service copy (23 → 56 lines)** and stays in the kit: its content is generic `sonarjs` rule/fix guidance, and the only repo-specific part — the SonarQube component key — is now `$SONAR_PROJECT_KEY` rather than a hardcoded project name. The duplicate is removed in idx-vn/index-api#442.
+
 ## [0.1.5] - 2026-09-16
 
 ### Changed
 
-- **The Index workspace profile is now the single source for workspace policy.** `profiles/index/workspace.md` grows from 39 to 119 lines, absorbing the 99-line `/Users/kido/index/.agents/AGENTS.md` that had been maintained by hand outside any git repository and outside the installer's reach. The two overlapped: the `index-web` ownership policy was duplicated **byte-for-byte across 8 lines**, the service list in the profile was a thinner subset of the one in `AGENTS.md`, and the 1-Commit Rule appeared at three separate layers. Both files were loaded into every session, because the workspace `CLAUDE.md` imports `@.agents/AGENTS.md` on line 1.
+- **The Index workspace profile is now the single source for workspace policy.** `profiles/index/workspace.md` grows from 39 to 119 lines, absorbing the 99-line workspace-root `.agents/AGENTS.md` that had been maintained by hand outside any git repository and outside the installer's reach. The two overlapped: the `index-web` ownership policy was duplicated **byte-for-byte across 8 lines**, the service list in the profile was a thinner subset of the one in `AGENTS.md`, and the 1-Commit Rule appeared at three separate layers. Both files were loaded into every session, because the workspace `CLAUDE.md` imports `@.agents/AGENTS.md` on line 1.
 - Section 6 now states the ownership boundary explicitly: this pack is generated from the kit and must never be hand-edited or shadowed by a second copy inside the workspace, while `<service>/.agents/AGENTS.md` and `<service>/.agents/skills/` stay versioned with the code they govern. A rule or skill lives in exactly one of the two.
 
 ### Notes
