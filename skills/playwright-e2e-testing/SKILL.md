@@ -258,6 +258,12 @@ async expectExhaustiveEnumOptions(
 
 ## 6. Cloud Reporting Workflow
 
+`notify-slack.sh` reads `SLACK_WEBHOOK_URL` from the environment or from
+`~/.config/agent-harness/secrets.env` (override with `AGENT_HARNESS_SECRETS`).
+A webhook is a credential — never write it into a tracked file. With the
+variable unset the script prints where it looked and exits 0, so a run without
+Slack configured still succeeds.
+
 ```bash
 # 1. Upload video lên Google Drive (rclone → gdrive:Index-E2E-Reports/YYYY-MM-DD/)
 ./scripts/upload-e2e-video.sh <path-to-video.webm> "<Task-Name>"
