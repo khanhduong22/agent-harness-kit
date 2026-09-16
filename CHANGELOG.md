@@ -2,6 +2,17 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.5] - 2026-09-16
+
+### Changed
+
+- **The Index workspace profile is now the single source for workspace policy.** `profiles/index/workspace.md` grows from 39 to 119 lines, absorbing the 99-line `/Users/kido/index/.agents/AGENTS.md` that had been maintained by hand outside any git repository and outside the installer's reach. The two overlapped: the `index-web` ownership policy was duplicated **byte-for-byte across 8 lines**, the service list in the profile was a thinner subset of the one in `AGENTS.md`, and the 1-Commit Rule appeared at three separate layers. Both files were loaded into every session, because the workspace `CLAUDE.md` imports `@.agents/AGENTS.md` on line 1.
+- Section 6 now states the ownership boundary explicitly: this pack is generated from the kit and must never be hand-edited or shadowed by a second copy inside the workspace, while `<service>/.agents/AGENTS.md` and `<service>/.agents/skills/` stay versioned with the code they govern. A rule or skill lives in exactly one of the two.
+
+### Notes
+
+- The thin six-line service list from the old profile was dropped in favour of the detailed descriptions it duplicated; the `Rule Preservation` bullet was reworded to drop its `.agents/AGENTS.md` path reference. No other content differs — verified line-by-line against both sources.
+
 ## [0.1.4] - 2026-09-15
 
 ### Fixed
