@@ -264,6 +264,35 @@ install_one_skill() {
   record_receipt_action "symlink" "$destination_skill" "$existed" "$backup_skill"
 }
 
+# Remove destination entries this kit installed whose source skill no longer
+# exists. Without this, deleting a skill from the kit leaves the deployed link
+# behind on every machine that already installed it, and the stale skill keeps
+# applying — silently, because nothing reports it.
+#
+# Only dangling symlinks pointing into this kit are pruned. A real directory is
+# never touched: under `--mode copy` a removed skill is indistinguishable from
+# one the operator wrote by hand, so copies are left for manual cleanup.
+prune_orphan_skills() {
+  local destination_root="$1"
+  local entry target
+  [[ -d "$destination_root" ]] || return 0
+  for entry in "$destination_root"/*; do
+    [[ -L "$entry" ]] || continue
+    target="$(readlink "$entry")"
+    case "$target" in
+      "$kit_root"/skills/*|"$kit_root"/overlays/*) ;;
+      *) continue ;;
+    esac
+    [[ -e "$target" ]] && continue
+    if [[ "$dry_run" == true ]]; then
+      printf 'would prune orphan: %s -> %s\n' "$entry" "$target"
+    else
+      /bin/rm -f "$entry"
+      printf 'pruned orphan: %s (source no longer in kit)\n' "$entry"
+    fi
+  done
+}
+
 install_target() {
   local target="$1"
   local destination_root adapter destination_rule source_skill overlay_skill
@@ -286,6 +315,8 @@ install_target() {
       install_one_skill "$overlay_skill" "$destination_root" "${adapter}-overlay"
     done
   fi
+
+  prune_orphan_skills "$destination_root"
 
   if [[ "$install_rules" == true ]]; then
     init_receipt
