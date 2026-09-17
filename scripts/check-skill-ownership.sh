@@ -51,7 +51,12 @@ for workspace in "${workspaces[@]}"; do
     printf 'skill ownership: workspace not found: %s\n' "$workspace" >&2
     exit 2
   fi
-  for repo_skill in "$workspace"/*/.agents/skills/*/SKILL.md; do
+  # Two layers: each service repo's own skills, and a workspace-root
+  # `.agents/skills` directory. The latter is not a deploy target of
+  # install.sh, so anything left there is a hand-made copy that drifts
+  # silently — it once held 40 of them, 3 stale and 4 duplicating a service.
+  for repo_skill in "$workspace"/*/.agents/skills/*/SKILL.md \
+                    "$workspace"/.agents/skills/*/SKILL.md; do
     [[ -f "$repo_skill" ]] || continue
     checked=$((checked + 1))
     skill_dir="$(dirname "$repo_skill")"

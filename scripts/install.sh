@@ -360,19 +360,18 @@ install_project_index() {
         proj_dest_rule="${project_dir}/.claude/CLAUDE.md"
       fi
       ;;
-    codex)
-      if [[ -f "${project_dir}/.codex/AGENTS.md" ]]; then
-        proj_dest_rule="${project_dir}/.codex/AGENTS.md"
-      else
-        proj_dest_rule="${project_dir}/AGENTS.md"
-      fi
-      ;;
-    gemini)
-      if [[ -f "${project_dir}/.gemini/GEMINI.md" ]]; then
-        proj_dest_rule="${project_dir}/.gemini/GEMINI.md"
-      else
-        proj_dest_rule="${project_dir}/GEMINI.md"
-      fi
+    # Codex reads AGENTS.md at the repository root and walks down to the working
+    # directory. `.codex/` is the *global* home only (CODEX_HOME) — Codex never
+    # reads a `.codex/AGENTS.md` inside a project, so writing there produced a
+    # file no tool loads while the real one went stale.
+    #
+    # Antigravity loads ~/.gemini/GEMINI.md, then ./GEMINI.md, then ./AGENTS.md,
+    # then ./.agents/rules/*.md — so it reads the same root AGENTS.md. Writing a
+    # project GEMINI.md as well would inject this pack into Antigravity twice,
+    # so both adapters deliberately share the one cross-tool file. The write is
+    # marker-scoped and idempotent, so the second adapter reports "unchanged".
+    codex|gemini)
+      proj_dest_rule="${project_dir}/AGENTS.md"
       ;;
     *) return 1 ;;
   esac
