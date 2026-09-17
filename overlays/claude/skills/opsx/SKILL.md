@@ -16,7 +16,11 @@ Phase 1 of the SDLC pipeline: `OPENSPEC (/opsx) → PLAN (/plan-sdlc) → BUILD 
 
 Under `openspec/changes/<change-name>/`:
 
-- **`proposal.md`** — `## Why` (the problem, in plain terms — keep it tight, long why-sections get flagged by `openspec validate`) and `## What Changes` (a bullet list of concrete deltas, one per capability/module touched).
+- **`proposal.md`** — `## Why` (the intent) and `## What Changes` (a bullet list of concrete deltas, one per capability/module touched). `## Why` carries the pain, not the diagnosis: a Why that opens with a symbol name (`parseFoo() returns undefined when…`) has described the fix and skipped the problem, and every acceptance criterion derived from it will go green while the user is still stuck. Three things, always:
+
+  - **Who is affected and how** — in user-facing terms, no function or file names. "Editors with more than 10 tags can't reach page 2, so they create duplicates they can't see", not "the pagination parser drops `meta`".
+  - **Where it was observed** — the ticket, Slack thread, log, or person that reported it. If there is no source, write `[TBD: Need User Input]` rather than inventing one.
+  - **How you'll know the pain is gone** — a user-visible signal, which is never "the tests pass". This is what the `specs/` scenarios must trace back to.
 - **`design.md`** — architectural decisions worth recording: a pros/cons table when there were 2+ real options, sequence/flow diagrams (Mermaid) for non-trivial interactions, and concrete interface/contract sketches (type signatures, function shapes) for anything Phase 2 (`/build`) will implement against.
 - **`tasks.md`** — bite-sized checklist grouped into phases, each item starting `- [ ]`. This is what `/plan-sdlc` will expand on, and what `/build`/`/ship` check off and validate against. Don't write implementation code here — just the task list.
 - **`specs/<capability>/spec.md`** — one file per capability this change touches, using strict Gherkin:
