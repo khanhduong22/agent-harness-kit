@@ -2,6 +2,17 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.9] - 2026-09-17
+
+### Added
+
+- **Hooks now deploy to Claude Code and Codex.** Four guardrails — lint auto-fix, Prisma schema sync, an unrequested-package block, and a pre-ship gate — were declared `"enabled": true` in an Antigravity-shaped `.agents/hooks.json` that Claude Code never reads: it takes hooks only from `settings.json`, and neither settings file had a `hooks` key. So none of them had ever run. `install.sh` now deploys the scripts to one shared directory and merges the hook block into `<project>/.claude/settings.json` and `~/.codex/hooks.json` — Codex needs no separate definition, since its hooks file already uses the Claude Code schema verbatim. Operator entries survive the merge and the kit's own entries are not duplicated on reinstall (`tests/test_harness.sh` Test 9, proven to fail without the implementation).
+
+### Fixed
+
+- **The hook scripts could not read any other host's payload.** All four parsed Antigravity's shape (`workspacePaths`, `toolCall.args.CommandLine`, `toolCall.args.TargetFile`), so wiring them up unchanged would have produced hooks that fire and do nothing — worse than none, because it looks fixed. Each field now reads through a jq fallback chain, one line per field, and one script serves every host. The output contract differed too: `guard-new-packages.sh` emitted Antigravity's `{"decision":"force_ask"}` where Claude Code and Codex read `.hookSpecificOutput.permissionDecision` with the value `ask`; it now emits both.
+- **The pre-ship gate could never fire on any host.** `grep -c` exits 1 on a zero count, so `grep -c … || echo "0"` produced `"0\n0"` and the numeric test aborted with `integer expression expected`, falling through to allow. Rewritten with `grep -q`. Separately, the gate now blocks only on Antigravity, which supplies the `executionNum` loop guard that stops a blocking Stop hook from firing forever; elsewhere it is advisory, surfacing its reminder through `systemMessage` without holding the turn open.
+
 ## [0.1.8] - 2026-09-17
 
 ### Fixed

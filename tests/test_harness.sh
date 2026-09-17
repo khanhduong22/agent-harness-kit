@@ -235,4 +235,48 @@ assert "rollback removed the settings file it created" \
   test ! -e "$project_d/.claude/settings.json"
 printf 'Passed: Rollback restored .mcp.json and removed created permission config\n'
 
+printf '=== Test 9: Hook deployment and merge ===\n'
+project_e="$test_root/projects/index-hooks"
+/bin/mkdir -p "$project_e"
+
+AGENT_HARNESS_BACKUP_DIR="$test_root/backups-hooks" \
+  "$kit_root/scripts/install.sh" --index --project-path "$project_e" --targets claude >/dev/null
+
+# Resolved, not just absolute: the installer canonicalises the path it writes,
+# and on macOS $TMPDIR lives under /var, a symlink to /private/var.
+hooks_dir="$(cd "$kit_test_home/.agent-harness/hooks" && pwd -P)"
+assert "hook scripts are deployed to the shared directory" \
+  test -x "$hooks_dir/guard-new-packages.sh"
+assert "the hook block lands in the project settings" \
+  grep -q '"PreToolUse"' "$project_e/.claude/settings.json"
+assert "hook commands point at the deployed scripts, not the kit checkout" \
+  grep -q "$hooks_dir/guard-new-packages.sh" "$project_e/.claude/settings.json"
+refute "the {{HOOKS_DIR}} placeholder is never left unsubstituted" \
+  grep -q 'HOOKS_DIR' "$project_e/.claude/settings.json"
+
+# An operator adds a hook on an event the kit does not manage, then reinstalls.
+/usr/bin/env python3 - "$project_e/.claude/settings.json" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as handle:
+    data = json.load(handle)
+data["hooks"].setdefault("SessionStart", []).append(
+    {"hooks": [{"type": "command", "command": "/opt/operator-own.sh"}]}
+)
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, indent=2)
+PY
+
+AGENT_HARNESS_BACKUP_DIR="$test_root/backups-hooks" \
+  "$kit_root/scripts/install.sh" --index --project-path "$project_e" --targets claude \
+  > "$test_root/reinstall-hooks.log"
+
+assert "an operator hook on an unmanaged event survives reinstall" \
+  grep -q '/opt/operator-own.sh' "$project_e/.claude/settings.json"
+assert "the kit's own hook entry is not duplicated on reinstall" \
+  test "$(grep -c "$hooks_dir/guard-new-packages.sh" "$project_e/.claude/settings.json")" -eq 1
+assert "a reinstall that changes nothing reports the hook config unchanged" \
+  grep -q 'hook config unchanged' "$test_root/reinstall-hooks.log"
+printf 'Passed: Hooks deployed, merged, and idempotent\n'
+
 printf '\nALL HARNESS BEHAVIORAL TESTS PASSED SUCCESSFULLY!\n'

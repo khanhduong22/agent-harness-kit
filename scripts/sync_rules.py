@@ -35,6 +35,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--replace", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--receipt-file", type=Path, help="Path to append action to receipt.json")
+    parser.add_argument("--hooks", action="store_true", help="Merge the profile hook block instead of rules")
+    parser.add_argument("--hooks-profile", type=Path, help="Path to the profile hooks.json (--hooks)")
+    parser.add_argument("--hooks-dir", type=Path, help="Deployed hook scripts directory, substituted for {{HOOKS_DIR}} (--hooks)")
     parser.add_argument("--mcp", action="store_true", help="Render profile MCP config instead of rules")
     parser.add_argument("--profile", type=str, help="Comma-separated profile markdown paths (--mcp)")
     parser.add_argument("--project-path", type=Path, help="Project root receiving MCP config (--mcp)")
@@ -291,8 +294,66 @@ def run_mcp(args: argparse.Namespace) -> int:
     return 0
 
 
+def render_hooks(profile_path: Path, hooks_dir: Path) -> dict:
+    """Load the profile hook block and point every command at the deployed scripts."""
+    text = profile_path.expanduser().read_text(encoding="utf-8")
+    text = text.replace("{{HOOKS_DIR}}", str(hooks_dir.expanduser().resolve()))
+    document = json.loads(text)
+    hooks = document.get("hooks")
+    if not isinstance(hooks, dict):
+        raise ValueError(f"{profile_path}: expected a top-level 'hooks' object")
+    return hooks
+
+
+def _entry_is_kit_owned(entry: dict, hooks_dir: str) -> bool:
+    """True when every command in this entry points into the kit's hooks directory.
+
+    Kit entries carry no marker of their own — the schema has nowhere to put one
+    — so ownership is read off the command path. An operator entry runs
+    something else and is never touched.
+    """
+    commands = [h.get("command", "") for h in entry.get("hooks", []) if isinstance(h, dict)]
+    return bool(commands) and all(c.startswith(hooks_dir) for c in commands)
+
+
+def merge_hooks(settings: dict, rendered: dict, hooks_dir: Path) -> dict:
+    """Merge kit hook entries into existing settings, preserving operator entries.
+
+    Kit-owned entries are dropped and re-added rather than appended to, so a
+    reinstall cannot duplicate them and a hook removed from the kit disappears
+    on the next install.
+    """
+    merged = copy.deepcopy(settings) if settings else {}
+    existing = merged.get("hooks", {})
+    if not isinstance(existing, dict):
+        raise ValueError("existing hooks is not an object")
+    prefix = str(hooks_dir.expanduser().resolve())
+
+    for event, entries in rendered.items():
+        current = existing.get(event, [])
+        if not isinstance(current, list):
+            raise ValueError(f"existing hooks.{event} is not an array")
+        kept = [e for e in current if not (isinstance(e, dict) and _entry_is_kit_owned(e, prefix))]
+        existing[event] = kept + copy.deepcopy(entries)
+
+    merged["hooks"] = existing
+    return merged
+
+
+def run_hooks(args: argparse.Namespace) -> int:
+    if not args.hooks_profile or not args.hooks_dir or not args.destination:
+        raise ValueError("--hooks requires --hooks-profile, --hooks-dir and --destination")
+    destination = args.destination.expanduser()
+    original = json.loads(destination.read_text(encoding="utf-8")) if destination.is_file() else {}
+    rendered = render_hooks(args.hooks_profile, args.hooks_dir)
+    updated = merge_hooks(original, rendered, args.hooks_dir)
+    return write_json_document(destination, updated, "hook config", args)
+
+
 def main() -> int:
     args = parse_args()
+    if args.hooks:
+        return run_hooks(args)
     if args.mcp:
         return run_mcp(args)
     if not args.destination:
