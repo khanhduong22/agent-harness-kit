@@ -143,3 +143,13 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
     `[YYYY-MM-DD HH:mm | #<issue>] <Descriptive Role>`
     *(e.g., `[2026-09-10 16:35 | #3151] Group E2E Recording Specialist`)*.
   - **Durable Disk Handover**: Subagents persist changes, run tests, produce artifacts/videos on disk, and return structured summaries. The master agent audits the outcome and notifies the user and Slack.
+
+## 9. Agent Rule Maintenance & Harness Lifecycle Policy
+- **Harness Modification & Local Propagation Lifecycle**:
+  Any change to agent harness rules, skills, profiles, or hooks MUST strictly follow this 4-step lifecycle:
+  1. **Edit in Kit**: Perform all edits inside the `agent-harness-kit` repository (`~/.agent-harness-kit`). NEVER hand-edit generated rule files or local symlink destinations directly.
+  2. **Verify Locally**: Run `./scripts/verify.sh` and `./tests/test_harness.sh` to ensure zero syntax/link breakages.
+  3. **Commit & Push to Remote**: Create a conventional commit and push to GitHub remote (`origin`).
+  4. **Apply to Local Machine**: Redeploy changes to propagate them back to local configurations:
+     - Global rules/skills: `./scripts/install.sh --targets all --rules`
+     - Project-specific packs: `./scripts/install.sh --index --project-path <workspace-path> --targets all --rules`
