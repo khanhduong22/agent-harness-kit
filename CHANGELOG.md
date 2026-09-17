@@ -2,6 +2,18 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.7] - 2026-09-17
+
+### Fixed
+
+- **Project rules were written where no tool reads them.** Codex reads `AGENTS.md` at the repository root and walks down to the working directory; `.codex/` is the *global* home (`CODEX_HOME`) only, and Codex never reads a `.codex/AGENTS.md` inside a project. `install_project_index` preferred exactly that path when it existed, so the current pack landed in a file nothing loads while the root `AGENTS.md` that Codex and Antigravity both read went stale — 40 lines behind. Codex and Gemini now share `<project>/AGENTS.md`, the cross-tool file both actually load. Antigravity reads `./GEMINI.md` *and* `./AGENTS.md`, so writing a project `GEMINI.md` as well would have injected this pack twice; the write is marker-scoped, so the second adapter reports "unchanged".
+- The Slack webhook is no longer hardcoded in a tracked script. It resolves from `SLACK_WEBHOOK_URL` or `~/.config/agent-harness/secrets.env`.
+
+### Added
+
+- `arena-round-table` and `ponytail`, absorbed from a hand-maintained workspace skill directory. Both are portable — `arena-round-table` carries no project-specific reference, and `ponytail` is MIT-licensed generic guidance. (`ponytail` overlaps the 7-Rung Ladder already in `rules/core.md` section 2; it is kept for its on-demand intensity levels, which the always-on rule does not provide.)
+- `check-skill-ownership.sh` now also scans a workspace-root `.agents/skills` directory, not just the service repos. That layer is not a deploy target of `install.sh`, so anything left there is a hand-made copy that drifts unnoticed — it held 40 of them, 3 stale against the kit and 4 duplicating a skill a service repo already owned.
+
 ## [0.1.6] - 2026-09-16
 
 ### Added
