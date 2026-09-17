@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WEBHOOK_URL="https://hooks.slack.com/services/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"
+# A Slack incoming webhook is a credential — anyone holding it can post to the
+# channel — so it must never be written into a tracked file. Read it from the
+# environment, or from a local secrets file that is never committed.
+SECRETS_FILE="${AGENT_HARNESS_SECRETS:-$HOME/.config/agent-harness/secrets.env}"
+# shellcheck source=/dev/null
+[[ -f "$SECRETS_FILE" ]] && . "$SECRETS_FILE"
+
+if [[ -z "${SLACK_WEBHOOK_URL:-}" ]]; then
+  printf 'SLACK_WEBHOOK_URL is not set (checked the environment and %s). Skipping Slack notification.\n' "$SECRETS_FILE"
+  exit 0
+fi
+
+WEBHOOK_URL="$SLACK_WEBHOOK_URL"
 
 TASK_NAME="${1:-Task Completed}"
 PR_URL="${2:-}"
