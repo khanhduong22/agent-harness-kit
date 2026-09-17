@@ -23,14 +23,17 @@
 
 ## Phase 3 — Deployment
 
-- [ ] `install.sh`: deploy `scripts/hooks/` to the target machine and record the action in the receipt so `--rollback` can undo it
-- [ ] `install.sh`: merge the hook block into `.claude/settings.json` and `~/.codex/hooks.json`, preserving every operator entry and not duplicating kit entries on reinstall
-- [ ] `install.sh`: report `hooks unchanged` on a reinstall that changes nothing, matching the existing rule and MCP paths
+- [x] `install.sh`: deploy `scripts/hooks/` to one shared directory (`~/.agent-harness/hooks`) used by every host, and record it in the receipt
+- [x] `install.sh`: merge the hook block into `<project>/.claude/settings.json` and `~/.codex/hooks.json`, preserving every operator entry and not duplicating kit entries on reinstall
+- [x] `install.sh`: reports `hook config unchanged` on a no-op reinstall, matching the existing rule and MCP paths
+- [x] **Reused `sync_rules.py` rather than writing `sync_hooks.py`** (rung 2): it already had JSON merge, backup, receipt and unchanged-reporting. Added a `--hooks` mode, three flags and two functions instead of a new script.
+- [x] Kit-owned hook entries are identified by command path, since the schema has nowhere to put a marker. They are dropped and re-added on each merge, so a reinstall cannot duplicate them and a hook removed from the kit disappears on the next install.
 
 ## Phase 4 — Verification
 
-- [ ] `tests/test.sh`: assert the hook block lands in the target settings file
-- [ ] `tests/test_harness.sh`: assert an operator-added hook on a different event survives a reinstall, and that the kit's own entry is not duplicated — mirroring the Test 6 allowlist contract
-- [ ] Prove the new assertions fail without the implementation, the way the prune assertions were checked
-- [ ] `scripts/check-skill-ownership.sh` and `scripts/verify.sh` still exit 0
-- [ ] Observe each hook firing in a live session: a lint violation corrected unasked, an install command blocked, a `.prisma` edit announcing the migration flow
+- [x] `tests/test_harness.sh` Test 9: scripts deployed and executable, hook block lands in project settings, commands point at the deployed scripts, `{{HOOKS_DIR}}` never left unsubstituted
+- [x] `tests/test_harness.sh` Test 9: an operator hook on an unmanaged event survives reinstall, the kit entry is not duplicated, and a no-op reinstall reports unchanged — mirroring the Test 6 allowlist contract
+- [x] Proved the new assertions fail without the implementation: stashed `install.sh` and `sync_rules.py`, harness exited 1 at Test 9, restored and it passes
+- [x] The first run of Test 9 caught a real path bug — the installer canonicalises the path it writes, and on macOS `$TMPDIR` sits under `/var`, a symlink to `/private/var`, so the assertion had to compare resolved paths
+- [x] `scripts/verify.sh`, `scripts/test.sh`, `AGENT_HARNESS_WORKSPACE=… verify.sh` and `openspec validate` all exit 0
+- [ ] **Operator-only, cannot be self-verified**: observe each hook firing in a live session — a lint violation corrected unasked, an install command blocked, a `.prisma` edit announcing the migration flow. `.agents/hooks.json` stays in place until then.
