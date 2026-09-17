@@ -45,16 +45,40 @@ The four hook scripts SHALL extract the edited file path, the command line, and 
 - **THEN** the command is blocked
 - **AND** the reason names the package
 
-### Requirement: The Stop gate SHALL NOT depend on fields no host sends
+### Requirement: The Stop gate SHALL block only where a loop guard exists
 
-`stop-gate.sh` SHALL run its gate unconditionally rather than keying off `terminationReason`, `executionNum` or `transcriptPath`, none of which exist in a Claude Code or Codex Stop payload.
+A Stop hook that blocks re-enters on the next stop attempt. Antigravity supplies `executionNum` to break that cycle; Claude Code and Codex send no equivalent. `stop-gate.sh` SHALL therefore block only when a loop guard is present in the payload, and SHALL otherwise surface its reminder without holding the turn open.
 
-#### Scenario: Claude Code ends a turn
+#### Scenario: Claude Code ends a turn with unverified source edits
 
-- **GIVEN** `stop-gate.sh` receives a Stop payload without those three fields
+- **GIVEN** `stop-gate.sh` receives a Stop payload carrying no `executionNum`
+- **AND** the transcript shows at least three source edits and no verification run
 - **WHEN** the hook runs
-- **THEN** the gate executes
-- **AND** it does not skip silently for want of a missing field
+- **THEN** it emits the reminder as `systemMessage`
+- **AND** it emits no blocking decision, so the turn cannot loop
+
+#### Scenario: Antigravity ends a turn with unverified source edits
+
+- **GIVEN** the same condition with `terminationReason` `model_stop` and `executionNum` 1
+- **WHEN** the hook runs
+- **THEN** it blocks the stop and states how many source files were modified
+
+#### Scenario: Verification already ran
+
+- **GIVEN** the transcript records a verification command
+- **WHEN** the hook runs on any host
+- **THEN** the stop is allowed
+
+### Requirement: The Stop gate SHALL evaluate its own condition correctly
+
+The gate SHALL determine whether verification ran using a test whose result is a usable boolean, so the gate cannot silently fail open on its own logic.
+
+#### Scenario: No verification command appears in the transcript
+
+- **GIVEN** the transcript contains no verification command
+- **WHEN** the gate evaluates that condition
+- **THEN** the evaluation succeeds and reports "not verified"
+- **AND** it does not abort with a shell error and fall through to allow
 
 ### Requirement: Installing hooks SHALL preserve operator configuration
 
