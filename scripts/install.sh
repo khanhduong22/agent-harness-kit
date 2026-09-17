@@ -409,6 +409,62 @@ install_project_index() {
     mcp_args+=(--dry-run)
   fi
   /usr/bin/env python3 "$kit_root/scripts/sync_rules.py" "${mcp_args[@]}"
+
+  install_hooks "$adapter" "$project_dir"
+}
+
+# Where the hook scripts land. One copy, shared by every host, so a fix to a
+# hook is a fix everywhere — the same reason skills have a single home.
+hooks_destination() {
+  printf '%s\n' "${kit_home_root}/.agent-harness/hooks"
+}
+
+# Which file the host reads its hooks from. Claude Code takes project-scoped
+# hooks from the project's settings.json; Codex reads ~/.codex/hooks.json.
+# Gemini/Antigravity has its own schema and is not written here.
+hook_config_destination() {
+  local adapter="$1" project_dir="$2"
+  case "$adapter" in
+    claude) printf '%s\n' "${project_dir}/.claude/settings.json" ;;
+    codex) printf '%s\n' "${CODEX_HOME:-${kit_home_root}/.codex}/hooks.json" ;;
+    *) return 1 ;;
+  esac
+}
+
+install_hooks() {
+  local adapter="$1" project_dir="$2"
+  local hooks_dir destination hook_args
+
+  if ! destination="$(hook_config_destination "$adapter" "$project_dir")"; then
+    printf 'hooks unsupported target: %s (no config written)\n' "$adapter"
+    return 0
+  fi
+
+  hooks_dir="$(hooks_destination)"
+
+  if [[ "$dry_run" == true ]]; then
+    printf 'would install hook scripts: %s\n' "$hooks_dir"
+  else
+    init_receipt
+    /bin/mkdir -p "$hooks_dir"
+    /bin/cp "$kit_root"/scripts/hooks/*.sh "$hooks_dir"/
+    /bin/chmod +x "$hooks_dir"/*.sh
+    printf 'installed hook scripts: %s\n' "$hooks_dir"
+  fi
+
+  hook_args=(
+    --hooks
+    --hooks-profile "$kit_root/profiles/index/hooks.json"
+    --hooks-dir "$hooks_dir"
+    --destination "$destination"
+    --backup-dir "$backup_root"
+    --label "${adapter}-hooks"
+    --receipt-file "$receipt_file"
+  )
+  if [[ "$dry_run" == true ]]; then
+    hook_args+=(--dry-run)
+  fi
+  /usr/bin/env python3 "$kit_root/scripts/sync_rules.py" "${hook_args[@]}"
 }
 
 seen_adapters="," 
