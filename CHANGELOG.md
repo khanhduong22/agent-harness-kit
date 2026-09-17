@@ -2,6 +2,12 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.8] - 2026-09-17
+
+### Fixed
+
+- **`opsx` told authors to keep `## Why` short, for a reason that was not true.** The guidance claimed long why-sections "get flagged by `openspec validate`"; the validator (v1.5.0) never inspects the section — it fails only on missing `specs/` deltas and missing `#### Scenario:` blocks, and a change with a long Why validates clean. The invented length limit pushed authors into the shortest thing that fits, which is the code-level diagnosis: real proposals in the workspace open with a symbol name and a stack of failing call sites. Acceptance criteria then get derived from the technical fix instead of the user outcome, so a change ships with a green suite while the original pain is untouched. `## Why` now has to name who is affected in user-facing terms, cite where it was observed (or `[TBD: Need User Input]`, never an invented source), and state the user-visible signal that proves the pain is gone — explicitly not "the tests pass". No new artifact file: the section already existed, it was just being filled with the wrong thing.
+
 ## [0.1.7] - 2026-09-17
 
 ### Fixed
