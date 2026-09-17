@@ -73,6 +73,8 @@ Utilize the integrated MCP servers for proactive codebase analysis and runtime v
 - **Single Source**: This workspace pack is generated from `agent-harness-kit/profiles/index/workspace.md` and injected between the `agent-harness-kit:index` markers by `scripts/install.sh`. Edit the kit and redeploy — never hand-edit the injected block, and never create a second copy of this policy inside the workspace, because the installer cannot see or reconcile one.
 - **Rule Preservation**: Always preserve existing workspace and sub-project rules intact. Never delete or strip rules without explicit user approval.
 - **Service-Scoped Rules Stay In Their Repo**: `<service>/.agents/AGENTS.md` and `<service>/.agents/skills/` are versioned with the code they govern and are NOT managed by the kit. Anything specific to one service belongs there; anything portable across projects belongs in the kit. A rule or skill must live in exactly one of the two.
+- **Harness Change Lifecycle**: Any modification to harness rules, skills, profiles, or configurations MUST follow the strict lifecycle:
+  `Change in agent-harness-kit -> Local verification (scripts/verify.sh) -> Commit & Push to remote -> Apply back to local machine (scripts/install.sh)`. Never edit workspace rule files directly.
 
 ================================================================================
 CATEGORY C: WORKSPACE QUALITY GATES & PR PROTOCOL
