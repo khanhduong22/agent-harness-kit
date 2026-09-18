@@ -9,6 +9,23 @@
             "command": "{{HOOKS_DIR}}/guard-new-packages.sh",
             "timeout": 5,
             "statusMessage": "Checking for unrequested package installs..."
+          },
+          {
+            "type": "command",
+            "command": "{{HOOKS_DIR}}/guard-manual-migrations.sh",
+            "timeout": 5,
+            "statusMessage": "Checking for manual Prisma migrations..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{HOOKS_DIR}}/guard-manual-migrations.sh",
+            "timeout": 5,
+            "statusMessage": "Checking for manual Prisma migrations..."
           }
         ]
       }
