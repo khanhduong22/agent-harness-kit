@@ -26,7 +26,7 @@ The gap is deeper than configuration. All four scripts parse **Antigravity's pay
 - **`scripts/install.sh`**: deploy hook scripts and merge the hook block into the target's settings, the way rules and skills are already deployed. Merge, never replace: an operator's existing hooks and permissions must survive.
 - **Tool-name translation**, applied once in the new config: `write_to_file` → `Write`, `replace_file_content` / `multi_replace_file_content` → `Edit`, `run_command` → `Bash`.
 - **Absolute command paths.** The Antigravity config used `./scripts/*.sh`, which resolves against whatever directory the agent happens to be in. `~/.codex/hooks.json` already uses absolute paths; the deployed config will too.
-- `.agents/hooks.json` in the workspace is retired once the deployed hooks are observed firing — not before.
+- `.agents/hooks.json` in the workspace is **NOT retired**. Discovered during verification: `agentapi` runs Antigravity on a real weekday cron schedule (`15 8 * * 1-5`) as an unsupervised autonomous routine that spawns subagents, edits code and opens PRs — `.agents/hooks.json` is its only guardrail config, since `install.sh` has no Antigravity/Gemini hook target (`hook_config_destination` returns unsupported for that adapter). Retiring it would silently strip that routine's lint/package/migration/stop guardrails the next time it runs unattended. This corrects an internal contradiction: this line originally said "retired once observed" while `design.md` Decision 2 already specified the opposite — that Antigravity keeps its own file permanently because its schema differs. `design.md` was right; this line was wrong.
 
 ## Scope
 
