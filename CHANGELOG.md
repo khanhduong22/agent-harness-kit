@@ -2,6 +2,16 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.13] - 2026-09-18
+
+### Added
+
+- **`pr-review-loop` skill and `ship`'s new final step**: after a PR is created/updated, spawn a genuinely cold subagent — given only the PR URL, repo, and the path to `notify-slack.sh` — that runs Claude Code's bundled `code-review` skill, classifies findings Important/Nit per the `ai-in-the-pr-review-loop` course model, and reports to Slack. Background, non-blocking, `comment` defaults `false`. This is the separation-of-duties half the existing pre-ship `/review` phase cannot provide, since `/review` runs inside the same session that wrote the code.
+
+### Fixed (found by the skill's own dry run against itself)
+
+- A first draft of this skill could not actually be followed as written. Its own dry run — run against merged PR #15 before shipping — found: a requested `high` effort level silently overridden by persisted config with no error, and no enforcement behind the "never ultra" rule beyond trusting that request; `code-review` forks asynchronously with no documented wait primitive available to a subagent; no verified path for findings to reach a human once `ship` has already returned; a self-contradictory severity-grouping rule that hit a real disagreement on a real finding; unscoped ownership of steps 3-6. Rewritten: one flat subagent job instead of an implicit second hop, effort level verified by reading `code-review`'s own self-report rather than trusting the argument (with `ultra` specifically treated as a stop-and-report condition), `notify_script_path` added as a required input so the isolated subagent can still reach Slack, and one non-contradictory Important/Nit test that states which side wins when `code-review`'s own tag disagrees with it.
+
 ## [0.1.12] - 2026-09-18
 
 ### Fixed
