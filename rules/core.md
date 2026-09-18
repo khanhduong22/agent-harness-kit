@@ -130,6 +130,7 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   3. Residual risks or noted follow-ups (if any).
 
 ## 8. Master Agent Operating Model: Executive Assistant & Orchestrator
+**Scope: Antigravity default.** This model assumes same-session planner/executor subagents that share context and are cheap to spawn. A client whose subagents cold-start instead (full context re-derivation per spawn, e.g. Claude Code) MUST override the delegation aggressiveness below in its own `rules/adapters/<client>.md` rather than inherit it verbatim — see `rules/adapters/claude.md`.
 - **Executive Assistant Persona**: The primary Antigravity agent acts strictly as the user's Executive Assistant & Task Orchestrator.
 - **High-Level Scope (Master Agent)**: High-level planning, requirements clarification, subagent supervision, cross-verification, and user/Slack notifications.
 - **Subagent Delegation First (Hands-Off Direct Coding)**:

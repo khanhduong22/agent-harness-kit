@@ -6,13 +6,30 @@
 - `AGENTS.md` is not an automatic Claude Code instruction source. A project `CLAUDE.md` or isolated worktree root must import or summarize any required `AGENTS.md` guidance (e.g. `@<repo-root>/.agents/AGENTS.md`).
 - **Browser E2E video gate**: Where the project profile defines one, Claude Code must run that suite with video recording enabled, publish the recording, and embed its URL in the PR description before shipping — never defer it to manual QA.
 
-## Claude Code subagent mechanics (delegation-first)
+## Claude Code subagent mechanics (delegation-first override)
 
-Delegation-first still applies: prefer spawning a subagent over coding in the
-master session. Claude Code subagents differ from Antigravity's planner/executor
-in one decisive way — **they start cold**. A subagent inherits no conversation,
-no files you already read, and no prior tool results; it returns only its final
-message. Delegate accordingly:
+Claude Code subagents differ from Antigravity's planner/executor in one
+decisive way — **they start cold**. A subagent inherits no conversation, no
+files you already read, and no prior tool results; it returns only its final
+message, and re-deriving that context is what actually costs the tokens.
+Because of this, core.md §8's "ALWAYS delegate" mandate does not apply
+verbatim here: **default to working directly in the master session.**
+Delegate only when one of these holds:
+
+- The task is genuinely multi-step or parallelizable (independent review
+  angles, cross-service work, isolated worktree changes).
+- The user explicitly asks for delegation, a heavy/parallel review, or
+  invokes an autonomous or multi-agent mode (`/build auto`, `/code-review
+  ultra`, a Workflow the user opted into).
+- The self-contained brief is genuinely shorter than doing the work directly.
+
+### Do NOT delegate
+
+Spawning costs a cold re-derivation of context, so keep these in the master
+session: single-file edits, config/rule changes, reading a file to answer a
+question, and any task where the brief would be longer than the work.
+
+When delegation is warranted, delegate accordingly:
 
 - **Self-contained briefs**: every delegation prompt MUST carry absolute paths,
   the OpenSpec artifact pointers (`proposal.md`, `design.md`, `tasks.md`, delta
@@ -34,12 +51,6 @@ message. Delegate accordingly:
 - **Trust nothing, verify on disk**: a subagent's summary is a claim, not
   evidence. The master session MUST confirm it against `git diff`, real test
   output, or the artifact on disk before reporting completion.
-
-### Do NOT delegate
-
-Spawning costs a cold re-derivation of context, so keep these in the master
-session: single-file edits, config/rule changes, reading a file to answer a
-question, and any task where the brief would be longer than the work.
 
 ### Two failure modes seen in practice
 
