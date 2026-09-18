@@ -44,6 +44,14 @@ If a gate genuinely can't run in this environment (missing external service, no 
 
 Apply the commit convention from step 2, push (`--force-with-lease`, never bare `--force`, when updating an existing branch — this fails safely if someone else pushed in the meantime instead of silently clobbering it), and create or update the PR with a summary (what changed, why) and a test-plan checklist reflecting what was actually verified in step 4, including any known pre-existing issues found along the way that are out of scope for this PR. For UI/CMS (`index-admin-cms`), the PR test checklist table MUST include the Google Drive video URL, and you must invoke `./scripts/notify-slack.sh` with the video link and flow steps.
 
-## 7. Never take these actions without the user's go-ahead in this conversation
+## 7. Spawn the post-ship reviewer (background — does not block completion)
+
+Once step 6 has actually created or updated the PR: spawn `pr-review-loop` as a **background** subagent with exactly three inputs — the exact PR URL from step 6's own `gh pr create`/`gh pr edit` output, the resolved `owner/repo`, and the absolute path to `notify-slack.sh` in this checkout. Never let it re-derive "which PR" itself, and never hand it anything beyond those three — no summary of the change, no rationale for why it's correct.
+
+This does not gate anything and does not delay reporting the task as shipped. The PR already exists by the time this fires; a real review takes 10–16 minutes, arriving well after this conversation has moved on. Report the ship as done without waiting for it — the spawned reviewer notifies Slack itself once it finishes, since `ship` will have already returned by then.
+
+Skip this step only if `pr-review-loop` isn't installed in this deployment (a workspace running an older kit version) — say so plainly rather than silently omitting it.
+
+## 8. Never take these actions without the user's go-ahead in this conversation
 
 Deleting branches (local or remote) that aren't scratch branches you created this session, closing other PRs, or force-pushing to a branch with review activity from someone other than you. Offer these as follow-ups instead of doing them silently.
