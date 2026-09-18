@@ -279,4 +279,30 @@ assert "a reinstall that changes nothing reports the hook config unchanged" \
   grep -q 'hook config unchanged' "$test_root/reinstall-hooks.log"
 printf 'Passed: Hooks deployed, merged, and idempotent\n'
 
+printf '=== Test 10: Hook script rollback ===\n'
+# hooks_dir is shared home-wide (~/.agent-harness/hooks), not per-project, so
+# by this point Test 9 has already installed into it once — a fresh install
+# targeting the same home would find the scripts already present and take the
+# "restore from backup" receipt path, not "created", making rollback restore
+# rather than remove. Testing "rollback removes a freshly created script"
+# needs a home that has never had hooks installed into it: its own
+# AGENT_HARNESS_HOME, the way Test 8 isolates its MCP rollback check.
+#
+# Deployed hook scripts used to have no receipt entries at all: install_hooks
+# called init_receipt (which only stamps the receipt file into existence) and
+# never record_receipt_action for the copied scripts, so --rollback restored
+# settings.json but left every *.sh behind — undetected until a real review
+# caught it against a live deployment.
+rollback_home="$test_root/home-hooks-rollback"
+rollback_project="$test_root/projects/index-hooks-rollback"
+/bin/mkdir -p "$rollback_home" "$rollback_project"
+AGENT_HARNESS_HOME="$rollback_home" AGENT_HARNESS_BACKUP_DIR="$test_root/backups-hooks-rollback" \
+  "$kit_root/scripts/install.sh" --index --project-path "$rollback_project" --targets claude >/dev/null
+rollback_hooks_dir="$(cd "$rollback_home/.agent-harness/hooks" && pwd -P)"
+AGENT_HARNESS_HOME="$rollback_home" AGENT_HARNESS_BACKUP_DIR="$test_root/backups-hooks-rollback" \
+  "$kit_root/scripts/install.sh" --rollback latest >/dev/null
+assert "rollback removes the deployed hook scripts, not just the settings entry" \
+  test ! -e "$rollback_hooks_dir/guard-new-packages.sh"
+printf 'Passed: Rollback removed the hook scripts a fresh install created\n'
+
 printf '\nALL HARNESS BEHAVIORAL TESTS PASSED SUCCESSFULLY!\n'

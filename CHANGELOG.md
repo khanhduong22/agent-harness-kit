@@ -2,6 +2,13 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.10] - 2026-09-18
+
+### Fixed
+
+- **`--rollback` left deployed hook scripts behind.** `install_hooks` called `init_receipt` (which only stamps the receipt file into existence) but never `record_receipt_action` for the copied `*.sh` files, so `--rollback` correctly reverted `settings.json`/`hooks.json` while leaving every hook script on disk — undetected by Test 9 because it only checked deployment and merging, never rollback. Found by a real `code-review` pass against merged PR #13, not by self-testing. Each script now gets its own "file" receipt entry (existing action type, no new mechanism), verified empirically: install → rollback now leaves zero scripts behind, and a stashed-fix run of the new harness assertion fails as expected.
+- **A sibling directory sharing a name prefix could be misclassified as kit-owned.** `_entry_is_kit_owned` compared commands with a bare `str.startswith(hooks_dir)`, so a hand-placed hook in e.g. `hooks-legacy/` (sharing the `hooks` prefix) would be silently treated as a kit entry and dropped on the next reinstall. Fixed to compare against a separator-terminated prefix. Also found by the same `code-review` pass.
+
 ## [0.1.9] - 2026-09-17
 
 ### Added
