@@ -6,13 +6,18 @@
 # guard that blocks on its own parse error costs more than the install it was
 # meant to catch.
 #
-# Input and output shapes differ per host, so both are emitted at once:
-# Antigravity reads `.decision`; Claude Code and Codex read
-# `.hookSpecificOutput.permissionDecision`, where the value is `ask`, not
-# `force_ask`. Each host ignores the other's key.
+# This script is deployed to Claude Code and Codex only (never Antigravity —
+# see install.sh's hook_config_destination). The permission signal is carried
+# entirely by hookSpecificOutput.permissionDecision: "allow"|"deny"|"ask".
+# A top-level `decision` key is a DIFFERENT, deprecated-for-PreToolUse field
+# whose only valid values are "approve"|"block" — "allow"/"ask"/"force_ask"
+# are not in that enum. Setting it to a value outside that enum fails Claude
+# Code's own hook-output schema validation on every single Bash call, which
+# is silent-but-visible (the expected-schema reminder resurfaces constantly).
+# Omit it entirely; permissionDecision alone is sufficient and correct.
 
 allow() {
-  printf '%s\n' '{"decision":"allow","hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}'
+  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}'
   exit 0
 }
 
@@ -30,7 +35,7 @@ if echo "$CMD" | grep -qE '\b(npm install|npm i |npx -y|bun add|bun install|yarn
     allow
   fi
   REASON='🚫 7-Rung Ladder Rule #5: New package install detected. Confirm this dependency is not already in package.json and cannot be replaced by a few lines of code.'
-  printf '%s\n' "{\"decision\":\"force_ask\",\"reason\":\"$REASON\",\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$REASON\"}}"
+  printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$REASON\"}}"
   exit 0
 fi
 
