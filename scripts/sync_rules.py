@@ -312,8 +312,12 @@ def _entry_is_kit_owned(entry: dict, hooks_dir: str) -> bool:
     — so ownership is read off the command path. An operator entry runs
     something else and is never touched.
     """
+    # Compare against a separator-terminated prefix, not the bare directory: a
+    # sibling like `hooks-legacy/foo.sh` starts with the string "hooks_dir" but
+    # is not inside it.
+    prefix = hooks_dir.rstrip("/") + "/"
     commands = [h.get("command", "") for h in entry.get("hooks", []) if isinstance(h, dict)]
-    return bool(commands) and all(c.startswith(hooks_dir) for c in commands)
+    return bool(commands) and all(c.startswith(prefix) for c in commands)
 
 
 def merge_hooks(settings: dict, rendered: dict, hooks_dir: Path) -> dict:

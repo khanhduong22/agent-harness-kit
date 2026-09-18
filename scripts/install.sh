@@ -447,8 +447,21 @@ install_hooks() {
   else
     init_receipt
     /bin/mkdir -p "$hooks_dir"
-    /bin/cp "$kit_root"/scripts/hooks/*.sh "$hooks_dir"/
-    /bin/chmod +x "$hooks_dir"/*.sh
+    local hook_script hook_dest hook_existed hook_backup
+    for hook_script in "$kit_root"/scripts/hooks/*.sh; do
+      hook_dest="${hooks_dir}/$(basename "$hook_script")"
+      hook_existed=false
+      hook_backup=""
+      if [[ -f "$hook_dest" ]]; then
+        hook_existed=true
+        hook_backup="${backup_root}/${adapter}-hooks-scripts/$(basename "$hook_script")"
+        /bin/mkdir -p "$(dirname "$hook_backup")"
+        /bin/cp "$hook_dest" "$hook_backup"
+      fi
+      /bin/cp "$hook_script" "$hook_dest"
+      /bin/chmod +x "$hook_dest"
+      record_receipt_action "file" "$hook_dest" "$hook_existed" "$hook_backup"
+    done
     printf 'installed hook scripts: %s\n' "$hooks_dir"
   fi
 
