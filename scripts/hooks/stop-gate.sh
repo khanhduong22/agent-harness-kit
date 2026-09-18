@@ -13,11 +13,19 @@
 #     which every host renders, and never holds the turn open. A gate that can
 #     loop forever costs more than the verification run it was protecting.
 #   - Transcript key and edit-record field are read through fallback chains.
+#   - This script is deployed to Claude Code and Codex only (install.sh's
+#     hook_config_destination has no gemini/antigravity target), so in
+#     practice CAN_BLOCK below is always false here — the branch exists for
+#     portability if that ever changes, not because it currently fires.
+#   - A top-level `decision` key's only valid values are "approve"|"block" —
+#     "allow"/"continue" are not in that enum and fail Claude Code's own
+#     hook-output schema validation on every Stop. Omit it for the no-op
+#     case; use "block" (not "continue") for the loop-guarded blocking case.
 
 PAYLOAD=$(cat)
 
 allow() {
-  printf '%s\n' '{"decision":"allow"}'
+  printf '%s\n' '{}'
   exit 0
 }
 
@@ -60,7 +68,7 @@ fi
 REASON="⚠️ Pre-Ship Gate: ${SRC_MOD_COUNT} source files were modified but verify-all has not been run. Run \`bun run verify:all\` before completing this task, or explicitly confirm the skip."
 
 if [ "$CAN_BLOCK" = true ]; then
-  printf '%s\n' "{\"decision\":\"continue\",\"reason\":\"$REASON\",\"systemMessage\":\"$REASON\"}"
+  printf '%s\n' "{\"decision\":\"block\",\"reason\":\"$REASON\",\"systemMessage\":\"$REASON\"}"
 else
   printf '%s\n' "{\"systemMessage\":\"$REASON\"}"
 fi

@@ -2,6 +2,12 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.11] - 2026-09-18
+
+### Fixed
+
+- **Every PreToolUse/Stop hook failed Claude Code's own output schema, on every single invocation.** `guard-new-packages.sh`, `guard-manual-migrations.sh` and `stop-gate.sh` all set a top-level `decision` key to `"allow"`, `"deny"`, `"force_ask"`, or `"continue"` — none of which are valid: the field is deprecated for PreToolUse (the real signal is `hookSpecificOutput.permissionDecision`) and its only valid values, where it applies at all, are `"approve"`/`"block"`. Since `guard-new-packages.sh` fires on every `Bash` call and `guard-manual-migrations.sh` on every `Bash` and `Write` call, this surfaced the expected-schema reminder on effectively every tool use in a live session. Fixed by omitting the top-level `decision` key where a fine-grained `permissionDecision` already carries the real signal, and using `"block"` (the one valid enum value with that meaning) for `stop-gate.sh`'s loop-guarded blocking case.
+
 ## [0.1.10] - 2026-09-18
 
 ### Fixed

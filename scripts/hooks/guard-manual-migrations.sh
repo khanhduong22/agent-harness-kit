@@ -4,15 +4,21 @@
 # "NEVER create manual migration folders or manually constructed .sql files inside migrations/"
 # Migrations MUST be generated via the Prisma CLI:
 #   bun prisma migrate dev --create-only --name <name>
+#
+# The permission signal is carried entirely by
+# hookSpecificOutput.permissionDecision — a top-level `decision` key is a
+# different, deprecated-for-PreToolUse field whose only valid values are
+# "approve"|"block". Setting it to "allow"/"deny" fails Claude Code's own
+# hook-output schema validation on every Bash and Write call. Omitted.
 
 allow() {
-  printf '%s\n' '{"decision":"allow","hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}'
+  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}'
   exit 0
 }
 
 deny() {
   local reason="$1"
-  printf '%s\n' "{\"decision\":\"deny\",\"reason\":\"$reason\",\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"$reason\"}}"
+  printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"$reason\"}}"
   exit 0
 }
 
