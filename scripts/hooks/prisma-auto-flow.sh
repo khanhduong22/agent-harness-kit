@@ -52,7 +52,7 @@ if [ ! -f "$PROJECT_DIR/package.json" ]; then
 fi
 
 echo "[Prisma Hook] Detected edited schema: $TARGET_FILE" >&2
-echo "[Prisma Hook] Migration remains manual; this hook only regenerates Prisma client types." >&2
+echo "[Prisma Hook] Schema changed. Generate migrations via: 'bun prisma migrate dev --create-only --name <name>' (refer to prisma-safe-migration skill)." >&2
 
 if ! command -v bun >/dev/null 2>&1; then
   echo "[Prisma Hook] ERROR: bun not found. Cannot generate Prisma client." >&2
