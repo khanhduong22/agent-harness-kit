@@ -2,6 +2,12 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.12] - 2026-09-18
+
+### Fixed
+
+- **`rules/core.md` §8 forced cold-start subagent spawns onto Claude Code for ordinary work.** The "Subagent Delegation First" mandate — "ALWAYS delegate to specialized subagents" for feature implementation, bug fixes, tests, and refactors — was written for Antigravity's same-session planner/executor, where a spawned subagent shares context and is cheap. `rules/adapters/claude.md` only added cold-start caveats on top of that mandate; it never actually overrode it, so a Claude Code session applying the merged rule delegated small, single-shot work into subagents that re-derive full context from zero, multiplying token cost several-fold per task (observed: a 5-agent parallel review running 80k–126k tokens per agent, ~500k+ combined, for work a direct edit would have done for a fraction of that). `core.md` §8 now states its own scope ("Antigravity default") and requires per-client adapters to override delegation aggressiveness when their subagent economics differ; `rules/adapters/claude.md` now defaults to working directly in the master session and delegates only for genuinely multi-step/parallelizable work or an explicit user request (`/build auto`, `/code-review ultra`, an opted-into Workflow). Verified with `./scripts/verify.sh` and `./tests/test_harness.sh` (all 10 behavioral tests pass) — this is a rules-text change with no installer logic touched, so no new test coverage was needed.
+
 ## [0.1.11] - 2026-09-18
 
 ### Fixed
