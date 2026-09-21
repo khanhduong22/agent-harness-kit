@@ -123,20 +123,32 @@ def main() -> int:
         return 0
 
     print(f"Rolling back run from: {receipt.get('timestamp', 'unknown')} ({receipt_path.parent.name})")
-    # Rollback in reverse order
+    # Rollback in reverse order. One action's failure (e.g. unlink() raising
+    # IsADirectoryError on an unexpected destination) must not abort the rest
+    # of the loop — every other action in this receipt still deserves its own
+    # attempt, and a silent partial rollback is worse than a reported one.
+    failures = 0
     for action in reversed(actions):
-        msg = rollback_action(action, args.dry_run)
-        print(f"  {msg}")
+        try:
+            msg = rollback_action(action, args.dry_run)
+            print(f"  {msg}")
+        except Exception as exc:  # noqa: BLE001 - report and continue, never abort the loop
+            failures += 1
+            print(f"  FAILED: {action.get('destination', '<unknown>')}: {exc}", file=sys.stderr)
 
     if not args.dry_run:
-        # Mark receipt as rolled back
+        # Mark receipt as rolled back regardless of partial failure — the
+        # actions that DID succeed must not be re-attempted by a later rerun.
         receipt["rolled_back"] = True
         receipt_path.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
-        print("Rollback completed successfully.")
+        if failures:
+            print(f"Rollback completed with {failures} failed action(s) — see above.", file=sys.stderr)
+        else:
+            print("Rollback completed successfully.")
     else:
         print("Dry run completed. No files modified.")
 
-    return 0
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
