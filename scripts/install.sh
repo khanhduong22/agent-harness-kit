@@ -233,6 +233,11 @@ skill_destination() {
 rule_destination() {
   case "$1" in
     codex|agents) printf '%s\n' "${CODEX_HOME:-${kit_home_root}/.codex}/AGENTS.md" ;;
+    # Stays CLAUDE.md even though *project* rules moved to AGENTS.md: Claude Code
+    # documents no user-level AGENTS.md. Tested on 2.1.278 — a ~/.claude/AGENTS.md
+    # is not loaded when Claude starts outside $HOME, and only by accident (it is
+    # found as the `.claude/AGENTS.md` of an ancestor directory) when it starts
+    # under $HOME. Renaming this would silently unload every global rule.
     claude) printf '%s\n' "${CLAUDE_CONFIG_DIR:-${kit_home_root}/.claude}/CLAUDE.md" ;;
     gemini|antigravity) printf '%s\n' "${kit_home_root}/.gemini/GEMINI.md" ;;
     *) return 1 ;;
@@ -387,15 +392,6 @@ install_project_index() {
   adapter="$(adapter_name "$target")"
 
   case "$adapter" in
-    claude)
-      if [[ -f "${project_dir}/.claude/CLAUDE.md" ]]; then
-        proj_dest_rule="${project_dir}/.claude/CLAUDE.md"
-      elif [[ -f "${project_dir}/CLAUDE.md" ]]; then
-        proj_dest_rule="${project_dir}/CLAUDE.md"
-      else
-        proj_dest_rule="${project_dir}/.claude/CLAUDE.md"
-      fi
-      ;;
     # Codex reads AGENTS.md at the repository root and walks down to the working
     # directory. `.codex/` is the *global* home only (CODEX_HOME) — Codex never
     # reads a `.codex/AGENTS.md` inside a project, so writing there produced a
@@ -403,10 +399,17 @@ install_project_index() {
     #
     # Antigravity loads ~/.gemini/GEMINI.md, then ./GEMINI.md, then ./AGENTS.md,
     # then ./.agents/rules/*.md — so it reads the same root AGENTS.md. Writing a
-    # project GEMINI.md as well would inject this pack into Antigravity twice,
-    # so both adapters deliberately share the one cross-tool file. The write is
-    # marker-scoped and idempotent, so the second adapter reports "unchanged".
-    codex|gemini)
+    # project GEMINI.md as well would inject this pack into Antigravity twice.
+    #
+    # Claude Code (>= 2.1.277) reads ./AGENTS.md too, but ONLY when no CLAUDE.md,
+    # .claude/CLAUDE.md or CLAUDE.local.md exists in the working directory or any
+    # directory above it — a CLAUDE.md anywhere on that path wins and hides
+    # AGENTS.md entirely. So the claude adapter shares the same file *and*
+    # migrates any legacy project CLAUDE.md into it (below).
+    #
+    # All three adapters deliberately share the one cross-tool file. The write is
+    # marker-scoped and idempotent, so later adapters report "unchanged".
+    claude|codex|gemini)
       proj_dest_rule="${project_dir}/AGENTS.md"
       ;;
     *) return 1 ;;
@@ -426,6 +429,13 @@ install_project_index() {
     --marker "agent-harness-kit:index"
     --receipt-file "$receipt_file"
   )
+  if [[ "$adapter" == claude ]]; then
+    # Backed up, folded into AGENTS.md, then removed; symlinks are skipped.
+    rule_args+=(
+      --migrate-legacy "${project_dir}/.claude/CLAUDE.md"
+      --migrate-legacy "${project_dir}/CLAUDE.md"
+    )
+  fi
   if [[ "$dry_run" == true ]]; then
     rule_args+=(--dry-run)
   fi
