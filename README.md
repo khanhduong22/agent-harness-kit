@@ -13,10 +13,12 @@ The repository contains:
 | Target | Skills | Global rules | Project pack injection |
 | --- | --- | --- | --- |
 | Codex | `~/.agents/skills/` | `~/.codex/AGENTS.md` | `<project>/AGENTS.md` |
-| Claude Code | `~/.claude/skills/` | `~/.claude/CLAUDE.md` | `<project>/.claude/CLAUDE.md` |
-| Gemini / Antigravity | `~/.gemini/config/skills/` | `~/.gemini/GEMINI.md` | `<project>/.gemini/GEMINI.md` |
+| Claude Code | `~/.claude/skills/` | `~/.claude/CLAUDE.md` | `<project>/AGENTS.md` |
+| Gemini / Antigravity | `~/.gemini/config/skills/` | `~/.gemini/GEMINI.md` | `<project>/AGENTS.md` |
 
 Antigravity uses the Gemini target because both products share the same global skill and rule locations.
+
+All three targets share one project file, `<project>/AGENTS.md`. Claude Code (≥ 2.1.277) reads it only when no `CLAUDE.md` exists in the working directory or above, so when the Claude target installs a project pack it also migrates any legacy `<project>/CLAUDE.md` or `<project>/.claude/CLAUDE.md`: the file is backed up, its text outside the kit block is folded into `AGENTS.md`, and it is removed (`--rollback` restores it). Symlinks are never touched. The *global* Claude rule stays `~/.claude/CLAUDE.md`, because Claude Code documents no user-level `AGENTS.md`.
 
 ## Install
 
