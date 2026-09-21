@@ -3,6 +3,18 @@ set -euo pipefail
 
 kit_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 kit_home_root="${AGENT_HARNESS_HOME:-${HOME}}"
+# Absolutize immediately: every downstream path (hooks_dir, receipt
+# destinations, backup_root) is derived from this once, at install time. A
+# relative AGENT_HARNESS_HOME left unresolved here still writes correctly
+# during install, but rollback.py runs as a separate later invocation,
+# possibly from a different cwd — the receipt's relative destination then
+# resolves against the wrong directory and rollback silently misses its
+# target. Lexical only (no `cd`, no symlink resolution) so this works even
+# when the directory doesn't exist yet on a fresh install.
+case "$kit_home_root" in
+  /*) ;;
+  *) kit_home_root="$PWD/$kit_home_root" ;;
+esac
 target_csv="all"
 install_mode="symlink"
 install_rules=false
@@ -12,8 +24,32 @@ dry_run=false
 install_index=false
 project_path=""
 rollback_target=""
+# Captured before the option loop below shifts $@ away, and before any
+# per-invocation suffixing of backup_stamp: this is the one place the
+# original command line still exists in full, and init_receipt (called with
+# no arguments, from inside a function) cannot recover it from $* — a bare
+# function call's $* is the function's own (empty) positional params, not the
+# script's, so a naive "$0 $*" inside init_receipt always records an empty
+# argument list regardless of what was actually passed.
+original_invocation="$0 $*"
 backup_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-backup_root="${AGENT_HARNESS_BACKUP_DIR:-${kit_home_root}/.agent-harness-backups}/${backup_stamp}"
+backup_dir_base="${AGENT_HARNESS_BACKUP_DIR:-${kit_home_root}/.agent-harness-backups}"
+# Second-granularity timestamps collide when install.sh runs more than once
+# per second (test_harness.sh does this repeatedly) — two runs would then
+# share one backup_root/receipt.json, so a rollback of "latest" restores the
+# wrong run's actions, or init_receipt's exists-check silently skips
+# reinitializing and the second run's actions get appended onto the first
+# run's receipt as if they were one install. Disambiguate by probing for an
+# unused suffix rather than adding sub-second precision, which keeps the
+# receipt directory name stable and greppable across the common (non-colliding) case.
+if [[ -e "${backup_dir_base}/${backup_stamp}" ]]; then
+  suffix=1
+  while [[ -e "${backup_dir_base}/${backup_stamp}-${suffix}" ]]; do
+    suffix=$((suffix + 1))
+  done
+  backup_stamp="${backup_stamp}-${suffix}"
+fi
+backup_root="${backup_dir_base}/${backup_stamp}"
 receipt_file="${backup_root}/receipt.json"
 receipt_initialized=false
 
@@ -151,7 +187,7 @@ if not os.path.exists(receipt_file):
     }
     with open(receipt_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
-' "$receipt_file" "$backup_stamp" "$0 $*"
+' "$receipt_file" "$backup_stamp" "$original_invocation"
   
   local backup_base_dir="$(dirname "$backup_root")"
   /bin/ln -sfn "$backup_root" "$backup_base_dir/latest"
@@ -450,9 +486,19 @@ install_hooks() {
     local hook_script hook_dest hook_existed hook_backup
     for hook_script in "$kit_root"/scripts/hooks/*.sh; do
       hook_dest="${hooks_dir}/$(basename "$hook_script")"
+      # A directory at the destination is refused outright: `[[ -f ]]` reads
+      # it as absent, so cp would write *into* it rather than replacing it,
+      # and rollback's unlink() on a directory later raises IsADirectoryError.
+      # A dangling symlink is the other case `[[ -f ]]` misreads as absent
+      # (its target doesn't resolve) — `[[ -e || -L ]]` catches both real
+      # files and broken symlinks that `-f` alone misses.
+      if [[ -d "$hook_dest" ]]; then
+        printf 'ERROR: %s is a directory; refusing to overwrite it with a hook script\n' "$hook_dest" >&2
+        return 1
+      fi
       hook_existed=false
       hook_backup=""
-      if [[ -f "$hook_dest" ]]; then
+      if [[ -e "$hook_dest" || -L "$hook_dest" ]]; then
         hook_existed=true
         hook_backup="${backup_root}/${adapter}-hooks-scripts/$(basename "$hook_script")"
         /bin/mkdir -p "$(dirname "$hook_backup")"

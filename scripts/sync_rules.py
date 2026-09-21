@@ -305,19 +305,36 @@ def render_hooks(profile_path: Path, hooks_dir: Path) -> dict:
     return hooks
 
 
-def _entry_is_kit_owned(entry: dict, hooks_dir: str) -> bool:
-    """True when every command in this entry points into the kit's hooks directory.
+def _entry_is_kit_owned(entry: dict, hooks_dir: Path, kit_basenames: set[str]) -> bool:
+    """True when every command in this entry is one of the kit's own hook scripts.
 
     Kit entries carry no marker of their own — the schema has nowhere to put one
-    — so ownership is read off the command path. An operator entry runs
-    something else and is never touched.
+    — so ownership is inferred from the command. Two signals, either sufficient:
+    the command resolves inside the *current* run's hooks_dir (the common
+    case; `is_relative_to`, not a string prefix — a sibling like
+    `hooks-legacy/foo.sh` starts with the string "hooks_dir" but is not inside
+    it), or its basename matches one the kit currently ships (catches entries
+    written under a *previous* AGENT_HARNESS_HOME — hooks_dir is derived from
+    that value, so it changes if the operator's home does, and the
+    is-relative-to check alone would then misclassify the old entries as the
+    operator's own and let them accumulate as undead duplicates instead of
+    being replaced).
+
+    A false positive here (an operator's own script that happens to share a
+    kit script's exact basename) is possible but narrow; the alternative —
+    stale kit entries silently piling up forever — is the wider failure mode.
     """
-    # Compare against a separator-terminated prefix, not the bare directory: a
-    # sibling like `hooks-legacy/foo.sh` starts with the string "hooks_dir" but
-    # is not inside it.
-    prefix = hooks_dir.rstrip("/") + "/"
     commands = [h.get("command", "") for h in entry.get("hooks", []) if isinstance(h, dict)]
-    return bool(commands) and all(c.startswith(prefix) for c in commands)
+    if not commands:
+        return False
+    owned = []
+    for c in commands:
+        try:
+            in_current_dir = Path(c).resolve().is_relative_to(hooks_dir)
+        except (OSError, ValueError):
+            in_current_dir = False
+        owned.append(in_current_dir or Path(c).name in kit_basenames)
+    return all(owned)
 
 
 def merge_hooks(settings: dict, rendered: dict, hooks_dir: Path) -> dict:
@@ -331,13 +348,23 @@ def merge_hooks(settings: dict, rendered: dict, hooks_dir: Path) -> dict:
     existing = merged.get("hooks", {})
     if not isinstance(existing, dict):
         raise ValueError("existing hooks is not an object")
-    prefix = str(hooks_dir.expanduser().resolve())
+    resolved_hooks_dir = hooks_dir.expanduser().resolve()
+    kit_basenames = {
+        Path(h.get("command", "")).name
+        for entries in rendered.values()
+        for e in entries
+        for h in e.get("hooks", [])
+        if isinstance(h, dict) and h.get("command")
+    }
 
     for event, entries in rendered.items():
         current = existing.get(event, [])
         if not isinstance(current, list):
             raise ValueError(f"existing hooks.{event} is not an array")
-        kept = [e for e in current if not (isinstance(e, dict) and _entry_is_kit_owned(e, prefix))]
+        kept = [
+            e for e in current
+            if not (isinstance(e, dict) and _entry_is_kit_owned(e, resolved_hooks_dir, kit_basenames))
+        ]
         existing[event] = kept + copy.deepcopy(entries)
 
     merged["hooks"] = existing
