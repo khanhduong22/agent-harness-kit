@@ -55,6 +55,22 @@ for rule_file in "$kit_test_home/.codex/AGENTS.md" "$kit_test_home/.claude/CLAUD
     grep -q 'index-admin-cms' "$rule_file"
 done
 
+# Claude Code documents no user-level AGENTS.md: the global rule must stay in
+# CLAUDE.md, and the installer must never create a user-level AGENTS.md.
+assert "global Claude rule stays at ~/.claude/CLAUDE.md" \
+  grep -q 'agent-harness-kit:start' "$kit_test_home/.claude/CLAUDE.md"
+assert "no user-level ~/.claude/AGENTS.md is created" \
+  test ! -e "$kit_test_home/.claude/AGENTS.md"
+
+# The rendered Claude adapter must describe AGENTS.md loading as verified, not
+# claim AGENTS.md is never read (false since Claude Code 2.1.277).
+refute "rendered Claude rule must not claim AGENTS.md is never read" \
+  grep -q 'is not an automatic Claude Code instruction source' "$kit_test_home/.claude/CLAUDE.md"
+assert "rendered Claude rule states CLAUDE.md takes precedence over AGENTS.md" \
+  grep -q 'takes precedence over' "$kit_test_home/.claude/CLAUDE.md"
+assert "rendered Claude rule states .agents/ is never read on its own" \
+  grep -q 'Nothing under `.agents/` is read' "$kit_test_home/.claude/CLAUDE.md"
+
 printf 'Passed: Fresh Core Installation\n'
 
 printf '=== Test 2: Idempotency (Duplicate Prevention) ===\n'
@@ -72,21 +88,31 @@ printf 'Passed: Idempotency check\n'
 printf '=== Test 3: Project Pack Injection (Index) ===\n'
 "$kit_root/scripts/install.sh" --index --project-path "$mock_project" --targets claude,codex >/dev/null
 
-assert "exactly one index start marker in project CLAUDE.md" \
-  test "$(grep -c '<!-- agent-harness-kit:index:start -->' "$mock_project/.claude/CLAUDE.md")" -eq 1
-assert "exactly one index end marker in project CLAUDE.md" \
-  test "$(grep -c '<!-- agent-harness-kit:index:end -->' "$mock_project/.claude/CLAUDE.md")" -eq 1
-assert "project CLAUDE.md carries the Index Platform pack" \
-  grep -q 'Index Platform' "$mock_project/.claude/CLAUDE.md"
-assert "project CLAUDE.md mentions index-api" \
-  grep -q 'index-api' "$mock_project/.claude/CLAUDE.md"
-assert "project CLAUDE.md mentions index-admin-cms" \
-  grep -q 'index-admin-cms' "$mock_project/.claude/CLAUDE.md"
-
+# One shared file: claude and codex both target <project>/AGENTS.md.
 assert "exactly one index start marker in project AGENTS.md" \
   test "$(grep -c '<!-- agent-harness-kit:index:start -->' "$mock_project/AGENTS.md")" -eq 1
+assert "exactly one index end marker in project AGENTS.md" \
+  test "$(grep -c '<!-- agent-harness-kit:index:end -->' "$mock_project/AGENTS.md")" -eq 1
+assert "project AGENTS.md carries the Index Platform pack" \
+  grep -q 'Index Platform' "$mock_project/AGENTS.md"
+assert "project AGENTS.md mentions index-api" \
+  grep -q 'index-api' "$mock_project/AGENTS.md"
+assert "project AGENTS.md mentions index-admin-cms" \
+  grep -q 'index-admin-cms' "$mock_project/AGENTS.md"
 assert "project AGENTS.md preserves the pre-existing operator rule" \
   grep -q 'Project Existing Codex Rule' "$mock_project/AGENTS.md"
+
+# The legacy .claude/CLAUDE.md is folded into AGENTS.md, backed up, and removed
+# (a leftover CLAUDE.md would make Claude Code ignore AGENTS.md entirely).
+assert "legacy Claude rule was folded into project AGENTS.md exactly once" \
+  test "$(grep -c '^# Project Existing Rule$' "$mock_project/AGENTS.md")" -eq 1
+assert "legacy .claude/CLAUDE.md was removed" \
+  test ! -e "$mock_project/.claude/CLAUDE.md"
+assert "the claude target wrote no root CLAUDE.md" \
+  test ! -e "$mock_project/CLAUDE.md"
+assert "legacy file was backed up before removal" \
+  grep -q '^# Project Existing Rule$' \
+    "$kit_test_home/.agent-harness-backups/latest/claude-index/legacy/.claude__CLAUDE.md"
 
 for rule_file in "$kit_test_home/.codex/AGENTS.md" "$kit_test_home/.claude/CLAUDE.md" "$kit_test_home/.gemini/GEMINI.md"; do
   refute "Index pack must stay out of global rule $rule_file" \
@@ -100,14 +126,14 @@ assert "install recorded a rollback receipt" \
 
 "$kit_root/scripts/install.sh" --rollback latest >/dev/null
 
-refute "rollback removed the index pack from project CLAUDE.md" \
-  grep -q 'agent-harness-kit:index' "$mock_project/.claude/CLAUDE.md"
 refute "rollback removed the index pack from project AGENTS.md" \
   grep -q 'agent-harness-kit:index' "$mock_project/AGENTS.md"
-assert "rollback restored the original project CLAUDE.md content" \
-  grep -q '# Project Existing Rule' "$mock_project/.claude/CLAUDE.md"
+refute "rollback removed the folded legacy text from project AGENTS.md" \
+  grep -q '^# Project Existing Rule$' "$mock_project/AGENTS.md"
 assert "rollback restored the original project AGENTS.md content" \
   grep -q '# Project Existing Codex Rule' "$mock_project/AGENTS.md"
+assert "rollback restored the legacy project .claude/CLAUDE.md" \
+  grep -q '^# Project Existing Rule$' "$mock_project/.claude/CLAUDE.md"
 
 printf 'Passed: Rollback restored original project state\n'
 
@@ -304,5 +330,99 @@ AGENT_HARNESS_HOME="$rollback_home" AGENT_HARNESS_BACKUP_DIR="$test_root/backups
 assert "rollback removes the deployed hook scripts, not just the settings entry" \
   test ! -e "$rollback_hooks_dir/guard-new-packages.sh"
 printf 'Passed: Rollback removed the hook scripts a fresh install created\n'
+
+printf '=== Test 11: Legacy project CLAUDE.md migration ===\n'
+mig_home="$test_root/home-migrate"
+mig_backups="$test_root/backups-migrate"
+/bin/mkdir -p "$mig_home"
+install_claude() { # <project> [extra install.sh args...]
+  local project="$1"
+  shift
+  AGENT_HARNESS_HOME="$mig_home" AGENT_HARNESS_BACKUP_DIR="$mig_backups" \
+    "$kit_root/scripts/install.sh" --index --project-path "$project" --targets claude "$@"
+}
+install_claude_quiet() { install_claude "$@" >/dev/null 2>&1; }
+
+# 11a: both legacy locations, a paragraph AGENTS.md already carries, and a stale
+# copy of the kit block that must not be carried over.
+project_m="$test_root/projects/migrate-both"
+/bin/mkdir -p "$project_m/.claude"
+printf '# Existing Agents\n\nShared paragraph that both files carry.\n' > "$project_m/AGENTS.md"
+printf '# Claude Only Rule\n\nShared paragraph that both files carry.\n\n<!-- agent-harness-kit:index:start -->\nstale pack copy\n<!-- agent-harness-kit:index:end -->\n' \
+  > "$project_m/.claude/CLAUDE.md"
+printf '# Root Claude Rule\n' > "$project_m/CLAUDE.md"
+agents_before="$(/sbin/md5 -q "$project_m/AGENTS.md")"
+dot_before="$(/sbin/md5 -q "$project_m/.claude/CLAUDE.md")"
+root_before="$(/sbin/md5 -q "$project_m/CLAUDE.md")"
+
+install_claude "$project_m" >/dev/null
+first_run="$(basename "$(readlink "$mig_backups/latest")")"
+
+assert "both legacy files were removed" \
+  test ! -e "$project_m/.claude/CLAUDE.md" -a ! -e "$project_m/CLAUDE.md"
+assert "the .claude/CLAUDE.md rule was folded in exactly once" \
+  test "$(grep -c '^# Claude Only Rule$' "$project_m/AGENTS.md")" -eq 1
+assert "the root CLAUDE.md rule was folded in exactly once" \
+  test "$(grep -c '^# Root Claude Rule$' "$project_m/AGENTS.md")" -eq 1
+assert "a paragraph AGENTS.md already carried is not duplicated" \
+  test "$(grep -c '^Shared paragraph that both files carry\.$' "$project_m/AGENTS.md")" -eq 1
+refute "the stale kit block in the legacy file is not carried over" \
+  grep -q 'stale pack copy' "$project_m/AGENTS.md"
+assert "exactly one index start marker after migration" \
+  test "$(grep -c '<!-- agent-harness-kit:index:start -->' "$project_m/AGENTS.md")" -eq 1
+assert "both legacy files were backed up under distinct names" \
+  test -f "$mig_backups/$first_run/claude-index/legacy/.claude__CLAUDE.md" \
+    -a -f "$mig_backups/$first_run/claude-index/legacy/CLAUDE.md"
+
+# 11b: a second identical run changes nothing
+agents_after="$(/sbin/md5 -q "$project_m/AGENTS.md")"
+install_claude "$project_m" > "$test_root/migrate-again.log"
+assert "reinstall after migration reports rules unchanged" \
+  grep -q 'rules unchanged' "$test_root/migrate-again.log"
+assert "reinstall after migration leaves AGENTS.md byte-for-byte identical" \
+  test "$(/sbin/md5 -q "$project_m/AGENTS.md")" = "$agents_after"
+assert "reinstall after migration removed nothing else" \
+  test ! -e "$project_m/.claude/CLAUDE.md" -a ! -e "$project_m/CLAUDE.md"
+
+# 11c: rolling back the migrating run restores every file byte-for-byte
+AGENT_HARNESS_HOME="$mig_home" AGENT_HARNESS_BACKUP_DIR="$mig_backups" \
+  "$kit_root/scripts/install.sh" --rollback "$first_run" >/dev/null
+assert "rollback restored .claude/CLAUDE.md byte-for-byte" \
+  test "$(/sbin/md5 -q "$project_m/.claude/CLAUDE.md")" = "$dot_before"
+assert "rollback restored the root CLAUDE.md byte-for-byte" \
+  test "$(/sbin/md5 -q "$project_m/CLAUDE.md")" = "$root_before"
+assert "rollback restored AGENTS.md byte-for-byte" \
+  test "$(/sbin/md5 -q "$project_m/AGENTS.md")" = "$agents_before"
+
+# 11d: a symlinked CLAUDE.md is never migrated
+project_s="$test_root/projects/migrate-symlink"
+/bin/mkdir -p "$project_s"
+printf '# Real target\n' > "$project_s/real.md"
+/bin/ln -s real.md "$project_s/CLAUDE.md"
+install_claude "$project_s" > "$test_root/migrate-symlink.log"
+assert "the symlinked CLAUDE.md is left untouched" test -L "$project_s/CLAUDE.md"
+assert "a warning names the skipped symlink" \
+  grep -q 'skipping symlink' "$test_root/migrate-symlink.log"
+assert "the project pack is still written to AGENTS.md" \
+  grep -q 'Index Platform' "$project_s/AGENTS.md"
+
+# 11e: dry run reports the migration and changes nothing
+project_r="$test_root/projects/migrate-dry"
+/bin/mkdir -p "$project_r/.claude"
+printf '# Dry Rule\n' > "$project_r/.claude/CLAUDE.md"
+install_claude "$project_r" --dry-run > "$test_root/migrate-dry.log"
+assert "dry run announces the legacy migration" \
+  grep -q 'would migrate legacy' "$test_root/migrate-dry.log"
+assert "dry run kept the legacy file" test -f "$project_r/.claude/CLAUDE.md"
+assert "dry run created no AGENTS.md" test ! -e "$project_r/AGENTS.md"
+
+# 11f: when AGENTS.md cannot be written, the legacy file must survive
+project_f="$test_root/projects/migrate-fail"
+/bin/mkdir -p "$project_f/.claude" "$project_f/AGENTS.md"
+printf '# Keep Me\n' > "$project_f/.claude/CLAUDE.md"
+refute "install fails when AGENTS.md cannot be written" install_claude_quiet "$project_f"
+assert "the legacy file survives a failed migration untouched" \
+  grep -q '^# Keep Me$' "$project_f/.claude/CLAUDE.md"
+printf 'Passed: Legacy CLAUDE.md folded, backed up, removed, reversible, and never lost\n'
 
 printf '\nALL HARNESS BEHAVIORAL TESTS PASSED SUCCESSFULLY!\n'

@@ -3,7 +3,7 @@
 ## Claude Code compatibility
 
 - Treat `/opsx`, `/build`, `/test`, `/review`, and `/ship` as skills when installed. Claude's built-in `/plan` remains reserved; use the installed planning skill or follow the planning phase directly.
-- `AGENTS.md` is not an automatic Claude Code instruction source. A project `CLAUDE.md` or isolated worktree root must import or summarize any required `AGENTS.md` guidance (e.g. `@<repo-root>/.agents/AGENTS.md`).
+- **Project instructions**: Claude Code (≥ 2.1.277) reads a project's `AGENTS.md` only when no `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists in the working directory or any directory above it. When one does, `CLAUDE.md` takes precedence over `AGENTS.md` and the `AGENTS.md` is ignored — a leftover `CLAUDE.md` in a service silently hides the workspace `AGENTS.md`. Nothing under `.agents/` is read on its own; import it from `AGENTS.md` (e.g. `@.agents/AGENTS.md`). This global file stays `~/.claude/CLAUDE.md` (Claude Code documents no user-level `AGENTS.md`) and does not count as a `CLAUDE.md` for that check.
 - **Browser E2E video gate**: Where the project profile defines one, Claude Code must run that suite with video recording enabled, publish the recording, and embed its URL in the PR description before shipping — never defer it to manual QA.
 
 ## Claude Code subagent mechanics (delegation-first override)
