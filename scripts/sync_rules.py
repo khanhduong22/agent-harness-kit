@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import os
 import re
 import shutil
 import tomllib
@@ -34,6 +35,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--marker", default="agent-harness-kit", help="Block marker prefix")
     parser.add_argument("--replace", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--migrate-legacy",
+        type=Path,
+        action="append",
+        default=[],
+        help="Legacy CLAUDE.md to fold into --destination, back up, then remove (repeatable)",
+    )
     parser.add_argument("--receipt-file", type=Path, help="Path to append action to receipt.json")
     parser.add_argument("--hooks", action="store_true", help="Merge the profile hook block instead of rules")
     parser.add_argument("--hooks-profile", type=Path, help="Path to the profile hooks.json (--hooks)")
@@ -88,6 +96,76 @@ def merge(original: str, rendered: str, marker_prefix: str, replace: bool = Fals
     if not original.strip():
         return managed + "\n"
     return original.rstrip() + "\n\n" + managed + "\n"
+
+
+def strip_marker_block(text: str, marker_prefix: str) -> str:
+    """Remove every ``<!-- prefix:start -->`` .. ``<!-- prefix:end -->`` block.
+
+    Raises ValueError on an incomplete block rather than guessing where it ends.
+    """
+    start_marker = f"<!-- {marker_prefix}:start -->"
+    end_marker = f"<!-- {marker_prefix}:end -->"
+    while start_marker in text or end_marker in text:
+        before, sep, remainder = text.partition(start_marker)
+        if not sep or end_marker not in remainder:
+            raise ValueError(f"text contains an incomplete {marker_prefix} block")
+        _, _, after = remainder.partition(end_marker)
+        text = before + after
+    return text
+
+
+def _normalise(text: str) -> str:
+    return " ".join(text.split())
+
+
+def fold_legacy(agents_text: str, legacy_text: str, marker_prefix: str, source_name: str = "CLAUDE.md") -> str:
+    """Return ``agents_text`` with the legacy file's operator text appended.
+
+    Pure. The kit's own marker block in the legacy file is dropped (the kit
+    regenerates it), the rest is split into blank-line separated paragraphs,
+    and any paragraph whose whitespace-normalised text already occurs in
+    ``agents_text`` is skipped. What remains goes under a
+    ``## Migrated from <source_name>`` heading, outside the kit markers, so a
+    later marker-scoped rewrite leaves it alone. Returns ``agents_text``
+    unchanged when nothing is left, which is what makes the fold idempotent.
+    """
+    known = _normalise(agents_text)
+    fresh: list[str] = []
+    for paragraph in re.split(r"\n\s*\n", strip_marker_block(legacy_text, marker_prefix)):
+        paragraph = paragraph.strip()
+        normalised = _normalise(paragraph)
+        if not normalised or normalised in known:
+            continue
+        fresh.append(paragraph)
+        known += " " + normalised
+    if not fresh:
+        return agents_text
+    section = f"## Migrated from {source_name}\n\n" + "\n\n".join(fresh) + "\n"
+    if not agents_text.strip():
+        return section
+    return agents_text.rstrip() + "\n\n" + section
+
+
+def collect_legacy(paths: list[Path], destination: Path) -> list[tuple[Path, str, str]]:
+    """Return ``(path, name relative to destination's directory, text)`` for each usable file.
+
+    A symlink is never migrated: it may point at the destination itself or at a
+    shared file, and copying then deleting it would not preserve that link.
+    """
+    found: list[tuple[Path, str, str]] = []
+    for path in (p.expanduser() for p in paths):
+        if path.is_symlink():
+            print(f"skipping symlink: {path}")
+            continue
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            print(f"skipping legacy file that is not UTF-8: {path}")
+            continue
+        found.append((path, os.path.relpath(path, destination.parent), text))
+    return found
 
 
 def parse_profile_mcp(text: str) -> dict:
@@ -395,34 +473,77 @@ def main() -> int:
     rendered = render_content(args)
     updated = merge(original, rendered, marker_prefix=args.marker, replace=args.replace)
 
-    if updated == original:
+    migrating: list[tuple[Path, str, str]] = []
+    for path, name, text in collect_legacy(args.migrate_legacy, destination):
+        try:
+            updated = fold_legacy(updated, text, args.marker, name)
+        except ValueError as exc:
+            print(f"leaving {path} in place: {exc}")
+            continue
+        migrating.append((path, name, text))
+
+    rules_changed = updated != original
+    if not rules_changed and not migrating:
         print(f"rules unchanged: {destination}")
         return 0
 
     if args.dry_run:
-        print(f"would update rules: {destination}")
+        if rules_changed:
+            print(f"would update rules: {destination}")
+        for path, _, _ in migrating:
+            print(f"would migrate legacy rules: {path} -> {destination} (backed up, then removed)")
         return 0
 
     backup_path: Path | None = None
-    if dest_existed:
+    if rules_changed and dest_existed:
         backup_path = args.backup_dir.expanduser() / args.label / destination.name
         backup_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(destination, backup_path)
         print(f"backed up rules: {destination} -> {backup_path}")
 
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(updated, encoding="utf-8")
-    print(f"updated rules: {destination}")
+    legacy_backups: list[Path] = []
+    for path, name, _ in migrating:
+        legacy_backup = args.backup_dir.expanduser() / args.label / "legacy" / name.replace(os.sep, "__")
+        legacy_backup.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, legacy_backup)
+        legacy_backups.append(legacy_backup)
+        print(f"backed up legacy rules: {path} -> {legacy_backup}")
 
-    append_receipt(
-        args.receipt_file,
-        {
-            "type": "rule",
-            "destination": str(destination.resolve()),
-            "existed": dest_existed,
-            "backup_path": str(backup_path.resolve()) if backup_path else None,
-        },
-    )
+    if rules_changed:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(updated, encoding="utf-8")
+        print(f"updated rules: {destination}")
+        append_receipt(
+            args.receipt_file,
+            {
+                "type": "rule",
+                "destination": str(destination.resolve()),
+                "existed": dest_existed,
+                "backup_path": str(backup_path.resolve()) if backup_path else None,
+            },
+        )
+
+    # Nothing is removed until the destination has been re-read and shown to
+    # already contain everything the legacy files held: folding again must be a
+    # no-op. Any failure above or here leaves every legacy file where it was.
+    written = destination.read_text(encoding="utf-8")
+    for path, name, text in migrating:
+        if fold_legacy(written, text, args.marker, name) != written:
+            raise RuntimeError(f"{destination} does not contain everything from {path}; leaving it in place")
+
+    for (path, _, _), legacy_backup in zip(migrating, legacy_backups):
+        resolved = str(path.resolve())
+        path.unlink()
+        print(f"migrated legacy rules: {path} -> {destination}")
+        append_receipt(
+            args.receipt_file,
+            {
+                "type": "file",
+                "destination": resolved,
+                "existed": True,
+                "backup_path": str(legacy_backup.resolve()),
+            },
+        )
     return 0
 
 
