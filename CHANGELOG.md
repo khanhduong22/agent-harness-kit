@@ -2,6 +2,26 @@
 
 All notable changes to this kit are documented here.
 
+## [0.1.15] - 2026-09-21
+
+### Changed
+
+- **`AGENTS.md` is now the single project instruction file.** Claude Code 2.1.277 added native `AGENTS.md` reading, so `install.sh --index` writes the project pack to `<project>/AGENTS.md` for the Claude target too (it used to write `<project>/.claude/CLAUDE.md`), matching what Codex and Antigravity already shared. Claude reads `AGENTS.md` only when no `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists in the working directory or above, so a leftover `CLAUDE.md` silently hides it.
+- **`rules/adapters/claude.md` no longer claims `AGENTS.md` is never read** (false since 2.1.277). It now states the verified behaviour: `CLAUDE.md` takes precedence when both exist, nothing under `.agents/` is read on its own, and the global file stays `~/.claude/CLAUDE.md`.
+- **README project-pack column corrected.** The Gemini/Antigravity row said `<project>/.gemini/GEMINI.md`, which the installer stopped writing when the adapters began sharing the root `AGENTS.md`.
+
+### Added
+
+- **Legacy project `CLAUDE.md` migration.** When the Claude target installs a project pack it finds `<project>/CLAUDE.md` and `<project>/.claude/CLAUDE.md`, backs each up under the run's receipt, folds any text outside the kit's marker block into `AGENTS.md` (paragraphs already present are skipped; the kit's own block is not copied), verifies the fold by re-reading `AGENTS.md`, and only then removes the file. Symlinks are never touched, `--dry-run` reports without writing, a repeat run is a no-op, and `--rollback` restores every file byte-for-byte using the existing receipt types.
+
+### Removed
+
+- The duplicate root `CLAUDE.md` in this repository; `AGENTS.md` is the source.
+
+### Unchanged on purpose
+
+- The **global** Claude rule still installs to `~/.claude/CLAUDE.md`. Claude Code documents no user-level `AGENTS.md`; tested on 2.1.278, a `~/.claude/AGENTS.md` is not loaded when Claude starts outside `$HOME` and is found only incidentally when it starts under `$HOME`.
+
 ## [0.1.14] - 2026-09-18
 
 ### Fixed (all found by `pr-review-loop`'s own dry run against merged PR #15)
