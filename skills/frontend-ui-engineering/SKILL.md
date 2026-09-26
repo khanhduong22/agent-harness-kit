@@ -315,14 +315,24 @@ For detailed accessibility requirements and testing tools, see `references/acces
 - Color as the sole indicator of state (red/green without text or icons)
 - Generic "AI look" (purple gradients, oversized cards, stock layouts)
 
-## Verification
+## Verification & Pre-Delivery Polish Checklist
 
 After building UI:
 
 - [ ] Component renders without console errors
 - [ ] All interactive elements are keyboard accessible (Tab through the page)
 - [ ] Screen reader can convey the page's content and structure
-- [ ] Responsive: works at 320px, 768px, 1024px, 1440px
+- [ ] Responsive: works at 320px, 390px, 768px, 1024px, 1440px
 - [ ] Loading, error, and empty states all handled
 - [ ] Follows the project's design system (spacing, colors, typography)
 - [ ] No accessibility warnings in dev tools or axe-core
+
+### Anti-AI-Aesthetic Invariants (Zero-Tolerance Rules)
+- [ ] **NO raw emojis as UI icons**: Always use vector SVGs (Lucide, Heroicons, Material Symbols, Radix Icons). Emojis render inconsistently across OSes and look unprofessional.
+- [ ] **NO generic purple/pink AI gradients**: Never apply generic neon purple/pink radial blobs unless the project's brand explicitly calls for it.
+- [ ] **NO missing cursor-pointer**: Every button, clickable card, tab, and accordion must have `cursor-pointer`.
+- [ ] **Touch Target Guardrail**: Minimum `44x44px` interactive area with at least `8px` spacing on mobile/tablet viewports.
+- [ ] **Contrast Guardrail**: Minimum `4.5:1` contrast ratio for normal text and `3:1` for large text/icons against backgrounds (WCAG AA).
+- [ ] **Text & Badge Truncation**: Ensure labels, status badges, and pills do not awkwardly truncate or overflow on mobile (`text-ellipsis`, flex-wrap).
+- [ ] **Motion Sensitivity**: Respect `prefers-reduced-motion` for all transitions and continuous loops.
+
