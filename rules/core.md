@@ -155,3 +155,9 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   4. **Apply to Local Machine**: Redeploy changes to propagate them back to local configurations:
      - Global rules/skills: `./scripts/install.sh --targets all --rules`
      - Project-specific packs: `./scripts/install.sh --index --project-path <workspace-path> --targets all --rules`
+
+## 10. High-Velocity Pragmatism & Anti-Bloat Protocol (Velocity First)
+- **Zero Ceremonial Waste**: Do NOT create massive multi-file OpenSpec proposals or speculative documentation trees for straightforward feature additions or staging iterations. If requirements are aligned, jump immediately into code and test implementation.
+- **Concurrent Subagent Dispatch**: For fullstack tasks, always dispatch frontend and backend subagents in parallel to eliminate serialized waiting time. Master agent audits contract parity on return.
+- **Direct Runtime Verification Over Speculative Debating**: Run commands and test suites directly rather than theorizing. Keep turn-by-turn interactions punchy, concise, and focused on working code.
+
