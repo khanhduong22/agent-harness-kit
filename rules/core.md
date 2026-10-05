@@ -14,7 +14,7 @@ CATEGORY A: MINDSET & THINKING PROTOCOLS (BEFORE CODING)
 "The best code is the code you never wrote. Lazy means efficient, not careless."
 Before writing or modifying any code, the agent MUST stop at the first rung that holds:
 1. **Does this need to exist at all?** (YAGNI) -> Speculative need = skip it, say so in one line.
-2. **Already in this codebase?** -> Reuse existing helpers, utilities, types, repositories, Shared DTOs.
+2. **Already in this codebase?** -> Reuse existing helpers, utilities, types, repositories, common DTOs or shared abstractions.
 3. **Stdlib does it?** -> Use built-in JS/TS/Node/Bun standard library APIs.
 4. **Native platform feature covers it?** -> HTML/CSS native controls, DB constraints/triggers/indexes over app-level custom code.
 5. **Already-installed dependency solves it?** -> Use packages already in `package.json`. Never install a new package for what a few lines can do.
@@ -35,7 +35,7 @@ The agent must strictly operate within designated boundaries based on task scope
 | :--- | :--- | :--- |
 | **Independent Execution** | • Read, grep, inspect codebase and logs.<br>• Create and switch task git branches/worktrees.<br>• Write and run tests (`bun test`, `vitest`, `jest`).<br>• Modify scoped code files to resolve task.<br>• Run linter and typecheck (`eslint`, `tsc`).<br>• Inspect, pull, and run a read-only service locally to execute browser E2E tests for verification videos.<br>• SSH to remote servers/containers ONLY for read-only diagnostics (inspecting logs, checking status with `docker ps`, running read-only DB queries, curling endpoints).<br>• Self-correct compilation and test failures. | • Modifying code outside the task scope.<br>• Creating mock/fake tests that do not assert real behavior. |
 | **Mandatory Escalation (MUST ASK)** | • Proposing schema migrations or data alterations.<br>• Modifying public API contracts or breaking signatures.<br>• Adding new third-party dependencies.<br>• Resolving merge conflicts touching other team members' code.<br>• Pushing git commits to remote repository (outside explicit `/ship`). | • Proceeding with DB reset or data drops without sign-off.<br>• Silently altering business logic without clarification. |
-| **Strictly Prohibited** | *None* | • Modifying, editing, or committing code in any repository the project profile marks read-only (analysis and verification recordings only).<br>• Suppressing errors with empty `catch {}` blocks.<br>• Silencing type errors with `@ts-ignore` or unchecked `any`.<br>• Hardcoding credentials, API keys, or secrets.<br>• Running destructive commands (`rm -rf`, `drop database`, `prisma migrate reset`) without explicit command from user.<br>• Multiple commits in PR branch (must squash to 1 commit).<br>• Manual ad-hoc container builds or manual deployments via SSH on remote servers (e.g. `ssh ... docker compose build / up / deploy`). When CI/CD or automated deployment pipelines (GitHub Actions, deploy.sh) are configured, deployments MUST go through git push to trigger automated pipelines; never bypass pipelines via manual SSH builds. |
+| **Strictly Prohibited** | *None* | • Modifying, editing, or committing code in any repository the project profile marks read-only (analysis and verification recordings only).<br>• Suppressing errors with empty `catch {}` blocks.<br>• Silencing type errors with `@ts-ignore` or unchecked `any`.<br>• Hardcoding credentials, API keys, or secrets.<br>• Running destructive commands (`rm -rf`, destructive database resets (e.g. prisma migrate reset, drop database)) without explicit command from user.<br>• Multiple commits in PR branch (must squash to 1 commit).<br>• Manual ad-hoc container builds or manual deployments via SSH on remote servers (e.g. `ssh ... docker compose build / up / deploy`). When CI/CD or automated deployment pipelines (GitHub Actions, deploy.sh) are configured, deployments MUST go through git push to trigger automated pipelines; never bypass pipelines via manual SSH builds. |
 
 ### Autonomous Run Boundary (`/build auto`)
 When `/build auto` is explicitly invoked:
@@ -139,7 +139,7 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   - ALWAYS delegate to specialized subagents for:
     1. Feature implementation & code changes.
     2. Bug reproduces & root-cause code fixes.
-    3. Writing & executing test suites (Unit test, E2E Playwright, Newman).
+    3. Writing & executing test suites (Unit test, E2E Playwright, API integration tests).
     4. Code refactoring, migration backfills, and lint cleanup.
   - **Subagent Naming Convention (Mandatory)**: Subagent roles MUST strictly follow:
     `[YYYY-MM-DD HH:mm | #<issue>] <Descriptive Role>`

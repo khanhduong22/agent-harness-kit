@@ -3,49 +3,51 @@ name: playwright-e2e-testing
 description: Complete end-to-end (E2E) testing workflow with Playwright, including headless browser test execution, form validation guardrails, full CRUD lifecycle, video recording, automatic Google Drive upload via rclone, and instant Slack notifications.
 ---
 
-# Skill: Playwright E2E Testing (index-admin-cms)
+# Skill: Playwright E2E Testing
 
 ## Purpose
 Automate high-confidence, full-lifecycle browser testing with Playwright, complete with video recording and cloud reporting. Every admin/client feature must be verified against runtime UI/DOM, validation guardrails, **downstream side-effect sinks**, and persistent database state before human review.
 
-> **Nguyên tắc số 1 của skill này**: scaffolding (config, POM, fixtures, helper) **đã tồn tại thật** trong `index-admin-cms/`. Skill này KHÔNG chứa bản copy của chúng — copy sẽ drift và sai. Luôn `Read` file thật trước khi viết spec mới.
+> **Nguyên tắc số 1 của skill này**: Scaffolding (config, POM, fixtures, helper) **đã tồn tại thật trong repository** của dự án. Skill này KHÔNG chứa bản copy tĩnh của chúng — copy sẽ drift và sai. Luôn chủ động discover và `Read` file thật trước khi viết spec mới.
 
 ---
 
-## 1. Nguồn sự thật: đọc code thật, đừng copy từ doc
+## 1. Nguồn sự thật: Discover & đọc code thật trong repository
 
-| Bạn cần | Đọc file thật | Export chính |
+Trước khi viết hoặc chạy bất kỳ E2E spec nào, agent phải thực hiện discovery cấu trúc Playwright thực tế của dự án (thường nằm ở root hoặc trong thư mục frontend / admin UI package, ví dụ `playwright.config.{ts,js}`):
+
+| Bạn cần | Discover & đọc file thật trong repo | Export / vai trò chính |
 |---|---|---|
-| Cấu hình runner, project, video | `index-admin-cms/playwright.config.ts` | `defineConfig` (`setup` → `e2e-authenticated`) |
-| Login 1 lần, lưu session | `e2e/setup/auth.setup.ts` | storageState → `e2e/.auth/admin.json` |
-| Inject POM vào spec | `e2e/fixtures/index.ts` | `test`, `expect`, 11 POM fixtures |
-| Helper chung cho POM | `e2e/pages/base.page.ts` | `goto`, `recordPause`, `waitForToast`, `confirmModal`, `cancelModal`, `takeScreenshot` |
-| Nhịp video cho người xem | `e2e/utils/video-helper.ts` | `recordPause(page, ms)` |
-| Banner + modal tổng kết trong video | `e2e/utils/video-telemetry.ts` | `showStepBanner`, `removeStepBanner`, `showSummaryModal` |
-| Verify CSV export + preview | `e2e/utils/csv-preview.ts` | `validateAndPreviewCsv`, `CsvValidationResult` |
-| Locator dùng chung | `e2e/utils/selectors.ts` | `SELECTORS` |
+| Cấu hình runner, project, video | `playwright.config.{ts,js}` | `defineConfig` (`setup` → `e2e-authenticated` / projects) |
+| Login 1 lần, lưu session | `**/setup/auth.setup.{ts,js}` | storageState → file session cache (vd: `.auth/admin.json`) |
+| Inject POM vào spec | `**/fixtures/index.{ts,js}` | `test`, `expect`, custom typed fixtures |
+| Helper chung cho POM | `**/pages/base.page.{ts,js}` | `goto`, `recordPause`, `waitForToast`, `confirmModal`, `cancelModal` |
+| Nhịp video cho người xem | `**/utils/video-helper.{ts,js}` | `recordPause(page, ms)` |
+| Banner + modal tổng kết trong video | `**/utils/video-telemetry.{ts,js}` | `showStepBanner`, `removeStepBanner`, `showSummaryModal` |
+| Verify CSV / file export + preview | `**/utils/csv-preview.{ts,js}` | `validateAndPreviewCsv`, validation helpers |
+| Locator dùng chung | `**/utils/selectors.{ts,js}` | `SELECTORS` / central locator maps |
 
 > [!WARNING]
-> **Không bao giờ tự viết lại `playwright.config.ts`, `base.page.ts`, hay bất kỳ file nào ở bảng trên.** Chúng đang chạy được. Ghi đè bằng một phiên bản "chuẩn" trong đầu sẽ phá suite hiện tại. Cần thêm hành vi → mở rộng file thật.
+> **Không bao giờ tự viết lại `playwright.config.ts`, `base.page.ts`, hay bất kỳ file scaffolding nào.** Kiểm tra repository trước để tái sử dụng file đang chạy được. Ghi đè bằng một phiên bản "chuẩn" trong đầu sẽ phá suite hiện tại. Cần thêm hành vi → mở rộng file thật.
 
-### Cấu trúc thư mục
+### Cấu trúc thư mục tiêu chuẩn (Archetype)
 
 ```text
-index-admin-cms/
-├── playwright.config.ts            # Multi-project: setup → e2e-authenticated
+<ui-package-or-root>/
+├── playwright.config.{ts,js}       # Multi-project: setup → e2e-authenticated
 └── e2e/
-    ├── .auth/admin.json            # [Gitignored] session cache
+    ├── .auth/                      # [Gitignored] session cache (admin.json, user.json)
     ├── setup/auth.setup.ts         # Login 1 lần, dump storageState
     ├── fixtures/index.ts           # test.extend inject POM đã typed
-    ├── pages/                      # POM: base.page.ts + auth/ community/ content/
-    ├── specs/                      # Spec theo domain: auth/ community/ content/
+    ├── pages/                      # POM: base.page.ts + feature domain pages
+    ├── specs/                      # Spec theo feature / domain module
     └── utils/                      # video-helper, video-telemetry, csv-preview, selectors
 ```
 
-POM và spec mới đặt theo domain sẵn có (`community/groups`, `community/users`, `community/topics`, `community/tags`, `community/moderation`, `community/notifications`, `content`). Thêm fixture mới → khai báo trong `e2e/fixtures/index.ts`.
+POM và spec mới đặt theo domain sẵn có của dự án. Thêm fixture mới → khai báo trong file fixtures tương ứng (vd: `e2e/fixtures/index.ts`).
 
 > [!IMPORTANT]
-> `playwright.config.ts` route spec bằng `testMatch` regex có allowlist domain. Tạo thư mục spec ở domain mới mà quên thêm vào regex thì **spec sẽ không chạy và suite vẫn báo xanh**. Luôn kiểm tra spec mới thực sự được pick up (`npx playwright test --list`).
+> `playwright.config.{ts,js}` thường route spec bằng `testMatch` regex hoặc thư mục cố định. Khi tạo thư mục spec ở domain mới, luôn kiểm tra spec mới thực sự được runner pick up (`npx playwright test --list`).
 
 ---
 
@@ -55,32 +57,32 @@ POM và spec mới đặt theo domain sẵn có (`community/groups`, `community/
 
 **Vấn đề**: rule "phải verify email/notification downstream" là rule *có điều kiện* — "nếu action gửi mail thì...". Nhưng khi viết spec cho một feature, agent **không biết** action đó có phát sinh side-effect hay không. Không biết thì không verify, rồi tick "N/A" một cách thành thật. Rule không sai; thiếu **bước đi tìm**.
 
-### 2.1. Quy trình truy vết sink (chạy TRƯỚC khi viết dòng spec đầu tiên)
+### 2.1. Quy trình truy vết 5 Universal Sink Layers (chạy TRƯỚC khi viết dòng spec đầu tiên)
 
-Với mỗi action sắp test (create/update/delete/moderate/ban/publish...), truy ngược chuỗi này trong `index-api`:
+Với mỗi action sắp test (create/update/delete/moderate/ban/publish...), truy ngược kiến trúc downstream qua 5 tầng sink phổ quát:
 
 ```text
-1. Catalog sự kiện       index-api/src/community/constants/event.constants.ts   → COMMUNITY_EVENTS
-2. Điểm phát sự kiện     index-api/src/community/emitters/community-event.emitter.ts
-3. Listener fan-out      index-api/src/community/listeners/notification.listener.ts
-                          ├── NotificationService  → bản ghi notification trong DB
-                          └── SmtpService          → email thật
-4. Kênh email            index-api/src/shared/modules/smtp/smtp.service.ts        → Mailpit :8025
-5. Kênh realtime         index-api/src/app/app.gateway.ts  @OnEvent('SEND_NOTIFICATION_TO_USER')
-                                                            → websocket → NotificationBell (index-web)
+1. Event Bus / Emitters      Domain Events emitted (EventBus, EventEmitter, Kafka/RabbitMQ/Redis dispatchers)
+2. Database Listeners        Event listeners, subscribers, background workers ghi nhận audit logs / DB notifications
+3. Mail Sinks (SMTP)         Transactional mailers gửi email thật → SMTP / Mailpit (vd: http://localhost:8025)
+4. Realtime / WebSockets     Gateway / Socket emit live update tới client → UI notification bells / toasts
+5. Public Feed / Cache       Cache invalidation hoặc public read-model views (public feed, active catalog, client views)
 ```
 
-Lệnh truy vết nhanh:
+Lệnh truy vết nhanh trong codebase backend:
 
 ```bash
-# Action này có bắn event nào không?
-grep -rn "COMMUNITY_EVENTS\." index-api/src/community --include="*.ts" | grep -i "<entity>"
+# 1. Action này có bắn domain event / bus message nào không?
+grep -rn "emit(\|dispatch(\|publish(\|Event\." src/ --include="*.ts" | grep -i "<entity>"
 
-# Event đó có listener nào bắt, và fan-out đi đâu?
-grep -rn "@OnEvent" index-api/src --include="*.ts"
+# 2. Event đó có listener/subscriber nào bắt, và fan-out đi đâu?
+grep -rn "@OnEvent\|@Subscribe\|addEventListener" src/ --include="*.ts"
 
-# Có gửi mail trực tiếp không (không qua event)?
-grep -rln "SmtpService\|sendMail" index-api/src index-admin-cms/src --include="*.ts"
+# 3. Có gửi mail trực tiếp hoặc qua queue không?
+grep -rln "sendMail\|mailer\|smtp\|notificationService" src/ --include="*.ts"
+
+# 4. Có push realtime websocket không?
+grep -rn "gateway\|socket\.emit\|server\.to\|@WebSocketGateway" src/ --include="*.ts"
 ```
 
 Hoặc dùng `codebase-memory-mcp`: `trace_path(function_name="<serviceMethod>", direction="outward")` để thấy toàn bộ fan-out.
@@ -91,9 +93,9 @@ Kết quả bước 2.1 phải được ghi thành bảng, đính kèm trong PR:
 
 | Action | Sink phát hiện được | Verify trong video | Nếu N/A: lý do |
 |---|---|---|---|
-| `POST /groups` | không có event | — | emitter không có `GROUP.CREATED` |
-| `PUT /users/:id/ban` | `USER.BANNED` → mail + noti | Mailpit + NotificationBell | — |
-| `PUT /posts/:id/hide` | `POST.MODERATED` → noti + public feed | Bell + `/vi/cong-dong` | — |
+| `POST /items` | không có event | — | Không có event emitter cho `ITEM.CREATED` |
+| `PUT /users/:id/ban` | `USER.BANNED` → mail + noti | Mailpit + User Notification Bell | — |
+| `PUT /posts/:id/hide` | `POST.MODERATED` → noti + public feed | Bell + Public feed URL | — |
 
 > [!IMPORTANT]
 > **"N/A" chỉ hợp lệ khi đã chạy bước 2.1 và ghi được lý do cụ thể.** Tick N/A mà không có dòng truy vết tương ứng = chưa làm bước 0, và PR bị chặn.
@@ -113,21 +115,21 @@ Kết quả bước 2.1 phải được ghi thành bảng, đính kèm trong PR:
 4. **Layer 4 — Closed-Loop Downstream Verification** — với mọi sink tìm được ở §2:
 
 > [!IMPORTANT]
-> **Dừng ở toast nội bộ của CMS là chưa đóng vòng lặp. Mock downstream cũng không tính.** Video phải thực sự điều hướng sang hệ thống nhận, trong cùng một session ghi hình:
-> - **Sink A — Email (Mailpit `http://localhost:8025`)**: mở đúng mail vừa đến, assert subject, kiểm tra HTML template có branding, verify link động (vd token reset trỏ về `https://index.vn/dat-lai-mat-khau?code=...`).
-> - **Sink B — In-App Notification (`index-web` `http://localhost:3000`)**: đăng nhập đúng user nhận, assert badge `NotificationBell` tăng, mở `NotificationPanel`, click item, assert điều hướng đúng route và unread giảm.
-> - **Sink C — Public Feed (`index-web` `/vi/cong-dong`)**: sau khi admin ẩn/xóa/khóa/lưu trữ, vào feed công khai assert nội dung đã bị loại khỏi hiển thị.
+> **Dừng ở toast nội bộ của UI là chưa đóng vòng lặp. Mock downstream cũng không tính.** Video phải thực sự điều hướng sang hệ thống nhận, trong cùng một session ghi hình:
+> - **Sink A — Email (Mailpit `http://localhost:8025` hoặc mail dev server)**: mở đúng mail vừa đến, assert subject, kiểm tra HTML template có branding, verify link động (vd token reset/kích hoạt tài khoản).
+> - **Sink B — In-App Notification (Client Web UI)**: đăng nhập đúng user nhận, assert badge `NotificationBell` tăng, mở notification panel, click item, assert điều hướng đúng route và unread giảm.
+> - **Sink C — Public Feed / Read Model (Client Web UI)**: sau khi admin ẩn/xóa/khóa/lưu trữ, vào view/feed công khai assert nội dung đã bị loại khỏi hiển thị.
 >
-> `index-web` là **read-only** — chỉ chạy và quan sát, tuyệt đối không sửa/commit code trong đó.
+> Bất kỳ client web nào dùng để quan sát downstream verification là **read-only** — chỉ chạy và quan sát, tuyệt đối không sửa/commit code trong đó.
 
 ---
 
 ## 4. Two-Dimensional Completeness: Full Flow × Full Option Matrix
 
 ### 4.1. Bẫy "Flow-Only"
-Nhiều engineer và AI agent verify được flow chạy từ đầu đến cuối (Navigate ➔ Modal ➔ Fill ➔ Submit ➔ Table ➔ Delete), không lỗi, rồi tuyên bố "100% E2E verified". Nhưng trong flow đó họ chỉ chọn **một option tùy ý** (tạo với category đầu tiên, đổi role thành `ADMIN` và bỏ qua `COMMUNITY_MODERATOR`).
+Nhiều engineer và AI agent verify được flow chạy từ đầu đến cuối (Navigate ➔ Modal ➔ Fill ➔ Submit ➔ Table ➔ Delete), không lỗi, rồi tuyên bố "100% E2E verified". Nhưng trong flow đó họ chỉ chọn **một option tùy ý** (tạo với category đầu tiên, đổi role thành `ADMIN` và bỏ qua `MODERATOR`).
 
-**Hệ quả thật đã gặp**: chỉ test 2/3 role (`ADMIN`, `USER`) khiến `COMMUNITY_MODERATOR` lọt lưới. Lên production, chọn option đó là `400 Bad Request` ngay vì Prisma enum ở backend thiếu giá trị.
+**Hệ quả thật đã gặp**: chỉ test 2/3 role (`ADMIN`, `USER`) khiến `MODERATOR` lọt lưới. Lên production, chọn option đó là `400 Bad Request` ngay vì Prisma enum ở backend thiếu giá trị.
 
 Ba nhóm lỗi hay lọt theo cách này:
 1. **Schema & serialization mismatch** — enum chưa test fail validation giữa Strapi plugin, NestJS gateway và PostgreSQL enum.
@@ -172,20 +174,20 @@ Ba nhóm lỗi hay lọt theo cách này:
 **Pattern A — Vòng lặp chuyển trạng thái tuần tự** (khi một entity đổi option qua toàn bộ vòng đời):
 
 ```typescript
-export const COMMUNITY_USER_ROLES = [
-  { value: 'COMMUNITY_ADMIN', label: 'Quản trị viên' },
-  { value: 'COMMUNITY_MODERATOR', label: 'Kiểm duyệt viên' },
-  { value: 'COMMUNITY_MEMBER', label: 'Thành viên' },
+export const USER_ROLES = [
+  { value: 'ADMIN', label: 'Quản trị viên' },
+  { value: 'MODERATOR', label: 'Kiểm duyệt viên' },
+  { value: 'MEMBER', label: 'Thành viên' },
 ] as const;
 
-// ❌ CẤM: chỉ test ADMIN → MEMBER rồi bỏ qua COMMUNITY_MODERATOR
+// ❌ CẤM: chỉ test ADMIN → MEMBER rồi bỏ qua MODERATOR
 // ✅ CHUẨN: lặp hết mọi role, không bỏ option nào
-for (const role of COMMUNITY_USER_ROLES) {
+for (const role of USER_ROLES) {
   await userListPage.openChangeRoleModal(targetUserEmail);
   await userModalsPage.selectRole(role.value);
 
   const [response] = await Promise.all([
-    page.waitForResponse(r => r.url().includes('/api/community/users') && r.status() === 200),
+    page.waitForResponse(r => r.url().includes('/api/users') && r.status() === 200),
     userModalsPage.submitRoleChange(),
   ]);
   expect((await response.json()).data.role).toBe(role.value);
@@ -252,7 +254,7 @@ async expectExhaustiveEnumOptions(
 4. **Zero raw selector trong spec**: mọi locator nằm trong POM. Spec phải đọc như một câu chuyện nghiệp vụ bằng tiếng Việt/Anh.
 5. **Nhịp video**: chèn `recordPause(1500)` giữa các chuyển trạng thái quan trọng — headless chạy 10-50ms/action, không pause thì video vô dụng với người xem.
 6. **Telemetry trong video**: dùng `showStepBanner` trước mỗi bước và `showSummaryModal` trước khi đóng browser (xem `e2e/utils/video-telemetry.ts`).
-7. **Credentials**: lấy từ env (`CMS_ADMIN_EMAIL`, `CMS_ADMIN_PASSWORD`). Không hardcode password trong spec, POM, hay tài liệu.
+7. **Credentials**: lấy từ env (`E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD` hoặc tương đương). Không hardcode password trong spec, POM, hay tài liệu.
 
 ---
 
@@ -265,7 +267,7 @@ variable unset the script prints where it looked and exits 0, so a run without
 Slack configured still succeeds.
 
 ```bash
-# 1. Upload video lên Google Drive (rclone → gdrive:Index-E2E-Reports/YYYY-MM-DD/)
+# 1. Upload video lên Google Drive (rclone → ${E2E_GDRIVE_REMOTE:-gdrive:E2E-Reports}/YYYY-MM-DD/)
 ./scripts/upload-e2e-video.sh <path-to-video.webm> "<Task-Name>"
 
 # 2. Bắn Slack handover
@@ -278,8 +280,8 @@ Slack configured still succeeds.
 
 ## 7. Verification Checklist Before Handover
 
-- [ ] **Sink Inventory (§2.2) đã điền xong** — mọi action đều đã truy vết `COMMUNITY_EVENTS` / `@OnEvent` / `SmtpService`; mỗi dòng có verification step hoặc lý do N/A cụ thể. *(Không điều kiện — luôn phải có bảng này.)*
-- [ ] Mọi sink trong bảng đã được verify thật trong video (Mailpit / NotificationBell / public feed), không mock, không dừng ở toast CMS.
+- [ ] **Sink Inventory (§2.2) đã điền xong** — mọi action đều đã truy vết 5 sink layers (domain events / listeners / email / realtime / feed); mỗi dòng có verification step hoặc lý do N/A cụ thể. *(Không điều kiện — luôn phải có bảng này.)*
+- [ ] Mọi sink trong bảng đã được verify thật trong video (Mailpit / NotificationBell / public feed), không mock, không dừng ở toast nội bộ UI.
 - [ ] Playwright suite pass 100% (`npx playwright test`).
 - [ ] Spec mới thực sự được `testMatch` pick up (`npx playwright test --list`).
 - [ ] `setup` sinh `.auth/admin.json`, `e2e-authenticated` tái sử dụng được.
