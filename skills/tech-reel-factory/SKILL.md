@@ -72,6 +72,28 @@ flowchart LR
 
 ---
 
+## 🧠 Storytelling & Script Design (Adapted from `faceless-explainer`)
+
+### The Faceless Storytelling Law
+> *"An article or vault note is an information dump. A video is a guided act of understanding. Never paraphrase source text sequentially. Extract the thesis, identify the failure mode, and build a high-stakes dramatic arc."*
+
+### 4 Standard Narrative Structures:
+1. **`concept-explainer`** (Theoretical Models): Name the concept $\rightarrow$ reveal mechanism layer-by-layer $\rightarrow$ land concrete implication (e.g., HyperLogLog, B+ Tree, LSM-Tree).
+2. **`how-to-process`** (Pipelines & Protocols): A 3-5 step sequence on a consistent visual stage with one clear move per scene (e.g., Direct Upload R2, Transactional Outbox Relay).
+3. **`story-explainer`** (Incident Postmortems & Traps): Incident Setup $\rightarrow$ High-Stakes Crash $\rightarrow$ Pivot / Senior Discovery $\rightarrow$ Generalizable Architectural Law (e.g., 15s JVM GC Pause, Circular Deadlock ORA-00060).
+4. **`listicle`** (Co-Equal Traps / Rules): Hook $\rightarrow$ 3 parallel high-impact pitfalls $\rightarrow$ Unified takeaway (e.g., 3 P99 APM measurement pitfalls, 4 RAG vector traps).
+
+---
+
+## 🎨 Remotion Animation Blueprints (Reusable Components)
+Import from `src/remotion/animation-blueprints.tsx`:
+- **`KineticTypeBeats`**: Highlight spoken words dynamically as tokens pop or flip color on voiceover beats (`kinetic-type-beats`).
+- **`useCountUpMetric`**: Numeric interpolation hook for data-viz metrics count-up / count-down (e.g. 800ms $\rightarrow$ 5ms, 16.7M $\rightarrow$ 4,000, 0% collisions, `dataviz-countup`).
+- **`AgentProgressTheater`**: Multi-step agent or async pipeline state machine with animated checklists and glowing statuses (`agent-progress-theater`).
+- **`SpatialPanStations`**: Virtual camera or progressive pipeline layout (Client $\rightarrow$ API Gateway $\rightarrow$ Broker $\rightarrow$ Sink).
+
+---
+
 ## 🚀 Autonomous Execution Modes
 
 ### Mode A: Fully Automated One-Line Generation

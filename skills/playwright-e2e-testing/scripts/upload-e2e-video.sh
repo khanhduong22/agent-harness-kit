@@ -28,7 +28,7 @@ fi
 
 TODAY=$(date +"%Y-%m-%d")
 TIMESTAMP=$(date +"%H%M%S")
-REMOTE_DIR="gdrive:Index-E2E-Reports/${TODAY}"
+REMOTE_DIR="${E2E_GDRIVE_REMOTE:-gdrive:E2E-Reports}/${TODAY}"
 
 # Determine target filename
 BASE_EXT="${VIDEO_FILE##*.}"
