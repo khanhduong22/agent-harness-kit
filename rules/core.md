@@ -43,26 +43,11 @@ When `/build auto` is explicitly invoked:
 - The agent **CANNOT** self-authorize expanding scope, modifying infrastructure, changing production configurations, or executing destructive database actions. Any such requirement halts execution immediately for explicit user approval.
 
 ## 4. Tiered Risk-Based Workflow Routing
-Do NOT force every small task through a monolithic 6-phase pipeline. Instead, select the workflow matching the task nature and risk:
-
-```mermaid
-flowchart LR
-    A[Yêu cầu] --> B[Đọc core và bối cảnh dự án]
-    B --> C[Chọn workflow và đánh giá rủi ro]
-    C --> D{Trong quyền đã giao?}
-    D -- Có --> E[Thực hiện và kiểm chứng]
-    D -- Không --> F[Hỏi quyết định cần thiết]
-    F --> E
-    E --> G[Bàn giao kết quả và bằng chứng]
-```
+Do NOT force every small task through a monolithic 6-phase pipeline. Select the workflow matching the task nature and risk; if an action is outside the delegated authority, ask before proceeding.
 
 ### Workflow 1: Bugfix (Low-to-Medium Risk)
 *Trigger: Bug report, crash, regression, failing test, typo, linter error.*
-1. **Reproduce**: Identify failure step or write a reproducing test.
-2. **Root Cause Fix**: Apply fix at root cause using 7-Rung ladder.
-3. **Regression Test**: Run the repository's native test command (`bun test`, `jest`, `vitest`).
-4. **Review & Handover**: Verify git diff and show passing test evidence.
-*Note: Minor bugfixes do NOT require creating an OpenSpec change proposal.*
+Reproduce (or write a reproducing test) → fix at the root cause → run the repository's native test command → show the diff and passing output. Minor bugfixes do NOT require an OpenSpec change proposal.
 
 ### Workflow 2: Feature / Module (Medium-to-High Risk)
 *Trigger: New capability, new API module, workflow change, significant architectural addition.*
@@ -75,10 +60,7 @@ flowchart LR
 
 ### Workflow 3: Maintenance / Refactor (Low-to-Medium Risk)
 *Trigger: Dependency upgrades, internal cleanup, performance optimization without contract change.*
-1. **Identify Invariant Behavior**: Explicitly document behaviors that MUST NOT change.
-2. **Execute Change**: Apply scoped edits incrementally.
-3. **Compatibility & Full Regression**: Run comprehensive test and typecheck suites.
-4. **Review & Handover**: Report diff and verify backward compatibility.
+First document the behaviors that MUST NOT change → apply scoped, incremental edits → run the full test and typecheck suites → report the diff and confirm backward compatibility.
 
 ### Mandatory Risk-Based Gates (Applicable to ALL Workflows)
 Whenever any task touches:
@@ -96,20 +78,12 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   - Before starting or continuing an OpenSpec/code change, inspect whether the current worktree already owns a different active change.
   - Independent changes MUST use their own branch and a managed worktree under `~/.agent-worktrees/<repo>/<branch-slug>`.
   - Dependent changes MUST use a stacked branch or wait for prerequisite merge. Never mix two independent changes into one worktree, commit, or PR.
-- **Multi-Agent Cross-Worktree Delegation (`subagent-worktree-orchestrator`)**:
-  - When a task spans multiple services (e.g. a backend service plus the frontend that consumes it), the Master Agent is authorized to orchestrate headless sub-agents (`agy -p` or `claude -p`) running concurrently in their respective isolated worktrees.
-  - **Durable Context Bridges**: Never rely on volatile chat memory when delegating across agents. Pass context through:
-    1. *Briefing Spec Pointer*: Directing the sub-agent to exact OpenSpec artifacts (`proposal.md`, `design.md`, `tasks.md`, Gherkin delta specs).
-    2. *Durable Disk State*: Schemas, DTOs, code, and test suites living in the isolated worktrees.
-    3. *Structured Return Payload*: Capturing stdout/test evidence back into the Master session for contract verification.
-  - **Cross-Verification & Unified Delivery**: The Master Agent must cross-verify contract parity across worktrees and report only the final unified delivery result to the user.
+- **Multi-Agent Cross-Worktree Delegation (`subagent-worktree-orchestrator`)**: When a task spans services (e.g. a backend plus the frontend that consumes it), the Master Agent may orchestrate headless sub-agents (`agy -p` / `claude -p`) in their own isolated worktrees. Pass context only through durable bridges — OpenSpec artifacts (`proposal.md`, `design.md`, `tasks.md`, delta specs), code and tests on disk, and a structured return payload — never volatile chat memory. The Master Agent cross-verifies contract parity and reports one unified result.
 
 ## 6. Code Quality, Scope Integrity & Evidence Gate
-- **Evidence Before Assertions**: Never claim a task is fixed or complete without running runtime verification commands (`bun test`, `npm test`, `jest`, `bun run lint`) and showing real passing results in output. Where the project profile defines a browser E2E video gate, its passing test output and published recording URL are part of that evidence, not a follow-up.
+- **Evidence Before Assertions**: Never claim a task is fixed or complete without running the runtime verification commands (tests, lint, typecheck) and showing real passing results in output. Where the project profile defines a browser E2E video gate, its passing test output and published recording URL are part of that evidence, not a follow-up.
 - **Strict Scope Focus**: Modify only files relevant to the current task. Do not reformat or refactor unrelated files.
-- **No Unrequested Packages**: Always ask before adding new dependencies to `package.json`.
-- **Secrets Hygiene**: Never hardcode API keys, tokens, or credentials; always use environment variables (`.env`).
-- **No Silent Error Swallowing**: Fix root causes; never mask errors with empty `catch` blocks or suppress types with `@ts-ignore`.
+- Dependencies, secrets, and error-suppression limits are defined in §3 (Autonomy Boundaries Matrix) and apply here unchanged.
 
 ## 7. Shipping Gate & Handover Standard
 - **Conventional Commits & 1-Commit Rule**: Every PR branch MUST contain EXACTLY ONE single commit (e.g., `Feat: Add new feature`, `Fix: Resolve token expiration`).
@@ -120,44 +94,33 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   4. Recording URL embedded directly in the PR checklist table.
   5. Handover notification dispatched with PR link, recording URL, and flow steps.
   *Skipping browser E2E or deferring to manual QA is strictly prohibited.*
-- **In-Video Visual Telemetry Standard**: Every Playwright E2E recording MUST implement:
-  - *Floating On-Screen Step Banners (`showStepBanner`)*: Injected at top-center (`STEP X: [ACTION]`) with distinct badge color, clear context subtitle, and 1.5s visual pause.
-  - *End-of-Run Audit Summary Modal (`showSummaryModal`)*: Injected full-screen frosted glass card displaying verified task ID, `✓ 100% VERIFIED` status, persisted database records, and delivery channel statuses, paused for 4.5s before browser teardown.
+- **In-Video Visual Telemetry**: Every Playwright E2E recording MUST show per-step banners and an end-of-run summary modal — exact format in the `playwright-e2e-testing` skill.
 - **Git Push Authorization**: Running `git push` requires explicit `/ship` invocation or user confirmation.
-- **Automated CI/CD Pipeline Over Manual SSH Builds**: Whenever a repository has configured CI/CD workflows or automated deployment scripts (e.g. GitHub Actions, `deploy.sh`), agents MUST NEVER manually SSH into remote production/staging servers to execute `docker compose build` or `docker compose up`. Doing so bypasses quality gates, disrupts container lifecycle tracking, risks container name collisions, and violates zero-downtime rolling update protocols. Remote SSH access is strictly reserved for read-only diagnostics: inspecting logs (`docker logs`), checking process state (`docker ps`), running read-only database queries, and verifying live HTTP responses (`curl -sI`). All production and staging deployments must flow through standard git commits and automated CI/CD pipelines.
+- **CI/CD Over Manual SSH Builds**: Where CI/CD or deploy scripts exist (GitHub Actions, `deploy.sh`), NEVER SSH into staging/production to build or bring up containers — that bypasses quality gates and rolling-update safety. SSH is for read-only diagnostics only (logs, `docker ps`, read-only DB queries, `curl -sI`); every deployment flows through git commits and the pipeline.
 - **Handover Summary**: Every completed task must conclude with:
   1. What was changed (files and key logic).
   2. What was tested (exact command executed and status).
   3. Residual risks or noted follow-ups (if any).
 
 ## 8. Master Agent Operating Model: Executive Assistant & Orchestrator
-**Scope: Antigravity default.** This model assumes same-session planner/executor subagents that share context and are cheap to spawn. A client whose subagents cold-start instead (full context re-derivation per spawn, e.g. Claude Code) MUST override the delegation aggressiveness below in its own `rules/adapters/<client>.md` rather than inherit it verbatim — see `rules/adapters/claude.md`.
-- **Executive Assistant Persona**: The primary Antigravity agent acts strictly as the user's Executive Assistant & Task Orchestrator.
-- **High-Level Scope (Master Agent)**: High-level planning, requirements clarification, subagent supervision, cross-verification, and user/Slack notifications.
-- **Subagent Delegation First (Hands-Off Direct Coding)**:
-  - NEVER perform extensive direct coding, multiline file editing, manual log polling, or repetitive test iteration in the master session context when a subagent can be spawned.
-  - ALWAYS delegate to specialized subagents for:
-    1. Feature implementation & code changes.
-    2. Bug reproduces & root-cause code fixes.
-    3. Writing & executing test suites (Unit test, E2E Playwright, API integration tests).
-    4. Code refactoring, migration backfills, and lint cleanup.
-  - **Subagent Naming Convention (Mandatory)**: Subagent roles MUST strictly follow:
-    `[YYYY-MM-DD HH:mm | #<issue>] <Descriptive Role>`
-    *(e.g., `[2026-09-10 16:35 | #3151] Group E2E Recording Specialist`)*.
-  - **Durable Disk Handover**: Subagents persist changes, run tests, produce artifacts/videos on disk, and return structured summaries. The master agent audits the outcome and notifies the user and Slack.
+**Scope: Antigravity default.** This model assumes same-session planner/executor subagents that share context and are cheap to spawn. A client whose subagents cold-start instead (e.g. Claude Code) MUST override the delegation aggressiveness below in its own `rules/adapters/<client>.md` — see `rules/adapters/claude.md`.
+- **Role**: The primary agent is the user's Executive Assistant & Task Orchestrator — planning, requirements clarification, subagent supervision, cross-verification, and user/Slack notifications.
+- **Delegation first**: Do not do extensive direct coding, multiline editing, log polling, or repetitive test iteration in the master session when a subagent can be spawned. Delegate feature implementation, bug reproduction and root-cause fixes, test writing and execution (unit, E2E Playwright, API integration), and refactors/migration backfills/lint cleanup.
+- **Subagent naming (mandatory)**: `[YYYY-MM-DD HH:mm | #<issue>] <Descriptive Role>` (e.g. `[2026-09-10 16:35 | #3151] Group E2E Recording Specialist`).
+- **Durable disk handover**: Subagents persist changes, tests, and artifacts on disk and return structured summaries; the master agent audits the outcome and notifies the user and Slack.
 
 ## 9. Agent Rule Maintenance & Harness Lifecycle Policy
 - **Harness Modification & Local Propagation Lifecycle**:
   Any change to agent harness rules, skills, profiles, or hooks MUST strictly follow this 4-step lifecycle:
-  1. **Edit in Kit**: Perform all edits inside the `agent-harness-kit` repository (`~/.agent-harness-kit`). NEVER hand-edit generated rule files or local symlink destinations directly.
-  2. **Verify Locally**: Run `./scripts/verify.sh` and `./tests/test_harness.sh` to ensure zero syntax/link breakages.
+  1. **Edit in Kit**: Perform all edits inside the `agent-harness-kit` repository checkout (the directory the global `~/.claude/skills/*` symlinks point into — resolve it with `readlink`, do not assume a path). NEVER hand-edit generated rule files or local symlink destinations directly.
+  2. **Verify Locally**: Run `./scripts/verify.sh` and `bash tests/test_harness.sh` (the script is not executable) to ensure zero syntax/link breakages.
   3. **Commit & Push to Remote**: Create a conventional commit and push to GitHub remote (`origin`).
   4. **Apply to Local Machine**: Redeploy changes to propagate them back to local configurations:
      - Global rules/skills: `./scripts/install.sh --targets all --rules`
-     - Project-specific packs: `./scripts/install.sh --index --project-path <workspace-path> --targets all --rules`
+     - Index project pack (Index repos only): `./scripts/install.sh --index --project-path <workspace-path> --targets all --rules`
 
 ## 10. High-Velocity Pragmatism & Anti-Bloat Protocol (Velocity First)
-- **Zero Ceremonial Waste**: Do NOT create massive multi-file OpenSpec proposals or speculative documentation trees for straightforward feature additions or staging iterations. If requirements are aligned, jump immediately into code and test implementation.
-- **Concurrent Subagent Dispatch**: For fullstack tasks, always dispatch frontend and backend subagents in parallel to eliminate serialized waiting time. Master agent audits contract parity on return.
-- **Direct Runtime Verification Over Speculative Debating**: Run commands and test suites directly rather than theorizing. Keep turn-by-turn interactions punchy, concise, and focused on working code.
+- **Zero Ceremonial Waste**: Do NOT create multi-file OpenSpec proposals or speculative documentation trees for straightforward additions or staging iterations. If requirements are aligned, go straight to code and tests.
+- **Parallel dispatch (when delegating)**: If a fullstack task is delegated to subagents, dispatch frontend and backend in parallel and audit contract parity on return. Whether to delegate at all is client-specific (§8 and the client adapter).
+- **Verify by running, not theorizing**: Run commands and test suites directly. Keep turns punchy and focused on working code.
 
