@@ -15,52 +15,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = ROOT / "skills"
 
+# Only skills that still live in skills/ belong here: `--apply` copies every
+# target_skills entry, so a stale entry silently re-adds a skill that was pruned.
 SOURCES = {
-    "mattpocock": {
-        "url": "https://github.com/mattpocock/skills.git",
-        "branch": "main",
-        "target_skills": [
-            "ask-matt",
-            "code-review",
-            "codebase-design",
-            "diagnosing-bugs",
-            "domain-modeling",
-            "grill-me",
-            "grill-with-docs",
-            "grilling",
-            "handoff",
-            "implement",
-            "improve-codebase-architecture",
-            "prototype",
-            "research",
-            "resolving-merge-conflicts",
-            "setup-matt-pocock-skills",
-            "tdd",
-            "teach",
-            "to-questionnaire",
-            "to-spec",
-            "to-tickets",
-            "triage",
-            "wait-what",
-            "wayfinder",
-            "wizard",
-            "writing-for-agents",
-        ],
-    },
-    "vercel-skills": {
-        "url": "https://github.com/vercel-labs/skills.git",
-        "branch": "main",
-        "target_skills": ["find-skills"],
-    },
     "vercel-next": {
         "url": "https://github.com/vercel-labs/next-skills.git",
         "branch": "main",
         "target_skills": ["next-best-practices"],
-    },
-    "gemini-skills": {
-        "url": "https://github.com/google-gemini/gemini-skills.git",
-        "branch": "main",
-        "target_skills": ["gemini-api-dev"],
     },
 }
 

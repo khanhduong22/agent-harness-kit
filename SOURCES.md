@@ -2,48 +2,18 @@
 
 This repository is a curated snapshot, not a mirror. Local adaptations are committed directly so every harness receives the same reviewed behavior.
 
-## Matt Pocock skills
+## Upstream skills still synced
 
-Source: <https://github.com/mattpocock/skills>
+- `next-best-practices`: <https://github.com/vercel-labs/next-skills> (the only entry in `scripts/sync_upstream.py`)
 
-Bundled directories:
+## Previously bundled, since removed
 
-- `ask-matt`
-- `code-review`
-- `codebase-design`
-- `diagnosing-bugs`
-- `domain-modeling`
-- `grill-me`
-- `grill-with-docs`
-- `grilling`
-- `handoff`
-- `implement`
-- `improve-codebase-architecture`
-- `prototype`
-- `research`
-- `resolving-merge-conflicts`
-- `setup-matt-pocock-skills`
-- `tdd`
-- `teach`
-- `to-questionnaire`
-- `to-spec`
-- `to-tickets`
-- `triage`
-- `wait-what`
-- `wayfinder`
-- `wizard`
-- `writing-for-agents`
-
-## Other upstream skills
-
-- `find-skills`: <https://github.com/vercel-labs/skills>
-- `next-best-practices`: <https://github.com/vercel-labs/next-skills>
-- `gemini-api-dev`: <https://github.com/google-gemini/gemini-skills>
+The 2026-09-07 snapshot also bundled the Matt Pocock skills (<https://github.com/mattpocock/skills>), `find-skills` (<https://github.com/vercel-labs/skills>) and `gemini-api-dev` (<https://github.com/google-gemini/gemini-skills>). They have been pruned from `skills/` and from the sync manifest; the links remain for provenance only.
 
 ## Personal collection
 
-The remaining common skills were imported from the existing Gemini/Antigravity global collection. The six Claude SDLC adapters were imported from the existing Claude Code personal collection. Their committed contents are authoritative for this kit; upstream provenance was not present in the source directories.
+Every other common skill was imported from the existing Gemini/Antigravity global collection or authored here. The Claude SDLC adapters in `overlays/claude/skills` were imported from the existing Claude Code personal collection. Their committed contents are authoritative for this kit; upstream provenance was not present in the source directories.
 
-Snapshot date: 2026-09-07. Total: 67 common skills and six Claude-specific adapters.
+Skill counts drift with every prune — `scripts/verify.sh` prints the live number.
 
 Review each upstream license before changing this repository from private visibility or redistributing its contents.

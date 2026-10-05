@@ -253,7 +253,7 @@ async expectExhaustiveEnumOptions(
 3. **Explicit timeout**: spec lifecycle nhiều bước phải đặt `test.setTimeout(60000)`.
 4. **Zero raw selector trong spec**: mọi locator nằm trong POM. Spec phải đọc như một câu chuyện nghiệp vụ bằng tiếng Việt/Anh.
 5. **Nhịp video**: chèn `recordPause(1500)` giữa các chuyển trạng thái quan trọng — headless chạy 10-50ms/action, không pause thì video vô dụng với người xem.
-6. **Telemetry trong video**: dùng `showStepBanner` trước mỗi bước và `showSummaryModal` trước khi đóng browser (xem `e2e/utils/video-telemetry.ts`).
+6. **Telemetry trong video**: dùng `showStepBanner` trước mỗi bước và `showSummaryModal` trước khi đóng browser (xem `e2e/utils/video-telemetry.ts`). Chuẩn bắt buộc: banner nổi top-center `STEP X: [ACTION]` có màu badge riêng, subtitle ngữ cảnh và dừng 1.5s; modal tổng kết full-screen (frosted glass) hiển thị task ID, trạng thái `✓ 100% VERIFIED`, các bản ghi đã lưu DB và trạng thái các kênh gửi, giữ 4.5s trước khi đóng browser.
 7. **Credentials**: lấy từ env (`E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD` hoặc tương đương). Không hardcode password trong spec, POM, hay tài liệu.
 
 ---
