@@ -97,6 +97,7 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
 - **In-Video Visual Telemetry**: Every Playwright E2E recording MUST show per-step banners and an end-of-run summary modal — exact format in the `playwright-e2e-testing` skill.
 - **Git Push Authorization**: Running `git push` requires explicit `/ship` invocation or user confirmation.
 - **CI/CD Over Manual SSH Builds**: Where CI/CD or deploy scripts exist (GitHub Actions, `deploy.sh`), NEVER SSH into staging/production to build or bring up containers — that bypasses quality gates and rolling-update safety. SSH is for read-only diagnostics only (logs, `docker ps`, read-only DB queries, `curl -sI`); every deployment flows through git commits and the pipeline.
+- **Mandatory GitHub Actions Deployment Check**: Whenever code is pushed to a remote repository with automated CI/CD (GitHub Actions), the agent MUST actively monitor the workflow run (`gh run list` / `gh run view`) and confirm that ALL pipeline jobs (Quality Gate, Build, Tests, and Deployment) have finished with a SUCCESS status (green checkmark `✓`). NEVER report a task as completed or deployed while a GitHub Actions run is still in progress, pending, or failed. If a run fails, inspect failed logs (`gh run view --log-failed`), resolve the root cause, and re-verify until 100% green.
 - **Handover Summary**: Every completed task must conclude with:
   1. What was changed (files and key logic).
   2. What was tested (exact command executed and status).
