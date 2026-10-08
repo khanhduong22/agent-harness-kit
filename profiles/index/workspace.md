@@ -116,6 +116,16 @@ CATEGORY C: WORKSPACE QUALITY GATES & PR PROTOCOL
   - *End-of-Run Audit Summary Modal (`showSummaryModal`)*: Injected full-screen frosted glass card displaying verified task ID, `✓ 100% VERIFIED` status, persisted database records, and delivery channel statuses, paused for 4.5s before browser teardown.
   *Note: `index-web` source code remains strictly read-only. Never modify or commit code in `index-web`.*
 
+## 11. Strapi Content-Type Field & RBAC Permission Gate (`index-admin-cms`)
+- **The Strapi RBAC Pitfall**: Adding a new attribute to `schema.json` and adding it to `strapi_core_store_settings` layout does NOT automatically grant permissions to existing admin roles in Strapi. Strapi stores role permissions in `admin_permissions` with `properties.fields`. Existing roles (`editor` / `strapi-author` - "Biên Tập Viên", `editor-in-chief` / `strapi-editor` - "Tổng Biên Tập") retain their legacy field lists, leaving checkboxes UNCHECKED in "Chỉnh sửa vai trò" (Settings > Roles > Edit Role).
+- **Mandatory Field-Addition Protocol**: Whenever adding or modifying fields in any Strapi content-type (`api::<name>.<name>`):
+  1. **Schema Definition**: Add attribute to `src/api/<name>/content-types/<name>/schema.json`.
+  2. **View Layout**: Add field to `strapi_core_store_settings` via Knex migration.
+  3. **Translations**: Add Vietnamese & English labels in `src/admin/extensions/translations/{vi,en}.json`.
+  4. **RBAC Permission Backfill / Grant (CRITICAL)**: Backfill/grant CRUD permissions (`create`, `read`, `update`) in `admin_permissions` (`properties.fields`) for relevant roles (`editor`, `editor-in-chief`) via Knex migration or bootstrap sync (`src/plugins/admin-user-role-guard/` or Knex JSONB update). Never leave permissions ungranted on schema expansion.
+  5. **Role-Based Verification**: Never verify features solely with Super Admin accounts. Always test with an Editor (`editor`) account or simulate non-superadmin role tokens to prove field visibility and mutation capability.
+
 > **Note**: The Master Agent operating model (Executive Assistant, subagent
 > delegation-first, subagent naming convention) is defined once in the global
 > harness rules and is not repeated here.
+
