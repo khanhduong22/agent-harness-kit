@@ -20,6 +20,7 @@ All commands run from within `index-admin-cms/`:
 
 ## 3. Strict Coding & Operation Conventions
 - **Schema & Content Types**: Content types are managed under `src/api/*/content-types/`. Any schema alteration must be accompanied by corresponding migration scripts.
+- **Content-Type Field RBAC Gate (MANDATORY)**: Adding a new field to `schema.json` does NOT automatically grant permissions to existing admin roles in Strapi. Whenever adding new fields, ALWAYS backfill CRUD permissions in `admin_permissions` (`properties.fields`) for `editor` and `editor-in-chief` via migration or bootstrap sync, otherwise checkboxes remain unchecked in role settings and non-superadmin users cannot view or edit the field.
 - **Permissions Hygiene**: Do not alter editor or community permissions arbitrarily; use existing seed scripts (`seed:community-permission`, `seed:audit-log-permission`).
 - **Audit Logs**: Preserve telemetry and audit log tracking for all administrative actions.
 - **Unknown Specifications**: `[TBD: Need User Input]` Strapi Cloud syncing schedules and custom plugin release gates.
