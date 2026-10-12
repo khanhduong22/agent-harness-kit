@@ -289,6 +289,17 @@ app.use('/static', express.static('public', {
 res.set('Cache-Control', 'public, max-age=300'); // 5 minutes
 ```
 
+### Frontend Core Web Vitals & Edge Telemetry Invariants
+
+Modern web applications must enforce architectural invariants at the edge, client rendering, and observability layers to guarantee green Core Web Vitals under real-world conditions:
+
+- **TTFB as Root Dependency**: Time to First Byte is the root dependency of the entire frontend waterfall. Because the browser cannot parse HTML, discover CSS/JS assets, or start image downloads until the first HTML byte arrives, every 1ms saved on TTFB flows 1:1 into First Contentful Paint (FCP) and Largest Contentful Paint (LCP). Optimizing downstream rendering without minimizing TTFB yields diminishing returns.
+- **Zero-Redirect Edge Rewrites**: Always use Next.js internal `rewrites()` for root paths (`/` -> `/app`) instead of 307 redirects to eliminate 400ms-800ms redirect hops. An edge redirect introduces a complete round-trip (DNS + TLS + HTTP hop), adding latency on mobile networks. Configure internal rewrites so the edge serves the target view directly on the requested URL.
+- **Cloudflare Edge Cache TTL & Query Stripping**: Set Edge TTL to 7d+ with automated deploy purge, and exclude tracking query strings (`fbclid`, `utm_*`) from Cache Keys so social media and ad campaigns do not cause edge cache misses.
+- **Eager Loading of Critical Path Views**: Never split the landing/default tab with `next/dynamic`; lazy-load only secondary tabs. Dynamic imports introduce separate JS bundle round-trips that delay hydration and push LCP out past the 2.5s threshold. Eagerly load the default landing view in the primary bundle, and apply dynamic imports exclusively to secondary tabs or off-canvas dialogs.
+- **Long List UI Thread Protection**: Use native `content-visibility: auto; contain-intrinsic-size: 0 <height>;` and `decoding="async"` on lists with user avatars to prevent mobile main-thread freezing. This instructs the browser engine to skip layout/paint for offscreen rows until scrolled near the viewport, while async image decoding moves avatar decompression off the main UI thread.
+- **Sentry Telemetry Hygiene**: Use `beforeSendTransaction` to discard 30s frozen background tabs (iOS screen lock / app switch) so P75/P90 curves are not distorted. When mobile devices lock the screen or background the browser, timers freeze; resuming later records distorted transaction durations. In accordance with Google Web Vitals specifications, filter out frozen background transactions and hidden-state sessions before sending.
+
 ### Step 4: Verify (Keep or Revert)
 
 A fix is a hypothesis until you re-measure. This step decides whether it survives.
