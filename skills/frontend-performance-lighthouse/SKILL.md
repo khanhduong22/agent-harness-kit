@@ -177,7 +177,7 @@ Task Execution Time: [============= 120ms =============]
                      [--- 50ms free ---][-- 70ms TBT --]
 ```
 
-When GA4 (`gtag.js`), Microsoft Clarity, or Meta Pixel execute during initial load, they contend with React hydration and create consecutive Long Tasks.
+When GA4 (`gtag.js`), Microsoft Clarity, Cloudflare Web Analytics (`beacon.min.js`), or Meta Pixel execute during initial load, they contend with React hydration and create consecutive Long Tasks.
 
 ```mermaid
 flowchart TD
@@ -190,7 +190,7 @@ flowchart TD
     subgraph RealUser["Real Human Visitor Session"]
         U1["Page Loads (FCP / LCP Rendered)"] --> U2["In-memory queues buffer page_view & UTMs"]
         U2 --> U3["User touches screen, scrolls, or clicks"]
-        U3 --> U4["Inject gtag.js & clarity.js asynchronously"]
+        U3 --> U4["Inject gtag.js, clarity.js & cf-beacon asynchronously"]
         U4 --> U5["✅ Queues flush losslessly<br/>100% Telemetry captured outside critical load window"]
     end
 ```
@@ -201,6 +201,9 @@ flowchart TD
   - `window.dataLayer = window.dataLayer || []` stores all `gtag('event', ...)` calls in memory.
   - `window.clarity.q` safely buffers Clarity sessions.
   - When scripts load upon user interaction, all buffered events and UTM parameters flush immediately.
+- **Cloudflare Web Analytics (RUM) Dashboard Invariant**:
+  - If Cloudflare RUM is enabled with "Automatic Web Analytics" in the Cloudflare Dashboard, Cloudflare's proxy forcibly injects `beacon.min.js` synchronously at the closing `</body>` tag on every HTML page, adding 40ms-120ms of script evaluation and causing 100-200ms TBT on mobile PageSpeed audits.
+  - **Remediation**: In Cloudflare Dashboard -> **Analytics & Logs** -> **Web Analytics** -> **Manage Site**, disable automatic injection or switch to manual JS snippet, then supply the site token (`cfBeaconToken`) to `TelemetryDeferredLoader` so the beacon is injected strictly on genuine user interaction.
 
 ### Production Implementation: Next.js App Router
 Create `src/components/telemetry/TelemetryDeferredLoader.tsx`:
@@ -214,6 +217,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 interface TelemetryConfig {
   gaMeasurementId?: string;
   clarityProjectId?: string;
+  cfBeaconToken?: string;
 }
 
 declare global {
@@ -231,6 +235,7 @@ declare global {
 export function TelemetryDeferredLoader({
   gaMeasurementId,
   clarityProjectId,
+  cfBeaconToken,
 }: TelemetryConfig) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -273,7 +278,7 @@ export function TelemetryDeferredLoader({
     }
   }, [pathname, searchParams, gaMeasurementId]);
 
-  // 3. Pure interaction script injection
+  // 3. Pure interaction script injection (GA4, Clarity, Cloudflare RUM)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (window.__telemetry_loaded) return;
@@ -295,6 +300,14 @@ export function TelemetryDeferredLoader({
         clarityScript.src = `https://www.clarity.ms/tag/${clarityProjectId}`;
         clarityScript.async = true;
         document.head.appendChild(clarityScript);
+      }
+
+      if (cfBeaconToken) {
+        const cfScript = document.createElement('script');
+        cfScript.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+        cfScript.setAttribute('data-cf-beacon', JSON.stringify({ token: cfBeaconToken }));
+        cfScript.async = true;
+        document.head.appendChild(cfScript);
       }
     };
 
@@ -324,7 +337,7 @@ export function TelemetryDeferredLoader({
     };
 
     return cleanup;
-  }, [gaMeasurementId, clarityProjectId]);
+  }, [gaMeasurementId, clarityProjectId, cfBeaconToken]);
 
   return null;
 }
@@ -665,15 +678,40 @@ npx lighthouse http://localhost:3000 \
   --view
 ```
 
-### 2. Chrome DevTools Flame Chart Verification
+### 3. Chrome DevTools Flame Chart Verification
 1. Open DevTools Performance tab, set CPU: `4x slowdown`, Network: `Fast 3G`.
 2. Record initial page reload.
 3. Verify:
    - **0 Long Tasks (>50ms)** between FCP and LCP.
-   - Neither `gtag.js`, `clarity.js`, nor `iframe.js` appears prior to user interaction.
+   - Neither `gtag.js`, `clarity.js`, nor `beacon.min.js` appears prior to user interaction.
    - Total Blocking Time is **0ms**.
 
-### 3. Automated CI/CD Budget Gate (`lighthouserc.json`)
+### 4. Diagnostic Protocol: PageSpeed Crash & Hydration Traps (The "False Metric" Trap)
+
+When PageSpeed Insights reports an unexpected score collapse (e.g., Performance 60-75, LCP 5-7s, TBT 200-300ms) on a site with fast server TTFB:
+
+> [!WARNING]
+> **Never jump straight to image compression or server cache tuning.** Check the **Filmstrip / Preview Thumbnail** first!
+> If the thumbnail displays Chrome's error screen (*"This page couldn't load. Reload to try again, or go back."*), Lighthouse did NOT measure slow assets — it timed out waiting on an uncaught client hydration crash that blew up the React root tree.
+
+#### The 4-Step Crash Diagnostic Runbook:
+1. **Inspect Filmstrip Screenshots**: Look at the filmstrip frames in PageSpeed Insights / Lighthouse report. If the final frame is blank, white, or shows Chrome's navigation crash page, classify immediately as **Hydration / SSR Crash**.
+2. **Inspect Server Container Logs for Next.js Error Digests**:
+   In Next.js production builds, React suppresses client stack traces and outputs hashed error digests:
+   ```bash
+   # Check VPS / container logs for matching digest and unhandled exceptions
+   ssh user@vps "docker logs --tail 50 <web-container>" | grep -E "ReferenceError|TypeError|digest"
+   ```
+3. **Verify Live Response for Embedded Error Digest Markers**:
+   ```bash
+   curl -sL https://your-domain.com | grep -i "digest"
+   ```
+4. **Identify Root Causes in Component Tree**:
+   - **Undeclared Destructured Props**: Referencing `{children}` or other variables in JSX without destructuring them in the function parameters (`function Component({ propA, propB })`). This silently builds in JSX but throws `ReferenceError: children is not defined` during client hydration.
+   - **Unshielded Client Globals**: Accessing `window`, `document`, or `localStorage` during initial component render instead of inside `useEffect` or behind `typeof window !== 'undefined'`.
+   - **Invalid HTML Structure**: Nesting block elements inside inline elements (e.g. `<p><div>...</div></p>`) causing React to tear down and reconstruct the DOM tree.
+
+### 5. Automated CI/CD Budget Gate (`lighthouserc.json`)
 ```json
 {
   "ci": {
