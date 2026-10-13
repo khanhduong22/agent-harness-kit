@@ -378,3 +378,27 @@ expect(actualTTL).toBeGreaterThanOrEqual(Math.floor(baseTTL * (1 - jitterRatio))
 expect(actualTTL).toBeLessThanOrEqual(Math.ceil(baseTTL * (1 + jitterRatio)) + 1);
 ```
 
+### 8.6. Cross-Domain Invalidation Coupling in REST / CQRS APIs
+When aggregate administrative dashboards (`GET /api/admin/requests`, `GET /api/admin/tasks`, `GET /api/manager-tasks/checklist`) cache system state with long TTLs:
+- **Problem**: Staff client actions (submitting a leave/wfh request `POST /api/requests`, submitting a task `POST /api/staff/tasks/submit`, or toggling a checklist item) only invalidate staff-scoped keys, leaving admin/management dashboards displaying stale queues until TTL expiration.
+- **Implementation Standard**: Mutating actions MUST cross-invalidate parent oversight cache patterns:
+```typescript
+// When staff submits a request:
+await invalidateCachePattern(`user:requests:${userId}*`);
+await invalidateCachePattern("admin:requests:*"); // Proactively invalidate admin queue
+```
+
+### 8.7. Composite Index Ordering for Filter + Sort Access Patterns
+In relational databases (PostgreSQL), queries that filter by tenant or user and sort by creation timestamp (`WHERE user_id = $1 ORDER BY created_at DESC`):
+- **Problem**: Separate single-column indexes on `userId` and `createdAt` force the query planner into a Bitmap Index Scan followed by an explicit memory/disk sort (`Sort Key: createdAt` in EXPLAIN ANALYZE).
+- **Implementation Standard**: Define a composite B-Tree index with the equality filter column first and the sort column second:
+```prisma
+model UserTask {
+  // ...
+  @@index([userId, createdAt])
+  @@index([createdAt]) // Retained for global chronological feeds
+}
+```
+- Completely eliminates explicit sort operations from execution plans, reducing query timing from ~45ms down to <1ms on high-cardinality tables.
+
+

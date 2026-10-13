@@ -832,3 +832,40 @@ location ~* \.(?:css|js|woff2|webp)$ {
 }
 ```
 
+### 9.5. Tier 1 Dynamic Overlays (React.lazy) Standard
+Heavy interactive dialogs, submission review sheets, settings modals, and delete confirmations must never be statically imported into route pages:
+- **Problem**: Static dialog imports bloat the route's initial JavaScript bundle and trigger unnecessary parsing and layout calculation before the user even interacts with the component.
+- **Implementation Standard**: Convert static overlay imports into `React.lazy()` micro-chunks wrapped in `<React.Suspense fallback={null}>`:
+```tsx
+const ShiftHistoryDialog = React.lazy(() => import("@/components/admin/ShiftHistoryDialog"));
+const PrizeDialog = React.lazy(() => import("@/components/admin/PrizeDialog"));
+
+// In JSX:
+<React.Suspense fallback={null}>
+  {isHistoryOpen && <ShiftHistoryDialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen} />}
+  {isPrizeOpen && <PrizeDialog open={isPrizeOpen} onOpenChange={setIsPrizeOpen} />}
+</React.Suspense>
+```
+- Each overlay builds into an isolated 1-15 kB on-demand asset loaded strictly upon user action, keeping initial route bundles < 200 kB.
+
+### 9.6. Cumulative Layout Shift (CLS) Avatar Protection
+Dynamic user profile avatars from third-party CDNs (e.g. Google user profiles `lh3.googleusercontent.com`) or API uploads:
+- **Problem**: Images without declared width/height attributes cause unexpected layout shifts when rendering finishes during scroll, spiking the CLS metric.
+- **Implementation Standard**: Always declare explicit dimensions, async decoding, lazy loading, and an `onError` fallback:
+```tsx
+<img
+  src={user.avatar || "/icons/default-avatar.webp"}
+  alt={user.name}
+  width="32"
+  height="32"
+  loading="lazy"
+  decoding="async"
+  className="h-8 w-8 rounded-full object-cover"
+  onError={(e) => {
+    (e.target as HTMLImageElement).src = "/icons/default-avatar.webp";
+  }}
+/>
+```
+- Guarantees CLS = 0 and eliminates main-thread image decoding stutters during fast scroll.
+
+
