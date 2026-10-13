@@ -771,3 +771,44 @@ In shift planning, employee scheduling, attendance tracking, and task lifecycle 
      }
      ```
   - Grants PostgreSQL direct B-tree access to matching range boundaries with zero table heap filter scans.
+
+### 8.20. Aggregate Leaderboard Cross-Route Invalidation & Composite Filter Indexing
+In multi-tenant gamification engines, store operations, and employee performance trackers:
+- **Problem A (Stale Aggregate Leaderboard on Asynchronous Mutations)**: Aggregate leaderboard endpoints (`GET /api/staff/rewards/leaderboard`) compute cross-metric rankings (punctuality rate, overtime hours, piece-rate packing points, and carrying points) across all non-admin employees for a given month (`staff:rewards:leaderboard:${month}:${year}`). When employees submit piece-rate tasks, start WFH tasks, check in/out, or when administrators approve tasks, perform manual check-in adjustments, or close shifts in batch, failure to flush `staff:rewards:leaderboard:*` results in stale rankings displayed to staff.
+- **Implementation Standard**:
+  1. Wire consistent `invalidateCachePattern("staff:rewards:leaderboard:*")` across all 11 mutation routes:
+     - Staff Task Mutations: `tasks/claim`, `tasks/start`, `tasks/submit`, `tasks/submit-packing`, `tasks/submit-carrying`.
+     - Admin Task Reviews: `tasks/:id/approve`, `tasks/:id/reject`, `tasks/:id/review`, `tasks/stale-pending`, `tasks/:id`.
+     - Checkin & Attendance: `handleCheckinPost`, `sync-offline`, `manual-checkin`, `delete-checkin`.
+     - Shift Operations: `close-all-shifts`, and inside `invalidateScheduleCache()`.
+- **Problem B (Prize Pool, Shift Duty & Manager Weekly Task Composite Indexing)**:
+  - Mini-game prize pools filter by active status and order chronologically (`WHERE active = true ORDER BY createdAt ASC`).
+  - Shift duties repeatedly query user assignments for a given shift (`WHERE shiftId = ? AND userId = ?`).
+  - Manager weekly tasks filter by assignee, completion status, and week start (`WHERE assigneeId = ? AND completed = ? ORDER BY weekStart DESC`).
+  Without composite indexes matching these access paths, PostgreSQL performs heap scans and recheck filters.
+- **Implementation Standard**:
+  2. Add composite indexes matching exact equality and range/sort columns:
+     ```prisma
+     model LuckyWheelPrize {
+       active    Boolean  @default(true)
+       createdAt DateTime @default(now())
+       // ...
+       @@index([active, createdAt])
+     }
+
+     model ShiftDuty {
+       shiftId   Int
+       userId    String
+       // ...
+       @@index([shiftId, userId])
+     }
+
+     model ManagerWeeklyTask {
+       assigneeId String
+       completed  Boolean  @default(false)
+       weekStart  DateTime
+       // ...
+       @@index([assigneeId, completed, weekStart])
+     }
+     ```
+  - Grants PostgreSQL single-pass B-tree index scans for prize distribution, shift duty lookups, and weekly task filtering.

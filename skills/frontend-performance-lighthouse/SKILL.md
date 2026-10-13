@@ -1212,3 +1212,38 @@ In administrative reporting dashboards, team rankings, employee leaderboards, an
      </React.Suspense>
      ```
   - Reduces the top-level route entry chunk by **>70%** (e.g. from 12.85 kB down to 3.76 kB), enabling instantaneous tab and month switching while deferring card rendering until report data resolves.
+
+### 9.20. Podium Leaderboard & Tab Content Decoupling Pattern
+In gamification screens, reward hubs, and employee recognition views:
+- **Problem**: Reward views (such as `RewardsView.tsx`) frequently inline both top-3 podium graphics (`renderPodium`) and complete ranking lists (`renderLeaderboardList`) across 5+ metric tabs (Discipline, Hardworking, Overtime, Packing, Carrying). Inlining these heavy DOM trees into the top-level route component balloons the view chunk size to **7.02 kB**, forcing the browser to parse all tab renderings and podium styles before the user even sees the header or selects a tab.
+- **Implementation Standard**:
+  1. Extract the podium rendering, tab switching, and ranking lists into a standalone component (`RewardLeaderboardContent.tsx`).
+  2. Implement Section 9.15 Non-Recursive Image Error Fallback Guard on user avatars and capybara badges:
+     ```tsx
+     onError={(e) => {
+       e.currentTarget.onerror = null;
+       const target = e.currentTarget;
+       if (!target.src.endsWith("/capybara_mascot.webp")) {
+         target.src = "/capybara_mascot.webp";
+       }
+     }}
+     ```
+  3. In `RewardsView.tsx`, dynamically import `RewardLeaderboardContent` via `React.lazy()`:
+     ```tsx
+     const RewardLeaderboardContent = React.lazy(
+       () => import("@/components/rewards/RewardLeaderboardContent")
+     );
+     ```
+  4. Wrap in `<React.Suspense>` with a non-shifting placeholder skeleton matching the podium dimensions:
+     ```tsx
+     <React.Suspense
+       fallback={
+         <div className="h-96 w-full flex items-center justify-center text-xs text-slate-400 animate-pulse bg-slate-50/50 rounded-2xl border border-slate-100">
+           Đang tải bảng vinh danh...
+         </div>
+       }
+     >
+       <RewardLeaderboardContent activeTab={activeTab} leaderboard={leaderboard} isLoading={isLoading} />
+     </React.Suspense>
+     ```
+  - Reduces the initial view chunk size by **>42%** (e.g. from 7.02 kB down to 4.04 kB), deferring heavy podium DOM and ranking lists until the route shell is rendered.
