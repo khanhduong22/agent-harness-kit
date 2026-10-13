@@ -910,6 +910,29 @@ When implementing `onError` event handlers on avatar or mascot `<img>` tags to p
 ```
 - Completely prevents infinite event thrashing and protects the main-thread event loop under network failure conditions.
 
+### 9.9. Heavy Third-Party Rendering Isolation (Markdown & AST Parsers)
+In enterprise SPAs (Help centers, documentation browsers, chat assistants), rich text and Markdown parser libraries (`react-markdown`, `remark-gfm`, `marked`, `highlight.js`, `prismjs`):
+- **Problem**: Statically importing markdown packages directly into page entry points inflates the initial route chunk by 100-200 kB, stalling client-side hydration and increasing TBT even if the active tab only shows a simple FAQ accordion or list.
+- **Implementation Standard**: Encapsulate the parser into an isolated component and dynamic-import it via `React.lazy()`:
+```tsx
+// 1. Separate component: src/components/help/MarkdownRenderer.tsx
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+export default function MarkdownRenderer({ content }: { content: string }) {
+  return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>;
+}
+
+// 2. Parent page: src/pages/HelpPage.tsx
+const MarkdownRenderer = React.lazy(() => import("@/components/help/MarkdownRenderer"));
+
+<React.Suspense fallback={<div className="text-xs text-muted-foreground">Đang hiển thị...</div>}>
+  <MarkdownRenderer content={message.content} />
+</React.Suspense>
+```
+- Drops route entry bundle by 80-90% (e.g. from 175 kB down to 18 kB), completely removing markdown AST compilation overhead from the critical render path.
+
+
 
 
 
