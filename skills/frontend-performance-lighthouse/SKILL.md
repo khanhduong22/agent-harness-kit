@@ -890,5 +890,26 @@ const BackupManager = React.lazy(() => import("@/components/admin/BackupManager"
 ```
 - Reduces initial route chunk payload by 40-60%, eliminates unnecessary JS parse penalties, and guarantees zero TBT impact on route navigation.
 
+### 9.8. Non-Recursive Image Error Fallback Guard
+When implementing `onError` event handlers on avatar or mascot `<img>` tags to provide fallback placeholders:
+- **Problem**: If the fallback image asset is also missing or blocked by network/CORS (e.g. offline mode without service worker caching), setting `target.src = fallback` triggers another error event, throwing the browser into an infinite synchronous event loop that locks the main thread (100% CPU usage, INP > 1000ms).
+- **Implementation Standard**: Always clear the error handler (`e.currentTarget.onerror = null`) before re-assigning the source:
+```tsx
+<img
+  src={avatarUrl}
+  alt={name}
+  width="48"
+  height="48"
+  loading="lazy"
+  decoding="async"
+  onError={(e) => {
+    e.currentTarget.onerror = null; // Break potential recursive loops
+    e.currentTarget.src = "/icons/fallback-avatar.webp";
+  }}
+/>
+```
+- Completely prevents infinite event thrashing and protects the main-thread event loop under network failure conditions.
+
+
 
 
