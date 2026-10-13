@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./scripts/hooks/pre-compact-dump.sh",
+            "timeout": 15,
+            "statusMessage": "Preserving session state before compaction..."
+          }
+        ]
+      }
+    ]
+  }
+}
