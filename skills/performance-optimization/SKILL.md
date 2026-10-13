@@ -26,6 +26,16 @@ Measure before optimizing. Performance work without measurement is guessing — 
 | **LCP** (Largest Contentful Paint) | ≤ 2.5s | ≤ 4.0s | > 4.0s |
 | **INP** (Interaction to Next Paint) | ≤ 200ms | ≤ 500ms | > 500ms |
 | **CLS** (Cumulative Layout Shift) | ≤ 0.1 | ≤ 0.25 | > 0.25 |
+| **TBT** (Total Blocking Time - Lab) | ≤ 200ms (0ms target) | ≤ 600ms | > 600ms |
+
+> [!TIP]
+> **Zero-TBT Lighthouse Optimization (100 Performance Target)**:
+> For eliminating main-thread evaluation bottlenecks, achieving **0ms Total Blocking Time (TBT)**, and hitting a **100/100 Lighthouse Performance score** on throttled mobile devices, deep-dive into the dedicated [`lighthouse-tbt-zero`](../lighthouse-tbt-zero/SKILL.md) skill. It provides battle-tested patterns for:
+> - **Pure Interaction-Driven Lossless Telemetry**: Deferring GA4, GTM, Clarity, and Meta Pixel execution to active user gestures without losing initial pageviews/UTMs, eliminating 100% of third-party script blocking during bot audits.
+> - **Dynamic Modal Code-Splitting**: Slicing non-initial modals and drawers via `next/dynamic` to shrink initial route bundles by 40-60%.
+> - **Invisible Auth Iframe Elimination**: Lazy-loading Firebase/Identity Platform auth SDKs for guests and fast JWT rehydration for returning users.
+> - **Font Preconnect Hygiene**: Removing obsolete `fonts.gstatic.com` preconnects when using self-hosted `next/font`.
+
 
 ## The Optimization Workflow
 
@@ -77,7 +87,8 @@ Use the symptom to decide what to measure first:
 ```
 What is slow?
 ├── First page load
-│   ├── Large bundle? --> Measure bundle size, check code splitting
+│   ├── High TBT / Long tasks? --> See [lighthouse-tbt-zero](../lighthouse-tbt-zero/SKILL.md) for 0ms TBT patterns
+│   ├── Large bundle? --> Measure bundle size, check code splitting (see [lighthouse-tbt-zero](../lighthouse-tbt-zero/SKILL.md) for modal splitting)
 │   ├── Slow server response? --> Measure TTFB in DevTools Network waterfall
 │   │   ├── DNS long? --> Add dns-prefetch / preconnect for known origins
 │   │   ├── TCP/TLS long? --> Enable HTTP/2, check edge deployment, keep-alive
@@ -105,6 +116,7 @@ Common bottlenecks by category:
 | Symptom | Likely Cause | Investigation |
 |---------|-------------|---------------|
 | Slow LCP | Large images, render-blocking resources, slow server | Check network waterfall, image sizes |
+| High TBT / Long Tasks | Eager telemetry (GA4/Clarity), heavy modals, auth iframes | Profile main thread; apply [`lighthouse-tbt-zero`](../lighthouse-tbt-zero/SKILL.md) |
 | High CLS | Images without dimensions, late-loading content, font shifts | Check layout shift attribution |
 | Poor INP | Heavy JavaScript on main thread, large DOM updates | Check long tasks in Performance trace |
 | Slow initial load | Large bundle, many network requests | Check bundle size, code splitting |

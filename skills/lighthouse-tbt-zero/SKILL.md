@@ -1,5 +1,5 @@
 ---
-name: zero-tbt-telemetry
+name: lighthouse-tbt-zero
 description: Battle-tested patterns to achieve 0ms Total Blocking Time (TBT) and 100 Performance on Lighthouse by eliminating JavaScript main-thread evaluation bottlenecks, deferring telemetry via user interaction, and code-splitting heavy modals.
 ---
 

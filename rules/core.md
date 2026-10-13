@@ -83,6 +83,7 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
 ## 6. Code Quality, Scope Integrity & Evidence Gate
 - **Evidence Before Assertions**: Never claim a task is fixed or complete without running the runtime verification commands (tests, lint, typecheck) and showing real passing results in output. Where the project profile defines a browser E2E video gate, its passing test output and published recording URL are part of that evidence, not a follow-up.
 - **Strict Scope Focus**: Modify only files relevant to the current task. Do not reformat or refactor unrelated files.
+- **Mandatory Dynamic Import for Overlays (Zero-TBT Standard)**: Every non-initial interactive overlay (modals, dialogs, drawers, bottom sheets, alert dialogs, celebration confetti, walkthrough tours) MUST ALWAYS be dynamically imported via dynamic import (`next/dynamic(..., { ssr: false })` in Next.js or `React.lazy()` in Vite/React). NEVER statically import hidden overlays into route entry points; statically bundled modals bloat initial chunks, waste 100-300ms of mobile V8 script evaluation, and directly degrade Total Blocking Time (TBT).
 - Dependencies, secrets, and error-suppression limits are defined in §3 (Autonomy Boundaries Matrix) and apply here unchanged.
 
 ## 7. Shipping Gate & Handover Standard
