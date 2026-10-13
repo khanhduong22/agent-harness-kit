@@ -23,7 +23,7 @@ Before inviting user review or declaring any task/feature complete, you MUST exe
 
 ## Additional Quality Gates (run separately)
 
-9. `[x] Quad-Skill Review Audit`: Execute `code-review-and-quality`, `code-simplification`, `performance-optimization`, `security-and-hardening`.
+9. `[x] Review Audit`: Execute `code-review-and-quality`, `code-simplification`, `frontend-performance-lighthouse` (for frontend) / `backend-performance-optimization` (for backend), `security-and-hardening`.
 10. `[x] Quality Gate / Linter`: Project quality gate / linter passes cleanly (e.g. `bun scripts/scan-sonar.ts`, `bun run lint`, or SonarQube scan).
 11. `[x] Slack Handover Notification`: `./scripts/notify-slack.sh` dispatched with PR URL, Google Drive video link, and flow steps.
 
@@ -32,7 +32,7 @@ Before inviting user review or declaring any task/feature complete, you MUST exe
 1. Run service verification — e.g. `bun test`, `npm test`, or `npx playwright test`.
 2. If any gate FAILS, fix the root cause and re-run.
 3. For file/CSV downloads in UI/CMS: ensure UTF-8 BOM (0xEF, 0xBB, 0xBF) is verified and visual table preview modal is injected for >= 4 seconds so the recording captures table content clearly.
-4. Run the Quad-Skill Review via `/review` command.
+4. Run the Review Audit via `/review` command.
 5. Run project quality gate / linter (e.g. `bun run scan:sonar`, `bun run lint`, or project check scripts).
 6. Only after ALL gates pass, proceed to commit and push.
 
