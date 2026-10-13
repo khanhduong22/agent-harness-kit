@@ -89,3 +89,38 @@ export default function Page() {
   )
 }
 ```
+
+### Undeclared Destructured Props (Runtime ReferenceError Hydration Crash)
+
+When a component references `{children}` or other props in JSX expressions without declaring them in the function parameter signature:
+
+```tsx
+// ❌ Bad: 'children' is referenced in JSX but omitted from props destructuring!
+// In development it may fall through, but in production SSR/hydration it throws
+// "ReferenceError: children is not defined" and crashes the entire React root tree.
+function HomeTabs({ usdtData, selectedAsset, onSelectAsset }) {
+  return <div>{children || <DefaultView />}</div>;
+}
+
+// ✅ Good: Always declare and destructure all referenced props
+function HomeTabs({ children, usdtData, selectedAsset, onSelectAsset }: HomeTabsProps) {
+  return <div>{children || <DefaultView />}</div>;
+}
+```
+
+### Production Hydration Crash Diagnostics (Server Error Digests)
+
+In production Next.js builds, hydration errors and uncaught component exceptions are scrubbed of raw stack traces for security. The client displays a generic error or browser fallback page, and renders an error digest:
+
+1. **Client / Chrome Symptom**: PageSpeed filmstrip or browser screen shows *"This page couldn't load. Reload to try again, or go back."* with a digest like `digest: '2240224694'`.
+2. **Find the root cause on the server**:
+   ```bash
+   # Check container/server logs for the exact stack trace matching the digest
+   docker logs --tail 50 <web-container> | grep -A 5 -B 2 "digest"
+   ```
+3. **Verify live response for error markers**:
+   ```bash
+   # Detect if HTML response contains error digest markers
+   curl -sL <URL> | grep -i "digest"
+   ```
+
