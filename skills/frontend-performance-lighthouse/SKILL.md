@@ -398,6 +398,12 @@ export function TelemetryDeferredLoader({
 3. **Eager Loading of Critical Path Views**:
    Never split the landing/default tab with `next/dynamic`; lazy-load only secondary tabs. Dynamic imports introduce separate JS bundle round-trips that delay hydration and push LCP out past 2.5s.
 
+4. **Static DOM Pre-rendering for Instant LCP (Zero Client Render Delay)**:
+   In Single-Page Applications and client-rendered workspaces (e.g. Markdown editors, preview dashboards, document viewers), avoid mounting an empty DOM container (`<div id="preview"></div>`) that waits for client JavaScript to parse, download external assets, and render initial content.
+   - Pre-render the default document/screen HTML directly into the server or static HTML template.
+   - Defer client markdown parsers and syntax highlighters to execute after user input or via idle callbacks.
+   - Eliminates element render delay entirely, locking mobile FCP (0.8s) and LCP (1.1s) on Slow 4G.
+
 ### INP (Interaction to Next Paint) Mastery (≤ 200ms)
 1. **Break Long Tasks on Event Handlers**:
    Yield execution back to the browser before triggering expensive DOM updates:
@@ -580,7 +586,7 @@ Using asynchronous Google Fonts (`media="print" onload="this.media='all'"`) with
 
 ---
 
-### CSS Inlining Protocol: Never Use Play CDN in Production
+### CSS Inlining & Unused Vendor CSS Purging Protocol
 
 - **The Play CDN Anti-pattern (`cdn.tailwindcss.com`)**: Loading Play CDN downloads 126 KB JS and executes a browser-side JIT compiler on the main thread during initial render. On throttled mobile CPU, this wastes 800ms-1500ms and stalls FCP/LCP at 4.5s+.
 - **The Inlined Critical CSS Standard**:
@@ -590,6 +596,15 @@ Using asynchronous Google Fonts (`media="print" onload="this.media='all'"`) with
     ```
   - Inline the compiled CSS (<30 KB raw, ~5 KB gzipped) into `<style id="critical-css">` directly in `<head>`.
   - Result: **0 extra network requests**, **0ms TBT**, and immediate first-packet paint (FCP ≤ 1.1s).
+- **Critical CSS Inlining & Unused Vendor CSS Purging**:
+  External stylesheets (`styles.css`, `bootstrap.min.css`) are render-blocking resources that create round-trip waterfalls delaying FCP/LCP by 600ms-900ms on mobile Slow 4G.
+  1. **Inline Critical CSS**: Extract above-the-fold layout, typography, and viewport structure directly into `<style id="critical-css">` in `<head>`.
+  2. **Purge Third-Party Vendor Bloat**: Never ship full component frameworks (e.g. Bootstrap, Tailwind CDN) if only basic grid or utilities are used. Purge down to only the referenced selectors.
+  3. **Non-Blocking Secondary Styles**: Load non-critical below-the-fold stylesheets asynchronously:
+     ```html
+     <link rel="stylesheet" href="/styles.css" media="print" onload="this.media='all'" />
+     <noscript><link rel="stylesheet" href="/styles.css" /></noscript>
+     ```
 
 ---
 
@@ -599,16 +614,24 @@ Using asynchronous Google Fonts (`media="print" onload="this.media='all'"`) with
 Modern audit engines score how cleanly autonomous AI agents can browse, interpret, and navigate your website:
 1. **`/llms.txt` Invariant**: A machine-readable Markdown file MUST be placed at root `/llms.txt` following [llmstxt.org](https://llmstxt.org/) standards. It must contain at least one `# H1 Title`, concise system capabilities, developer docs links, and optional `/llms-full.txt`.
 2. **Zero Layout Shift for Autonomous Web Drivers**: Headless AI scrapers and browser agents (Puppeteer, Playwright, Chrome DevTools) navigate via calculated viewport coordinates. Layout shifts (CLS > 0.1) cause agents to mis-click or lose state, immediately penalizing the Agentic Browsing score. Zero-CLS architecture (`font-display: optional`, fixed skeleton wrappers) directly guarantees passing the Agentic CLS gate.
-3. **Structured Entity Graph (JSON-LD)**: Embed complete Schema.org JSON-LD (`@type: Person`, `WebSite`, `ProfilePage`, `Organization`) with authoritative `sameAs` entity links (Wikidata, GitHub, LinkedIn).
-4. **Clean Semantic DOM Tree**: Provide unambiguous landmarks (`<main>`, `<nav>`, `<header>`, `<footer>`), valid heading hierarchy (`h1` -> `h2` -> `h3`), and descriptive action links.
+3. **Eliminating Intrusive Auto-Tours (The Driver.js & Overlay Trap)**:
+   - Guided tours, onboarding wizards, and feature walkthroughs (e.g. Driver.js, Shepherd.js) MUST NEVER run automatically on page load or via arbitrary timers (`setTimeout(..., 1000)`).
+   - *Axe-Core & ARIA 1.2 Violation*: Driver.js injects dummy active elements (`<div id="driver-dummy-element" aria-haspopup="dialog" aria-expanded="true">`). Under W3C ARIA 1.2, generic `<div>` tags cannot have `aria-haspopup` without `role="button"` or an interactive role.
+   - *Layout Shift & Agent Breakage*: Auto-popups shift layout (CLS penalty of 0.095 - 0.108), throwing AI browser agents off calculated click coordinates.
+   - *Invariant*: All guided walkthroughs MUST be strictly user-initiated (e.g. explicit click on `#tour-btn`).
+4. **Structured Entity Graph (JSON-LD)**: Embed complete Schema.org JSON-LD (`@type: Person`, `WebSite`, `ProfilePage`, `Organization`) with authoritative `sameAs` entity links (Wikidata, GitHub, LinkedIn).
+5. **Clean Semantic DOM Tree**: Provide unambiguous landmarks (`<main>`, `<nav>`, `<header>`, `<footer>`), valid heading hierarchy (`h1` -> `h2` -> `h3`), and descriptive action links.
 
 #### B. 100% WCAG AA Accessibility Standard
 1. **Dark-Mode Craft Contrast (4.5:1 Gate)**: Default Tailwind `#71717a` (`text-zinc-500`) on `#0a0a0a` / `#111111` fails WCAG AA (yielding ~3.9:1). In dark themes, always remap `zinc.500: '#8e8e99'` (or higher) to achieve **5.83:1 to 6.11:1** contrast ratio.
-2. **Document Structure**: Exactly one `<main>` landmark per page, valid `<html lang="en">` (or appropriate BCP 47 code), and document `<title>`.
-3. **Interactive Control Names**: Every `<button>` and `<a>` must have discernible text or `aria-label`.
-4. **Touch Target Size & Spacing**: All mobile touch targets must measure at least 48x48px (or retain adequate padding/margins).
-5. **Zoom & Viewport Invariant**: Never restrict user zooming (`user-scalable=no` and `maximum-scale < 5` are strictly prohibited).
-6. **Favicon 404 Prevention (Best Practices Gate)**: Always supply both `favicon.svg` and `favicon.ico` in the root web directory to prevent 404 network errors in the browser console.
+2. **Code Syntax Keyword Contrast**: Standard GitHub light theme syntax red `#d73a49` has a 4.1:1 contrast ratio against light grey backgrounds (`#f6f8fa`), failing WCAG AA (requires 4.5:1). Darken syntax keywords to `#cf222e` (5.3:1) to guarantee 100% WCAG AA compliance across code blocks.
+3. **Document Structure**: Exactly one `<main>` landmark per page, valid `<html lang="en">` (or appropriate BCP 47 code), and document `<title>`.
+4. **Interactive Control Names & Discernible Text**: Every `<button>` and `<a>` must have discernible text or `aria-label`. Icon-only buttons (`<button class="tool-button"><i class="bi ..."></i></button>`) MUST include explicit `aria-label` attributes.
+5. **Focusable Separator / Splitter Attributes**: Any divider with `role="separator"` that is keyboard-focusable (`tabindex="0"`) **MUST** provide `aria-valuenow`, `aria-valuemin`, and `aria-valuemax` (e.g. `aria-valuenow="50" aria-valuemin="20" aria-valuemax="80"`).
+6. **`role="tablist"` Container & Child Isolation**: Under W3C ARIA, direct children of `role="tablist"` must strictly have `role="tab"` (or `role="presentation"` / `role="none"`). Do NOT place secondary action buttons (e.g. "Close Tabs", "Reset", or "+" buttons) directly inside `role="tablist"`. Separate secondary actions into an adjacent toolbar or wrap non-tab children in `<div role="presentation">`.
+7. **Touch Target Size & Spacing**: All mobile touch targets must measure at least 48x48px (or retain adequate padding/margins).
+8. **Zoom & Viewport Invariant**: Never restrict user zooming (`user-scalable=no` and `maximum-scale < 5` are strictly prohibited).
+9. **Favicon 404 Prevention (Best Practices Gate)**: Always supply both `favicon.svg` and `favicon.ico` in the root web directory to prevent 404 network errors in the browser console.
 
 ---
 
