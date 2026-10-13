@@ -87,6 +87,9 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
   1. *Tier 1 (Interactive Overlays)*: Every non-initial interactive overlay (modals, dialogs, drawers, bottom sheets, alert dialogs, celebration confetti, walkthrough tours) MUST ALWAYS be dynamically imported via `next/dynamic(..., { ssr: false })` or `React.lazy()`. NEVER statically import hidden overlays into route entry points.
   2. *Tier 2 (Heavy Below-the-Fold Modules)*: Modules below the initial fold that exceed 15KB or import heavy libraries (charts, 3D canvas, video players, rich text editors) must be dynamically loaded with fixed `min-height` placeholder wrappers to prevent CLS.
   3. *Tier 3 (Lightweight Structural UI)*: Simple cards, list items, and static markup (<5KB) below the fold should remain in the route bundle to preserve 60FPS scrolling smoothness and eliminate CLS.
+- **Google & Sentry Performance Standards**:
+  1. *Google Core Web Vitals (CrUX p75 & GSC Gate)*: Target **LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.05 (Target 0), 0ms TBT, 100/100 Lighthouse Performance**. 100% of URLs in Google Search Console must maintain "Good" status with zero intrusive initial popups.
+  2. *Sentry APM & Reliability Standards*: Target **Apdex ≥ 0.95 and User Misery < 1%**. SDKs (Sentry, GA4, Clarity) MUST be initialized lazily via interaction/idle callbacks without blocking initial hydration. Filter background tab LCP/TTFB (`document.visibilityState === 'hidden'`), clamp runaway transactions (>28s), and bridge Sentry event IDs to session replay tools (`window.clarity("set", "sentry_event_id", id)`).
 - Dependencies, secrets, and error-suppression limits are defined in §3 (Autonomy Boundaries Matrix) and apply here unchanged.
 
 ## 7. Shipping Gate & Handover Standard
