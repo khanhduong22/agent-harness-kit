@@ -682,3 +682,45 @@ In interactive features, gamified reward systems, and background cron aggregator
      ]).catch(() => {});
      ```
   - Guarantees immediate real-time dashboard updates when automated cron background jobs complete.
+
+
+### 8.18. Multi-Entity Export Query Parallelization & Range/Multiplier Compound Indexing
+In administrative data exports, report generators, and fiscal holiday scheduling:
+- **Problem A (Sequential Query Cascades in Data Exports)**: Multi-sheet report export endpoints (`GET /api/admin/export`) generate spreadsheets containing users, checkins, work shifts, and requests. Awaiting each database query sequentially (`await prisma.user...; await prisma.checkIn...; await prisma.workShift...; await prisma.request...`) introduces additive latency delays where four 50ms queries take 200ms+. Under concurrent administrative usage, this cascades database connection pool wait times.
+- **Implementation Standard**:
+  1. Execute all independent entity findMany queries concurrently via `Promise.all`:
+     ```typescript
+     const [users, checkins, shifts, requests] = await Promise.all([
+       prisma.user.findMany({ orderBy: { name: "asc" } }),
+       prisma.checkIn.findMany({ where: checkinWhere, include: { user: true }, orderBy: { timestamp: "desc" } }),
+       prisma.workShift.findMany({ where: shiftWhere, include: { user: true }, orderBy: { start: "desc" } }),
+       prisma.request.findMany({ where: requestWhere, include: { user: true }, orderBy: { createdAt: "desc" } }),
+     ]);
+     ```
+  - Exploits PostgreSQL connection pooling to overlap I/O latency, cutting export generation response times by up to **75%**.
+- **Problem B (Date Multiplier & User History Ordering Scans)**: Payroll calculation engines frequently filter holidays by date and multiplier (`Holiday.date` and `multiplier`), user achievement records by user and unlocked date (`UserAchievement.userId` and `unlockedAt`), or prize history by prize and creation timestamp (`LuckyWheelHistory.prizeId` and `createdAt`). Without composite indexes covering both equality filters and range/order columns, PostgreSQL falls back to sequential scans or separate bitmap heap joins.
+- **Implementation Standard**:
+  2. Implement composite indexes following the Equality First, Range Second pattern:
+     ```prisma
+     model Holiday {
+       date       String
+       multiplier Float    @default(1.0)
+       // ...
+       @@index([date, multiplier])
+     }
+
+     model UserAchievement {
+       userId     String
+       unlockedAt DateTime @default(now())
+       // ...
+       @@index([userId, unlockedAt])
+     }
+
+     model LuckyWheelHistory {
+       prizeId   String
+       createdAt DateTime @default(now())
+       // ...
+       @@index([prizeId, createdAt])
+     }
+     ```
+  - Enables single-pass B-tree index scans for date-multiplier lookups and chronological reward histories, eliminating runtime sorting overhead.
