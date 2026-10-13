@@ -540,7 +540,48 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 ## 7. Verification & Gating Checklist
 
-### 1. Command-Line Mobile Audit
+### 1. Autonomous Local Mobile Benchmark Loop (Headless Chrome + Lighthouse CLI)
+
+Agents and engineers can simulate Google's exact PageSpeed Insights mobile environment (Moto G Power, 4x CPU slowdown, Simulated Slow 4G 150ms TCP RTT, 1.6 Mbps throughput) directly on the local machine without manual Web UI testing:
+
+```bash
+# 1. Run Headless Mobile Audit
+npx -y lighthouse <URL> \
+  --chrome-flags="--headless=new --no-sandbox" \
+  --output=json \
+  --output-path=/tmp/lh-report.json \
+  --quiet
+
+# 2. Extract Core Web Vitals & Diagnostics
+node -e '
+const r = require("/tmp/lh-report.json");
+const a = r.audits;
+console.log("=== LIGHTHOUSE MOBILE AUDIT ===");
+console.log("Performance Score:", Math.round(r.categories.performance.score * 100));
+console.log("FCP:", a["first-contentful-paint"].displayValue);
+console.log("LCP:", a["largest-contentful-paint"].displayValue);
+console.log("TBT:", a["total-blocking-time"].displayValue);
+console.log("CLS:", a["cumulative-layout-shift"].displayValue);
+console.log("Speed Index:", a["speed-index"].displayValue);
+
+console.log("\n=== TOP LONG TASKS (>50ms) ===");
+const longTasks = a["long-tasks"]?.details?.items || [];
+longTasks.slice(0, 5).forEach(t => console.log(`  ${t.duration}ms: ${t.url}`));
+
+console.log("\n=== TOP UNUSED JAVASCRIPT ===");
+const unused = a["unused-javascript"]?.details?.items || [];
+unused.slice(0, 5).forEach(u => console.log(`  ${u.url} - ${u.wastedBytes} bytes (${u.wastedPercent}%)`));
+'
+```
+
+#### Autonomous Optimization Feedback Loop:
+1. **Baseline**: Run local Lighthouse audit against the staging/preview URL.
+2. **Diagnose**: Inspect `long-tasks` and `critical-request-chains` in `/tmp/lh-report.json` to find the exact script/chunk URLs blocking the main thread.
+3. **Remediate**: Apply targeted architectural fixes (e.g. deferral, lazy hydration, dynamic modal splitting, font self-hosting).
+4. **Deploy & Purge**: Deploy to staging and purge edge CDN cache.
+5. **Verify**: Re-run local Lighthouse CLI and assert metrics hit target before declaring task complete.
+
+### 2. Manual Command-Line Mobile Audit
 ```bash
 # Run mobile performance audit with 4x CPU slowdown
 npx lighthouse http://localhost:3000 \
