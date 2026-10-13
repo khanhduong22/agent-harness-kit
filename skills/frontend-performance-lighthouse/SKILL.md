@@ -1029,3 +1029,38 @@ In administrative dashboards, audit suites, and operational management pages:
      ```
   3. Wrap each dialog in an independent `<React.Suspense fallback={null}>` boundary at the bottom of the page container.
   - Drops management route entry chunks by **40% to 50%** (e.g. from 52.5 kB down to 28.4 kB), dramatically reducing Total Blocking Time and ensuring 60FPS fluid table interactions.
+
+### 9.13. Heavy Scheduling & Calendar Grid Chunk Quarantine
+In administrative scheduling interfaces and appointment booking platforms:
+- **Problem**: Scheduling pages (such as `SchedulePage`) frequently integrate full-featured calendar systems (`react-big-calendar`, `@fullcalendar/react`, drag-and-drop addons, date-fns/moment locales). Statically importing the calendar component directly into the route entry point inflates the initial bundle to **250-300 kB** (e.g. 286 kB), heavily damaging FCP, LCP, and TBT even for users who only wish to view alternative column/list views or toggle dates.
+- **Implementation Standard**:
+  1. Keep top-level headers, date-range controls, and view toggles in the primary lightweight route entry point (<10 kB).
+  2. Dynamically code-split both the heavy calendar view and alternative views via `React.lazy()`:
+     ```tsx
+     const ScheduleCalendar = React.lazy(
+       () => import("@/components/schedule/ScheduleCalendar")
+     );
+     const ScheduleColumnsView = React.lazy(
+       () => import("@/components/schedule/ScheduleColumnsView")
+     );
+     const UploadScheduleButton = React.lazy(
+       () => import("@/components/schedule/UploadScheduleButton")
+     );
+     ```
+  3. Wrap the view container in `<React.Suspense>` with a non-shifting animated skeleton fallback:
+     ```tsx
+     <React.Suspense
+       fallback={
+         <div className="p-12 text-center text-sm text-muted-foreground animate-pulse">
+           Đang tải giao diện lịch làm việc...
+         </div>
+       }
+     >
+       {viewMode === "calendar" ? (
+         <ScheduleCalendar events={events} onEventsChange={mutate} />
+       ) : (
+         <ScheduleColumnsView events={events} />
+       )}
+     </React.Suspense>
+     ```
+  - Drops the route entry chunk by **97.8%** (e.g. from 286.03 kB down to 6.25 kB), completely banishing calendar parsing delay from the critical path while preserving rich drag-and-drop calendar capabilities on demand.
