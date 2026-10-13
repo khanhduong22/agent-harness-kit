@@ -1153,3 +1153,26 @@ In activity logs, task lists, and piece-rate reporting views:
      )}
      ```
   - Reduces parent view chunk sizes by **>50%** (e.g. from 18.18 kB down to 8.78 kB), deferring modal code until the user actually taps the action button.
+
+### 9.18. Interactive Mini-Game & Particle Physics Quarantine
+In employee gamification views, reward spinners, celebration flows, and mobile PWAs:
+- **Problem**: Interactive mini-games (e.g. `LuckyWheelGame`) frequently import heavy third-party animation engines, particle physics libraries (`canvas-confetti`, `lottie-web`, physics engines), and modal confirmation trees. Statically importing these games directly into high-level view components (such as `LuckyWheelView`) forces the browser to download and parse canvas physics on initial view load, ballooning chunk sizes and degrading Total Blocking Time on mobile devices.
+- **Implementation Standard**:
+  1. Isolate the game canvas and animation dependencies into a dedicated subcomponent (`LuckyWheelGame.tsx`).
+  2. Dynamically import the game component via `lazy()` in the host view:
+     ```tsx
+     const LuckyWheelGame = lazy(() => import("@/components/LuckyWheelGame"));
+     ```
+  3. Wrap the game in `<React.Suspense>` with a non-shifting placeholder skeleton matching the canvas dimensions:
+     ```tsx
+     <React.Suspense
+       fallback={
+         <div className="h-64 w-full flex items-center justify-center text-xs text-stone-400 animate-pulse">
+           Đang tải vòng quay may mắn...
+         </div>
+       }
+     >
+       <LuckyWheelGame prizes={prizes} />
+     </React.Suspense>
+     ```
+  - Quarantines `canvas-confetti` (10.6 kB+) and canvas physics out of the initial route entry chunk, dropping host view bundle sizes by **~65%** (e.g. from 5.1 kB down to 1.8 kB) and guaranteeing instant navigation.
