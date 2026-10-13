@@ -1118,3 +1118,38 @@ Across user avatars, celebration widgets, mascot illustrations, and leaderboard 
   />
   ```
   - Completely eliminates catastrophic recursive error loops on broken networks or misconfigured image CDNs.
+
+
+### 9.16. UI Primitive Isolation & Selector Chunk Decoupling
+In mobile web applications, staff PWAs, and client-facing dashboards:
+- **Problem**: Host views (such as `PayrollView`) often statically import selector bars or dropdown pickers (`PayrollMonthSelector`) that encapsulate heavy UI primitives (`@radix-ui/react-select`, Popper, floating-ui, portal wrappers). Statically bundling these selectors directly into the route entry point inflates the initial view chunk to **30-40 kB** (e.g. 33.64 kB), penalizing TBT and initial parse time for users who only want to view default-period data.
+- **Implementation Standard**:
+  1. Extract the selector into a standalone component (`PayrollMonthSelector.tsx`).
+  2. In the host view (`PayrollView.tsx`), dynamically import the selector via `lazy()`:
+     ```tsx
+     const PayrollMonthSelector = lazy(() => import("@/components/PayrollMonthSelector"));
+     ```
+  3. Wrap the selector in `<Suspense>` with a non-shifting placeholder skeleton matching the control's exact height:
+     ```tsx
+     <Suspense fallback={<div className="h-9 w-full bg-slate-100 rounded-md animate-pulse" />}>
+       <PayrollMonthSelector current={`${selectedYear}-${selectedMonth}`} options={monthOptions} onSelect={handleMonthChange} />
+     </Suspense>
+     ```
+  - Isolates Radix Select primitives into an on-demand chunk, dropping the initial host view chunk by **~90%** (e.g. from 33.64 kB down to 3.61 kB).
+
+### 9.17. Submission Form Modal Extraction Pattern
+In activity logs, task lists, and piece-rate reporting views:
+- **Problem**: Views (such as `CarryingView`, `PackingView`) often inline their submission modal forms (inputs, validation schema, error states, submit API helpers, and toast notifications) directly in the same file. Even when users only navigate to inspect existing history or read conversion tables, the browser must parse the entire modal form machinery, doubling bundle size (18-20 kB).
+- **Implementation Standard**:
+  1. Extract the modal form and its input handlers into an isolated component (`CarryingSubmitModal.tsx`, `PackingSubmitModal.tsx`).
+  2. Dynamically import via `React.lazy()` and render conditionally wrapped in `<Suspense fallback={null}>`:
+     ```tsx
+     const CarryingSubmitModal = React.lazy(() => import("@/components/carrying/CarryingSubmitModal"));
+
+     {selectedTaskDef && (
+       <Suspense fallback={null}>
+         <CarryingSubmitModal taskDef={selectedTaskDef} onClose={() => setSelectedTaskDef(null)} onSuccess={mutate} />
+       </Suspense>
+     )}
+     ```
+  - Reduces parent view chunk sizes by **>50%** (e.g. from 18.18 kB down to 8.78 kB), deferring modal code until the user actually taps the action button.
