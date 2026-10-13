@@ -498,7 +498,7 @@ Results in:
 1. **Lighthouse Warning**: *"Preconnect to required origins - Found 1 unused preconnect to https://fonts.gstatic.com"*.
 2. **Socket Contention**: Wasting TLS handshakes on servers that never receive requests.
 
-### Clean Configuration
+### Next.js Clean Configuration
 ```typescript
 // src/app/fonts.ts
 import { Plus_Jakarta_Sans } from 'next/font/google';
@@ -527,6 +527,62 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }
 ```
+
+---
+
+### Static & Multi-Page Sites: Eliminating Font-Swap CLS (The 0.259 CLS Trap)
+
+Using asynchronous Google Fonts (`media="print" onload="this.media='all'"`) with `font-display: swap` avoids render blocking on mobile FCP, but **severely degrades Desktop CLS** (often scoring 0.250 - 0.350) because late-arriving web fonts re-wrap text blocks in prominent typography sections (FOUT).
+
+#### The Battle-Tested Zero-CLS Solution:
+1. **Self-Host WOFF2 Fonts on Same Origin**: Download minimal subsetted/variable font files directly into `/fonts/` (e.g. `inter-latin.woff2`, `jetbrains-mono-latin.woff2`).
+2. **Preload Primary Subsets in `<head>`**:
+   ```html
+   <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+   <link rel="preload" href="/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
+   ```
+3. **Use `font-display: optional`**:
+   ```css
+   @font-face {
+     font-family: 'Inter';
+     font-style: normal;
+     font-weight: 100 900;
+     font-display: optional; /* Guarantees Zero Layout Shift */
+     src: url('/fonts/inter-latin.woff2') format('woff2');
+     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122;
+   }
+   ```
+   *Why this works*: `font-display: optional` provides an ultra-fast 100ms window. Because the font is preloaded on the same HTTP/2-3 connection as the HTML, it is available before first layout. If network stalls, the fallback font is permanently retained for the session—**guaranteeing CLS = 0.000**.
+4. **Immutable Edge Caching** (`vercel.json` or server config):
+   ```json
+   {
+     "source": "/fonts/(.*)",
+     "headers": [
+       { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+       { "key": "Access-Control-Allow-Origin", "value": "*" }
+     ]
+   }
+   ```
+
+---
+
+### CSS Inlining Protocol: Never Use Play CDN in Production
+
+- **The Play CDN Anti-pattern (`cdn.tailwindcss.com`)**: Loading Play CDN downloads 126 KB JS and executes a browser-side JIT compiler on the main thread during initial render. On throttled mobile CPU, this wastes 800ms-1500ms and stalls FCP/LCP at 4.5s+.
+- **The Inlined Critical CSS Standard**:
+  - Run Tailwind CLI ahead of time:
+    ```bash
+    npx -y --package=tailwindcss@3.4.17 tailwindcss -c ./tailwind.config.js -i ./input.css -o ./style.min.css --minify
+    ```
+  - Inline the compiled CSS (<30 KB raw, ~5 KB gzipped) into `<style id="critical-css">` directly in `<head>`.
+  - Result: **0 extra network requests**, **0ms TBT**, and immediate first-packet paint (FCP ≤ 1.1s).
+
+---
+
+### Accessibility & Best Practice Hygiene Checklist
+
+- **Dark-Mode Contrast Trap (100/100 Accessibility)**: Default Tailwind `text-zinc-500` (`#71717a`) on deep dark backgrounds (`#0a0a0a` / `#111111`) fails WCAG AA (contrast ~3.9:1 < 4.5:1). Always configure `zinc.500: '#8e8e99'` (contrast 5.8:1 - 6.1:1) in the dark theme to secure a 100/100 Accessibility score while preserving dark craft aesthetics.
+- **Favicon 404 Console Error Trap (100/100 Best Practices)**: Browsers and audit bots always request `/favicon.ico`. A missing favicon logs a 404 in console errors and drops Best Practices from 100 to 96. Always supply both `favicon.svg` and `favicon.ico` in the root web directory and link them explicitly in `<head>`.
 
 ---
 
