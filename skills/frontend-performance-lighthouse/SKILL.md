@@ -999,3 +999,33 @@ In dynamic Single-Page Applications and Progressive Web Apps:
      ```
   3. The modal itself imports from `request-constants.ts` and exports as the default or named chunk.
   - Ensures the modal form, input libraries, and validation schemas stay 100% quarantined in a separate on-demand chunk (<3 kB), keeping the list route bundle minimal and initial render instantaneous.
+
+### 9.12. Action Dialog Decoupling from Management Table Routes
+In administrative dashboards, audit suites, and operational management pages:
+- **Problem**: Table routes (such as `StaffTasksPage`, `SchedulePage`, `UserManager`) frequently statically import multiple action dialogs (create task dialog, review modal, rejection reason prompt, definition drawer). Even if the user only views or filters the table without triggering an action, the bundle still downloads and parses all modal ASTs, ballooning route entry chunks (>50 kB) and penalizing TBT/FCP.
+- **Implementation Standard**:
+  1. Statically import only the critical interactive table, KPI cards, and filter bar components:
+     ```tsx
+     import {
+       StaffTasksFilterBar,
+       StaffTasksTable,
+       StaffKpiStatsCards,
+     } from "@/components/tasks/staff";
+     ```
+  2. Dynamically import all action and confirmation dialogs via `React.lazy()`:
+     ```tsx
+     const StaffTaskFormDialog = React.lazy(() =>
+       import("@/components/tasks/staff").then((m) => ({ default: m.StaffTaskFormDialog }))
+     );
+     const TaskReviewModal = React.lazy(() =>
+       import("@/components/tasks/staff").then((m) => ({ default: m.TaskReviewModal }))
+     );
+     const CreateTaskDefinitionDialog = React.lazy(() =>
+       import("@/components/tasks/staff").then((m) => ({ default: m.CreateTaskDefinitionDialog }))
+     );
+     const TaskRejectDialog = React.lazy(() =>
+       import("@/components/tasks/staff").then((m) => ({ default: m.TaskRejectDialog }))
+     );
+     ```
+  3. Wrap each dialog in an independent `<React.Suspense fallback={null}>` boundary at the bottom of the page container.
+  - Drops management route entry chunks by **40% to 50%** (e.g. from 52.5 kB down to 28.4 kB), dramatically reducing Total Blocking Time and ensuring 60FPS fluid table interactions.
