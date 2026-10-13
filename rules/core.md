@@ -123,5 +123,7 @@ CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
 ## 10. High-Velocity Pragmatism & Anti-Bloat Protocol (Velocity First)
 - **Zero Ceremonial Waste**: Do NOT create multi-file OpenSpec proposals or speculative documentation trees for straightforward additions or staging iterations. If requirements are aligned, go straight to code and tests.
 - **Parallel dispatch (when delegating)**: If a fullstack task is delegated to subagents, dispatch frontend and backend in parallel and audit contract parity on return. Whether to delegate at all is client-specific (§8 and the client adapter).
+- **Maximum Parallel Subagents & Concurrency-First (Speed Over Token Conservation)**: When the maintainer signals urgency (*"ASAP"*, *"spawn maximum sub agent"*, *"nhanh nhất"*, *"parallel"*, *"max speed"*), or when a task naturally spans multiple separable domains (e.g. Specification/SRS, Frontend UI, Backend API, DevOps/Docker, QA/E2E Simulation, Documentation), the Master Agent **MUST NOT** execute them serially across multiple slow conversational turns. Immediately decompose the task into independent, non-overlapping directory and file partitions, and dispatch all specialized subagents **concurrently in a single batch tool call** (`invoke_subagent`). Token expenditure is explicitly secondary to wall-clock velocity and human maintainer turnaround time.
 - **Verify by running, not theorizing**: Run commands and test suites directly. Keep turns punchy and focused on working code.
+
 

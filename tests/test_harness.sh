@@ -273,8 +273,12 @@ AGENT_HARNESS_BACKUP_DIR="$test_root/backups-hooks" \
 hooks_dir="$(cd "$kit_test_home/.agent-harness/hooks" && pwd -P)"
 assert "hook scripts are deployed to the shared directory" \
   test -x "$hooks_dir/guard-new-packages.sh"
+assert "pre-compact-dump hook script is deployed to shared directory" \
+  test -x "$hooks_dir/pre-compact-dump.sh"
 assert "the hook block lands in the project settings" \
   grep -q '"PreToolUse"' "$project_e/.claude/settings.json"
+assert "the PreCompact hook lands in the project settings" \
+  grep -q '"PreCompact"' "$project_e/.claude/settings.json"
 assert "hook commands point at the deployed scripts, not the kit checkout" \
   grep -q "$hooks_dir/guard-new-packages.sh" "$project_e/.claude/settings.json"
 refute "the {{HOOKS_DIR}} placeholder is never left unsubstituted" \
@@ -424,5 +428,87 @@ refute "install fails when AGENTS.md cannot be written" install_claude_quiet "$p
 assert "the legacy file survives a failed migration untouched" \
   grep -q '^# Keep Me$' "$project_f/.claude/CLAUDE.md"
 printf 'Passed: Legacy CLAUDE.md folded, backed up, removed, reversible, and never lost\n'
+
+printf '=== Test 12: PreCompact State Preservation Hook ===\n'
+pc_project="$test_root/projects/pre-compact-test"
+/bin/mkdir -p "$pc_project/.agents"
+git -C "$pc_project" init -q
+git -C "$pc_project" config user.email "test@example.com"
+git -C "$pc_project" config user.name "Tester"
+printf 'initial\n' > "$pc_project/init.txt"
+git -C "$pc_project" add init.txt
+git -C "$pc_project" commit -m "init" -q
+printf 'modified\n' > "$pc_project/init.txt"
+printf -- '- [ ] Complete the migration\n- [x] Initial setup\n' > "$pc_project/tasks.md"
+
+pc_output=$(printf '{"cwd":"%s","session_id":"test-session-123","trigger":"manual","prompt":"Implement test feature"}' "$pc_project" | "$kit_root/scripts/hooks/pre-compact-dump.sh")
+assert "pre-compact hook returns systemMessage" \
+  grep -q 'systemMessage' <<< "$pc_output"
+assert "pre-compact hook creates session-handoff.md" \
+  test -f "$pc_project/.agents/context/session-handoff.md"
+assert "handoff file captures session id" \
+  grep -q 'test-session-123' "$pc_project/.agents/context/session-handoff.md"
+assert "handoff file captures user goal" \
+  grep -q 'Implement test feature' "$pc_project/.agents/context/session-handoff.md"
+assert "handoff file captures pending task" \
+  grep -q 'Complete the migration' "$pc_project/.agents/context/session-handoff.md"
+assert "handoff file captures git status" \
+  grep -q 'init.txt' "$pc_project/.agents/context/session-handoff.md"
+printf 'Passed: PreCompact state preservation hook\n'
+
+printf '=== Test 13: Skill Promoter & Closed Learning Loop ===\n'
+assert "self-improving-distiller skill is present" \
+  test -f "$kit_root/skills/self-improving-distiller/SKILL.md"
+assert "skills/drafts directory is present" \
+  test -d "$kit_root/skills/drafts"
+
+# Test draft skill validation and promotion
+test_skill_name="test-harness-distilled-skill"
+test_draft_dir="$kit_root/skills/drafts/$test_skill_name"
+/bin/mkdir -p "$test_draft_dir"
+cat <<'EOF' > "$test_draft_dir/SKILL.md"
+---
+name: test-harness-distilled-skill
+description: A temporary distilled skill generated during harness test execution.
+---
+
+# Test Distilled Skill
+
+## Overview
+Test distillation.
+EOF
+
+assert "promote-skill --validate-only succeeds on valid draft" \
+  "$kit_root/scripts/promote-skill.sh" --validate-only "$test_skill_name" >/dev/null
+
+assert "promote-skill graduates draft into production skills" \
+  "$kit_root/scripts/promote-skill.sh" "$test_skill_name" >/dev/null
+
+assert "promoted skill exists in skills/" \
+  test -f "$kit_root/skills/$test_skill_name/SKILL.md"
+assert "draft folder is removed after promotion" \
+  test ! -d "$test_draft_dir"
+
+# Clean up promoted test skill
+/bin/rm -rf "$kit_root/skills/$test_skill_name"
+printf 'Passed: Skill promoter and closed learning loop\n'
+
+printf '=== Test 14: Duplicate Rules Guardrail ===\n'
+dup_project="$test_root/projects/duplicate-rules"
+/bin/mkdir -p "$dup_project/.agents"
+printf '# Single Rule\n' > "$dup_project/AGENTS.md"
+
+assert "verify passes with single AGENTS.md rule" \
+  /usr/bin/env python3 "$kit_root/scripts/verify.py" "$dup_project" >/dev/null
+
+printf '# Second Rule\n' > "$dup_project/.agents/AGENTS.md"
+
+refute "verify fails when both AGENTS.md and .agents/AGENTS.md exist" \
+  /usr/bin/env python3 "$kit_root/scripts/verify.py" "$dup_project" >/dev/null 2>&1
+
+dup_output=$(/usr/bin/env python3 "$kit_root/scripts/verify.py" "$dup_project" 2>&1 || true)
+assert "verify output explains duplicate rule files" \
+  grep -q 'duplicate rule files detected' <<< "$dup_output"
+printf 'Passed: Duplicate rules guardrail\n'
 
 printf '\nALL HARNESS BEHAVIORAL TESTS PASSED SUCCESSFULLY!\n'
