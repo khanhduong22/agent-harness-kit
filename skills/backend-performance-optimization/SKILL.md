@@ -724,3 +724,50 @@ In administrative data exports, report generators, and fiscal holiday scheduling
      }
      ```
   - Enables single-pass B-tree index scans for date-multiplier lookups and chronological reward histories, eliminating runtime sorting overhead.
+
+
+### 8.19. User Schedule Isolation & Checkin/Task Multi-Column Compound Indexing
+In shift planning, employee scheduling, attendance tracking, and task lifecycle queries:
+- **Problem A (User Shift Retrieval & Registration Cascades)**: Mobile apps frequently poll employee schedule views (`GET /api/schedule/my-shifts?month=M&year=Y`). Without isolated user-period cache partitions, high-frequency navigation hammers the database. Furthermore, when shifts are swapped or taken, invalidating generic patterns (`shifts:*`) across all workers causes cache stampedes.
+- **Implementation Standard**:
+  1. Scope cache keys per user and calendar period with short TTLs (60s) and jitter:
+     ```typescript
+     const cacheKey = `shifts:my-shifts:${user.sub}:${month}:${year}`;
+     const shifts = await getOrSetCache(cacheKey, 60, async () => {
+       return await prisma.workShift.findMany({
+         where: { userId: user.sub, start: { gte: startDate, lte: endDate } },
+         include: { shiftDuties: { where: { userId: user.sub }, orderBy: { createdAt: "asc" } } },
+         orderBy: { start: "asc" },
+       });
+     });
+     ```
+  2. Targeted invalidation on shift mutations (registration, cancellation, swap, take):
+     ```typescript
+     await Promise.all([
+       invalidateCachePattern(`shifts:my-shifts:${userId}:*`),
+       invalidateCachePattern(`shifts:my-shifts:${targetUserId}:*`),
+       invalidateCachePattern("admin:schedule:*"),
+       invalidateCachePattern("admin:reports:*"),
+     ]);
+     ```
+- **Problem B (Timestamp + Type Checkin Filtering & User Task Triple-Column Indexing)**: Attendance audits and daily checkin widgets repeatedly filter `CheckIn` by user, timestamp range, and checkin/checkout type (`WHERE userId = ? AND timestamp BETWEEN ? AND ? AND type = ?`). Similarly, user task dashboards filter by user, approval status, and submission date (`WHERE userId = ? AND status = 'APPROVED' ORDER BY submittedAt DESC`). Without indexes matching all 3 filter dimensions, PostgreSQL performs partial index scans followed by expensive recheck filters.
+- **Implementation Standard**:
+  3. Implement 3-column compound indexes covering user, chronological timestamp, and status/type:
+     ```prisma
+     model CheckIn {
+       userId    String
+       timestamp DateTime @default(now())
+       type      String   @default("checkin")
+       // ...
+       @@index([userId, timestamp, type])
+     }
+
+     model UserTask {
+       userId      String
+       status      TaskStatus @default(PENDING)
+       submittedAt DateTime?
+       // ...
+       @@index([userId, status, submittedAt])
+     }
+     ```
+  - Grants PostgreSQL direct B-tree access to matching range boundaries with zero table heap filter scans.

@@ -1176,3 +1176,39 @@ In employee gamification views, reward spinners, celebration flows, and mobile P
      </React.Suspense>
      ```
   - Quarantines `canvas-confetti` (10.6 kB+) and canvas physics out of the initial route entry chunk, dropping host view bundle sizes by **~65%** (e.g. from 5.1 kB down to 1.8 kB) and guaranteeing instant navigation.
+
+
+### 9.19. Leaderboard Multi-Metric Grid Extraction & High-Frequency List Decoupling
+In administrative reporting dashboards, team rankings, employee leaderboards, and productivity views:
+- **Problem**: Metric reporting pages (such as `ReportsPage`) frequently inline numerous rich ranking cards (`topHardworking`, `topDiscipline`, `topOvertime`, `topPacking`, `topCarrying`, `topLate`), complete with user avatars, status badges, medal icons, and formatting utilities. Statically bundling 6+ ranking lists directly into the main report page balloons initial JavaScript size to **12-15 kB**, forcing the browser to parse all cards before the month selector or summary stats can become interactive.
+- **Implementation Standard**:
+  1. Extract the entire leaderboard card collection into a dedicated component (`LeaderboardCards.tsx`).
+  2. Implement Section 9.15 Non-Recursive Image Error Fallback Guard on all avatar images:
+     ```tsx
+     onError={(e) => {
+       e.currentTarget.onerror = null;
+       const target = e.currentTarget;
+       if (!target.src.endsWith("/icons/capy_dashboard.webp")) {
+         target.src = "/icons/capy_dashboard.webp";
+       }
+     }}
+     ```
+  3. In the host report page (`ReportsPage.tsx`), dynamically import `LeaderboardCards` via `React.lazy()`:
+     ```tsx
+     const LeaderboardCards = React.lazy(
+       () => import("@/components/admin/reports/LeaderboardCards")
+     );
+     ```
+  4. Wrap in `<React.Suspense>` with a non-shifting grid skeleton fallback matching the card layout:
+     ```tsx
+     <React.Suspense
+       fallback={
+         <div className="h-96 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-xs text-slate-400">
+           Đang tải bảng thành tích...
+         </div>
+       }
+     >
+       <LeaderboardCards report={report} />
+     </React.Suspense>
+     ```
+  - Reduces the top-level route entry chunk by **>70%** (e.g. from 12.85 kB down to 3.76 kB), enabling instantaneous tab and month switching while deferring card rendering until report data resolves.
