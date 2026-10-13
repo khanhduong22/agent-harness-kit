@@ -436,5 +436,28 @@ System configuration tables and reference data (such as company holidays, allowe
   ```
 - Ensures sub-millisecond retrieval of organizational rules and zero database load for static master lookups.
 
+### 8.10. Foreign Key Reverse Cascade & User Activity Composite Indexing
+In relational databases (PostgreSQL), foreign keys do NOT automatically create backing indexes for reverse lookups or cascade operations.
+- **Problem**: When a parent record is deleted or updated in tables with `onDelete: Cascade` (e.g. `ManagerChecklistCompletion` referencing `ManagerChecklistTask` via `taskId`), PostgreSQL must execute a sequential scan on the child table to locate referencing rows, creating write locks and transaction stalls.
+- **Implementation Standard**:
+  1. Always declare explicit indexes on child foreign key columns:
+     ```prisma
+     model ManagerChecklistCompletion {
+       id     String @id @default(cuid())
+       taskId String
+       // ...
+       @@index([taskId])
+     }
+     ```
+  2. For user-scoped activity feeds sorted by recent updates (`WHERE userId = $1 ORDER BY updatedAt DESC`):
+     ```prisma
+     model UserTask {
+       // ...
+       @@index([userId, updatedAt])
+     }
+     ```
+  - Eliminates table-wide sequential scans during cascade operations and enables zero-cost backwards Index Scans for user activity streams.
+
+
 
 
