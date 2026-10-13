@@ -474,6 +474,33 @@ For multi-dimensional operational metrics and recurring checklist calculations (
      ```
   - Yields instant sub-millisecond retrieval on repeated manager console loads while ensuring live data freshness upon mutation.
 
+### 8.12. Background Cron Cache Coupling & Active Feed Compound Indexing
+In multi-tier systems with automated background processes and real-time status feeds:
+- **Problem A (Cron Cache Desync)**: Background scheduled jobs (cron handlers, event consumers) that generate bonuses, reconcile timesheets, or close fiscal periods operate outside user-facing HTTP request flows. If user-facing endpoints cache financial summaries (`payroll:*`, `staff:payroll:*`) or operational KPI metrics (`stats:*`), background DB mutations leave frontend caches stale until TTL expiration.
+- **Implementation Standard**:
+  1. Every automated cron handler modifying financial adjustments or entity states MUST invoke domain cache eviction promises before returning:
+     ```typescript
+     await Promise.all([
+       invalidatePayrollCache(),
+       invalidateCachePattern("staff:payroll:*"),
+       invalidateCachePattern("stats:*"),
+     ]).catch(() => {});
+     ```
+- **Problem B (Active Feed Indexing)**: Status-filtered chronological feeds (`WHERE active = true ORDER BY createdAt DESC`) incur costly sequential scans or slow heap fetches if indexed solely on `createdAt`.
+- **Implementation Standard**:
+  2. Implement composite index with Equality First, Range/Sort Second:
+     ```prisma
+     model Announcement {
+       active    Boolean  @default(true)
+       createdAt DateTime @default(now())
+       // ...
+       @@index([active, createdAt])
+       @@index([createdAt])
+     }
+     ```
+  - Reduces scan cost from table-wide sequential scans to sub-millisecond Bitmap/Index Scans with zero heap rechecks.
+
+
 
 
 

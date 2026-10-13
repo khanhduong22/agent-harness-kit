@@ -932,6 +932,39 @@ const MarkdownRenderer = React.lazy(() => import("@/components/help/MarkdownRend
 ```
 - Drops route entry bundle by 80-90% (e.g. from 175 kB down to 18 kB), completely removing markdown AST compilation overhead from the critical render path.
 
+### 9.10. Heavy Export & Spreadsheet Isolation (xlsx, exceljs, pdf engines)
+In administrative dashboards and reporting modules with data export capabilities:
+- **Problem**: Statically importing spreadsheet generation engines (`xlsx`, `exceljs`, `jspdf`) or modals containing export formatting introduces massive 300-500 kB bundles into the primary route entry points, even though exports are only triggered on rare, deliberate user actions.
+- **Implementation Standard**:
+  1. Always isolate export dialogs and spreadsheet generation modules into dynamic on-demand imports:
+     ```tsx
+     // In Dashboard or Payroll client component:
+     const PayrollExportModal = React.lazy(() =>
+       import("./payroll/PayrollExportModal").then((m) => ({ default: m.PayrollExportModal }))
+     );
+
+     <React.Suspense fallback={null}>
+       {isExportOpen && (
+         <PayrollExportModal
+           open={isExportOpen}
+           onClose={() => setIsExportOpen(false)}
+           data={payrollData}
+         />
+       )}
+     </React.Suspense>
+     ```
+  2. In export helper modules, dynamically import spreadsheet libraries (`await import("xlsx")`) inside the trigger handler:
+     ```typescript
+     export async function exportToXLSX(data: any[], filename: string) {
+       const XLSX = await import("xlsx");
+       const wb = XLSX.utils.book_new();
+       // ... build sheets
+       XLSX.writeFile(wb, `${filename}.xlsx`);
+     }
+     ```
+  - Isolates 400+ kB of vendor code into on-demand chunks, keeping primary dashboard and table routes lightning-fast (<20 kB).
+
+
 
 
 
