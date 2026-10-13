@@ -971,8 +971,31 @@ In administrative dashboards and reporting modules with data export capabilities
      ```
   - Isolates 400+ kB of vendor code into on-demand chunks, keeping primary dashboard and table routes lightning-fast (<20 kB).
 
+### 9.11. Form Modal Extraction & Constant Isolation Pattern
+In dynamic Single-Page Applications and Progressive Web Apps:
+- **Problem**: When extracting form dialogs or creation modals into dynamic `React.lazy()` chunks, developers often keep domain constants (e.g. `REQUEST_TYPES`, status badges, validation lists) in the same file as the modal component. When the parent list/table component statically imports those constants to render badges or filter bars, the JavaScript bundler (Vite, Rollup, Webpack) is forced to bundle the entire modal form back into the initial chunk, silently defeating `React.lazy()`!
+- **Implementation Standard**:
+  1. Always isolate shared constants, types, and schema helpers into an independent, lightweight file (e.g. `*-constants.ts`):
+     ```typescript
+     // src/components/requests/request-constants.ts
+     export const REQUEST_TYPES = [
+       { value: "leave", label: "Xin nghỉ phép" },
+       { value: "late", label: "Đi muộn / Về sớm" },
+       { value: "overtime", label: "Tăng ca" },
+     ] as const;
+     ```
+  2. The parent list or table imports purely from `request-constants.ts`:
+     ```tsx
+     // src/components/requests/RequestListClient.tsx
+     import { REQUEST_TYPES } from "./request-constants";
+     const CreateRequestModal = React.lazy(() => import("./CreateRequestModal"));
 
-
-
-
-
+     // Render modal only on trigger:
+     {isOpen && (
+       <React.Suspense fallback={null}>
+         <CreateRequestModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+       </React.Suspense>
+     )}
+     ```
+  3. The modal itself imports from `request-constants.ts` and exports as the default or named chunk.
+  - Ensures the modal form, input libraries, and validation schemas stay 100% quarantined in a separate on-demand chunk (<3 kB), keeping the list route bundle minimal and initial render instantaneous.

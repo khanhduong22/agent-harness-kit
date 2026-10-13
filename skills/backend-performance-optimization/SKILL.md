@@ -498,10 +498,36 @@ In multi-tier systems with automated background processes and real-time status f
        @@index([createdAt])
      }
      ```
-  - Reduces scan cost from table-wide sequential scans to sub-millisecond Bitmap/Index Scans with zero heap rechecks.
-
-
-
-
-
-
+### 8.13. Multi-Table Aggregation Caching & Compound Reverse Audit Indexing
+In administrative management platforms and audit-heavy operational workflows:
+- **Problem A (Multi-Table Aggregation Bottleneck)**: Comprehensive detail endpoints (such as `GET /api/admin/employees/:id` or monthly user balance inspections) repeatedly compute multi-table metrics (aggregating checkins, shifts, overtime adjustments, penalties, and bonuses) on every modal open or route transition. This creates multiple sequential database queries and high CPU serialization overhead.
+- **Implementation Standard**:
+  1. Scope compound cache keys with entity identifier and temporal periods:
+     ```typescript
+     const cacheKey = `admin:employee-detail:${id}:${month}:${year}`;
+     const data = await getOrSetCache(cacheKey, 60, async () => {
+       const user = await prisma.user.findUnique({ where: { id } });
+       const stats = await calculateUserMonthlyStats(id, targetDate);
+       return { user, stats };
+     });
+     ```
+  2. Implement cross-domain invalidation triggers across all modifying routes:
+     - User profile/status changes (`PATCH /api/admin/employees/:id/status`, `PATCH /api/admin/users/:id`).
+     - Shift modifications, attendance adjustments, and bonus allocations.
+     ```typescript
+     await invalidateCachePattern("admin:employee-detail:*");
+     ```
+- **Problem B (Reverse Audit Query Sort Overhead)**: Audit logs (`ShiftAuditLog`, `SecurityLog`) are frequently queried by entity (`userId`, `shiftId`) with reverse chronological ordering (`ORDER BY createdAt DESC`). Without compound keys, the database performs an index scan followed by an external memory/disk sort.
+- **Implementation Standard**:
+  3. Implement compound indexes matching Filter First, Sort Order Second:
+     ```prisma
+     model ShiftAuditLog {
+       userId    String
+       shiftId   String?
+       createdAt DateTime @default(now())
+       // ...
+       @@index([userId, createdAt])
+       @@index([shiftId, createdAt])
+     }
+     ```
+  - Eliminates explicit sort operations entirely, executing sub-millisecond Index Scans directly in order.
