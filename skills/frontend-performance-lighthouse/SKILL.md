@@ -1064,3 +1064,57 @@ In administrative scheduling interfaces and appointment booking platforms:
      </React.Suspense>
      ```
   - Drops the route entry chunk by **97.8%** (e.g. from 286.03 kB down to 6.25 kB), completely banishing calendar parsing delay from the critical path while preserving rich drag-and-drop calendar capabilities on demand.
+
+
+### 9.14. Data-Grid & Table Heavyweight Engine Chunk Quarantine
+In administrative data explorers, security audit explorers, and log auditing dashboards:
+- **Problem**: Table routes (such as `AuditLogPage`) frequently import full-featured headless data-table libraries (`@tanstack/react-table`, column helpers, pagination models, sorting, filtering logic). Statically bundling the table engine directly into the page entry point balloons the chunk to **50-70 kB** (e.g. 61.11 kB), bloating the route parse time even when users are navigating or switching filters.
+- **Implementation Standard**:
+  1. Extract the entire `@tanstack/react-table` setup, column definitions, table JSX, and pagination controls into a dedicated component (`AuditLogTable.tsx`).
+  2. In the top-level route page (`AuditLogPage.tsx`), remove `@tanstack/react-table` imports and dynamically import the table component via `React.lazy()`:
+     ```tsx
+     const AuditLogTable = React.lazy(() => import("@/components/admin/audit/AuditLogTable"));
+     ```
+  3. Wrap the table component in `<React.Suspense>` with a non-shifting animated skeleton fallback:
+     ```tsx
+     <React.Suspense
+       fallback={
+         <div className="h-64 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-xs text-slate-400">
+           Đang tải nhật ký...
+         </div>
+       }
+     >
+       <AuditLogTable
+         logs={logs}
+         totalPages={totalPages}
+         totalCount={totalCount}
+         pageIndex={pageIndex}
+         pageSize={pageSize}
+         setPageIndex={setPageIndex}
+         setPageSize={setPageSize}
+       />
+     </React.Suspense>
+     ```
+  - Reduces the route entry chunk by **>90%** (e.g. from 61.11 kB down to 4.30 kB), isolating data-grid parser weights until data arrives.
+
+### 9.15. Global Non-Recursive Image Error Fallback Guard
+Across user avatars, celebration widgets, mascot illustrations, and leaderboard podiums:
+- **Problem**: When rendering user or third-party image URLs, components frequently implement `onError={(e) => { (e.target as any).src = "/fallback.png"; }}`. If the fallback asset also fails (network offline, 404, or corrupted CDN), the `onError` event fires repeatedly in an infinite microtask loop, freezing the browser UI and causing high CPU spikes.
+- **Implementation Standard**:
+  Always neutralize the error listener before mutating `src`:
+  ```tsx
+  <img
+    src={user?.image || "/fallback.webp"}
+    alt={user?.name || "User"}
+    loading="lazy"
+    decoding="async"
+    onError={(e) => {
+      e.currentTarget.onerror = null;
+      const target = e.currentTarget;
+      if (!target.src.endsWith("/fallback.webp")) {
+        target.src = "/fallback.webp";
+      }
+    }}
+  />
+  ```
+  - Completely eliminates catastrophic recursive error loops on broken networks or misconfigured image CDNs.
