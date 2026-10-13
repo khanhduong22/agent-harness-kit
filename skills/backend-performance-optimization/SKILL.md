@@ -401,4 +401,40 @@ model UserTask {
 ```
 - Completely eliminates explicit sort operations from execution plans, reducing query timing from ~45ms down to <1ms on high-cardinality tables.
 
+### 8.8. Multi-Table Aggregation Dashboard Caching & SingleFlight Coalescing
+High-level management dashboards (`GET /api/admin/dashboard`, `GET /api/admin/dashboard-stats`) routinely aggregate 8+ distinct database queries in a single HTTP request (`Promise.all([findMany, count, count, findMany...])`).
+- **Problem**: When multiple administrators or automated monitors refresh simultaneously, running 8 heavy multi-table aggregations concurrently leads to database lock contention, memory spikes, and degraded throughput.
+- **Implementation Standard**:
+  1. Wrap the entire aggregated response calculation with `getOrSetCache(key, ttl)` backed by in-flight deduplication (`singleflight`):
+     ```typescript
+     const cacheKey = `admin:dashboard:${dateStr}`;
+     const data = await getOrSetCache(cacheKey, 30, async () => {
+       const [shifts, checkins, requests, kpis] = await Promise.all([...]);
+       return { shifts, checkins, requests, kpis };
+     });
+     ```
+  2. Use a short base TTL (30s) with pseudo-random jitter. This prevents stale operational visibility while completely shielding the database from burst concurrency.
+  3. **Atomic Wildcard Prefix Invalidation Pattern**: Mutating operations (check-in creation, shift adjustments, request approvals) must invalidate both the overview and sub-stats keys in a single atomic Valkey/Redis call:
+     ```typescript
+     // Purges both "admin:dashboard:<date>" and "admin:dashboard-stats:<date>" atomically
+     await invalidateCachePattern("admin:dashboard*");
+     ```
+
+### 8.9. Read-Heavy Master Configuration & Meta-Data Caching
+System configuration tables and reference data (such as company holidays, allowed IP ranges, task definitions, and prize catalogs) exhibit read-to-write ratios exceeding 1,000:1.
+- **Problem**: Querying PostgreSQL on every incoming API request for static configurations adds unnecessary connection latency and pool contention.
+- **Implementation Standard**: Cache master configuration endpoints with long TTLs (600s - 1800s / 10-30 minutes) and wire direct invalidations on administrative mutations:
+  ```typescript
+  // Master read path
+  const holidays = await getOrSetCache("meta:holidays:all", 1800, async () => {
+    return prisma.holiday.findMany({ orderBy: { date: "asc" } });
+  });
+
+  // Mutating path (Create / Update / Delete)
+  await prisma.holiday.create({ data });
+  await invalidateCachePattern("meta:holidays:*");
+  ```
+- Ensures sub-millisecond retrieval of organizational rules and zero database load for static master lookups.
+
+
 
