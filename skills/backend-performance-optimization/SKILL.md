@@ -568,3 +568,36 @@ In multi-tenant operations dashboards, attendance aggregators, and payroll modul
      }
      ```
   - Enables PostgreSQL to execute Index Only / Bitmap Index Scans directly, bypassing heap filter passes.
+
+### 8.15. Marketplace & Activity Summary Caching with Unit Key Compound Indexes
+In task marketplaces, piece-rate incentive platforms, and worker activity trackers:
+- **Problem A (Marketplace & Incentive Summary Thrashing)**: Endpoints fetching available marketplace tasks (`GET /api/tasks/items`) or computing piece-rate bonus summaries (`GET /api/staff/tasks/packing-summary`, `GET /api/staff/tasks/carrying-summary`) run repetitive multi-table joins and in-memory aggregation loops across task records.
+- **Implementation Standard**:
+  1. Scope cache keys by domain and worker identifier:
+     ```typescript
+     const marketplaceKey = "tasks:items:all";
+     const packingSummaryKey = `staff:tasks:packing-summary:${userId}`;
+     const carryingSummaryKey = `staff:tasks:carrying-summary:${userId}`;
+     ```
+  2. Implement cross-domain eviction upon task claim, submission, or review:
+     ```typescript
+     await invalidateCachePattern("tasks:items:*");
+     await invalidateCachePattern("staff:tasks:*");
+     ```
+- **Problem B (Definition & Task Item Status Lookups)**: Queries frequently filter definitions by unit and active status (`WHERE unit = '...' AND active = true`), and task items by assignee and status.
+- **Implementation Standard**:
+  3. Implement composite indexes matching unit/status filtering:
+     ```prisma
+     model TaskDefinition {
+       // ...
+       @@index([unit, active])
+       @@index([active])
+     }
+
+     model TaskItem {
+       // ...
+       @@index([assigneeId, status])
+       @@index([status])
+     }
+     ```
+  - Reduces marketplace query latency from table scans to instant Index Scans with zero sequential scan overhead.
