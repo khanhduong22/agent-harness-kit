@@ -650,3 +650,35 @@ In system audit logs, access control event trackers, and enterprise security str
      }
      ```
   - Allows PostgreSQL to satisfy multi-column equality filters and reverse ordering via a single B-tree index scan, eliminating filesorts and reducing query execution time from >100ms down to <1ms.
+
+
+### 8.17. Meta Resource Cross-Route Shared Caching & Cron Dashboard Eviction
+In interactive features, gamified reward systems, and background cron aggregators:
+- **Problem A (Duplicate Cache Keys & Redundant Querying)**: Shared entities (such as prize lists and recent winner feeds in lucky wheel / gacha) are frequently queried from multiple distinct route files (e.g. `lucky-wheel.route.ts` and `staff.route.ts`). If routes define independent or uncached queries, client traffic hits the database directly and invalidation in one route fails to update the other.
+- **Implementation Standard**:
+  1. Unify shared meta resources under consistent global keys across all routes:
+     ```typescript
+     const prizes = await getOrSetCache("meta:lucky-wheel:prizes", 300, () =>
+       prisma.luckyWheelPrize.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } })
+     );
+     const recentWinners = await getOrSetCache("meta:lucky-wheel:recent-winners", 60, () =>
+       prisma.luckyWheelHistory.findMany({ take: 20, orderBy: { createdAt: "desc" }, include: { user: { select: { id: true, name: true, image: true } } } })
+     );
+     ```
+  2. Invalidate shared keys and administrative endpoints on any mutation (spin, claim, update):
+     ```typescript
+     await invalidateCachePattern("meta:lucky-wheel:recent-winners");
+     await invalidateCachePattern("admin:lucky-wheel:*");
+     ```
+- **Problem B (Cron Job Stale Overview Metrics)**: Background cron jobs (e.g. automatic monthly payroll closure, birthday bonuses, top performer rewards) insert adjustments and update period statuses, but frequently only invalidate specific payroll caches. Administrative dashboards (`admin:dashboard*`, `admin:dashboard-stats*`) continue serving cached pre-cron metrics.
+- **Implementation Standard**:
+  3. Include overview dashboard cache patterns in all cron invalidation batches:
+     ```typescript
+     await Promise.all([
+       invalidatePayrollCache(),
+       invalidateCachePattern("staff:payroll:*"),
+       invalidateCachePattern("stats:*"),
+       invalidateCachePattern("admin:dashboard*"),
+     ]).catch(() => {});
+     ```
+  - Guarantees immediate real-time dashboard updates when automated cron background jobs complete.
