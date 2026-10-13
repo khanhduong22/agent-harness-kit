@@ -458,6 +458,23 @@ In relational databases (PostgreSQL), foreign keys do NOT automatically create b
      ```
   - Eliminates table-wide sequential scans during cascade operations and enables zero-cost backwards Index Scans for user activity streams.
 
+### 8.11. Composite Query Caching with Compound Temporal Keys
+For multi-dimensional operational metrics and recurring checklist calculations (`GET /api/manager-tasks/stats-history`, `GET /api/manager-tasks/weekly`):
+- **Problem**: Queries aggregate daily details across date ranges, user assignments, and completion states, creating expensive multi-table scans on every client polling interval.
+- **Implementation Standard**:
+  1. Scope compound cache keys with normalized ISO temporal intervals:
+     ```typescript
+     const statsHistoryKey = `manager-tasks:stats-history:${targetUserId}:${monthStr}`;
+     const weeklyKey = `manager-tasks:weekly:${targetUserId}:${weekStartStr}`;
+     ```
+  2. Implement dual-pattern cross invalidation on task state mutations (toggle, carry-over, CRUD):
+     ```typescript
+     await invalidateCachePattern("manager-tasks:weekly:*");
+     await invalidateCachePattern("manager-tasks:stats-history:*");
+     ```
+  - Yields instant sub-millisecond retrieval on repeated manager console loads while ensuring live data freshness upon mutation.
+
+
 
 
 
