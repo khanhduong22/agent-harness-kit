@@ -433,7 +433,10 @@ export function TelemetryDeferredLoader({
    - Permanently lock structural bars with explicit height: `height: 64px; min-height: 64px; display: flex; align-items: center;`.
    - Lock interactive buttons inside toolbars with explicit bounding boxes: `height: 38px; min-height: 38px; min-width: 38px; display: inline-flex; align-items: center; justify-content: center;`.
 4. **Toolbar Flow vs Absolute Centering Collisions**: Avoid centering toolbar controls using `position: absolute; left: 50%; transform: translateX(-50%)` when flanking button groups have variable widths. On medium desktop viewports (1200px-1350px), this causes controls to collide and overlap, shrinking the unobstructed touch target diameter (failing WCAG 2.5.8 Target Size) and inducing layout jitter. Use modern flex flow (`display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%`) with `position: static` and `margin-left: auto` for trailing toolbars.
-5. **Icon Font & Web Font FOUT Elimination**: For desktop and SPA layouts, `font-display: swap` can cause severe layout shifts if font metrics differ from fallback system fonts. Use `font-display: optional` combined with `<link rel="preload" as="font" type="font/woff2" crossorigin>` for primary font files and icon fonts (e.g. Bootstrap Icons, JetBrains Mono). This guarantees zero icon/font-swap layout shifts.
+5. **Web Font FOUT Elimination vs Icon Font Rendering**:
+   - For text web fonts (Inter, Roboto), `font-display: optional` with `<link rel="preload">` eliminates layout shifts because fallback system fonts render legible characters.
+   - For icon fonts (Bootstrap Icons, FontAwesome), `font-display: optional` without preloading causes first-time visitors to see empty fallback boxes (`□`) if the font takes >100ms. Icon fonts should use `font-display: swap` paired with locked button dimensions (`height: 38px; min-width: 38px; display: inline-flex; align-items: center; justify-content: center;`). This ensures buttons never shift layout when icon glyphs arrive.
+   - Avoid preloading heavy icon font files (>100KB) in `<head>` via `<link rel="preload" as="font">`, as this steals socket bandwidth on Slow 4G connections and stalls FCP/LCP.
 6. **DOM Pre-rendering Hydration Alignment**: When serving pre-rendered static HTML, ensure client-side state (such as `defaultValue` on editors or inputs) matches the pre-rendered DOM state so parser engines (e.g. Marked, Prism) do not wipe and re-insert identical markup on initial mount.
 
 ---
@@ -617,7 +620,10 @@ Using asynchronous Google Fonts (`media="print" onload="this.media='all'"`) with
 
 #### A. 100% Agentic Browsing Standard (PageSpeed Insights & Lighthouse 13.5+)
 Modern audit engines score how cleanly autonomous AI agents can browse, interpret, and navigate your website:
-1. **`/llms.txt` Invariant**: A machine-readable Markdown file MUST be placed at root `/llms.txt` following [llmstxt.org](https://llmstxt.org/) standards. It must contain at least one `# H1 Title`, concise system capabilities, developer docs links, and optional `/llms-full.txt`.
+1. **`/llms.txt` Invariant (Lighthouse Strict Validation)**: A machine-readable Markdown file MUST be placed at root `/llms.txt` following [llmstxt.org](https://llmstxt.org/) standards:
+   - **Required H1**: Must match `^\s*#\s+.+` (e.g., `# 2ndBrain Markdown Viewer`).
+   - **Required Markdown Links**: Must match `\[.+\]\(.+\)`. A raw URL (`- https://...`) strictly FAILS with `"File does not appear to contain any links."`! Always format as markdown links (e.g., `- [App](https://...): Description`).
+   - **Minimum Length**: Must be at least 50 characters (`content.length >= 50`).
 2. **Zero Layout Shift for Autonomous Web Drivers**: Headless AI scrapers and browser agents (Puppeteer, Playwright, Chrome DevTools) navigate via calculated viewport coordinates. Layout shifts (CLS > 0.1) cause agents to mis-click or lose state, immediately penalizing the Agentic Browsing score. Zero-CLS architecture (`font-display: optional`, fixed skeleton wrappers) directly guarantees passing the Agentic CLS gate.
 3. **Eliminating Intrusive Auto-Tours (The Driver.js & Overlay Trap)**:
    - Guided tours, onboarding wizards, and feature walkthroughs (e.g. Driver.js, Shepherd.js) MUST NEVER run automatically on page load or via arbitrary timers (`setTimeout(..., 1000)`).
@@ -626,6 +632,7 @@ Modern audit engines score how cleanly autonomous AI agents can browse, interpre
    - *Invariant*: All guided walkthroughs MUST be strictly user-initiated (e.g. explicit click on `#tour-btn`).
 4. **Structured Entity Graph (JSON-LD)**: Embed complete Schema.org JSON-LD (`@type: Person`, `WebSite`, `ProfilePage`, `Organization`) with authoritative `sameAs` entity links (Wikidata, GitHub, LinkedIn).
 5. **Clean Semantic DOM Tree**: Provide unambiguous landmarks (`<main>`, `<nav>`, `<header>`, `<footer>`), valid heading hierarchy (`h1` -> `h2` -> `h3`), and descriptive action links.
+6. **`ai-catalog.json` / ARD Schema Invariant**: If your site does not implement Agentic Resource Discovery (`ai-catalog.json`), ensure requests to `/.well-known/ai-catalog.json` return a proper **HTTP 404**. In Single-Page Applications (Vite, Next.js SPA rewrites), returning `index.html` with HTTP 200 causes Lighthouse to attempt parsing HTML as JSON, resulting in a fatal `Malformed JSON in manifest: SyntaxError` audit failure. Returning a true 404 marks the audit as `notApplicable: true` with score 1 (100%).
 
 #### B. 100% WCAG AA Accessibility Standard
 1. **Dark-Mode Craft Contrast (4.5:1 Gate)**: Default Tailwind `#71717a` (`text-zinc-500`) on `#0a0a0a` / `#111111` fails WCAG AA (yielding ~3.9:1). In dark themes, always remap `zinc.500: '#8e8e99'` (or higher) to achieve **5.83:1 to 6.11:1** contrast ratio.
