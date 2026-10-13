@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+import argparse
+import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -92,14 +95,75 @@ def skill_roots() -> list[Path]:
     return roots
 
 
-def main() -> int:
+def check_duplicate_rules(workspaces: list[Path]) -> list[str]:
+    """Report error if both AGENTS.md and .agents/AGENTS.md exist in a workspace or subproject."""
     errors: list[str] = []
+    checked: set[Path] = set()
+
+    for ws in workspaces:
+        try:
+            ws_resolved = ws.expanduser().resolve()
+        except (OSError, RuntimeError):
+            continue
+        if ws_resolved in checked or not ws_resolved.is_dir():
+            continue
+        checked.add(ws_resolved)
+
+        # 1. Check workspace root
+        root_agents = ws_resolved / "AGENTS.md"
+        dot_agents = ws_resolved / ".agents" / "AGENTS.md"
+        if root_agents.is_file() and dot_agents.is_file():
+            errors.append(
+                f"{ws_resolved}: duplicate rule files detected ({root_agents.name} and .agents/{dot_agents.name}); "
+                "choose exactly one rule file to prevent conflicting rules and context duplication"
+            )
+
+        # 2. Check immediate subdirectories (e.g. monorepo services / packages)
+        try:
+            children = sorted(ws_resolved.iterdir())
+        except (OSError, PermissionError):
+            continue
+
+        for child in children:
+            if (
+                child.is_dir()
+                and not child.name.startswith(".")
+                and child.name not in {"node_modules", "dist", "build", "coverage", "vendor", "scratch", ".git"}
+            ):
+                child_root = child / "AGENTS.md"
+                child_dot = child / ".agents" / "AGENTS.md"
+                if child_root.is_file() and child_dot.is_file():
+                    errors.append(
+                        f"{child}: duplicate rule files detected ({child_root.name} and .agents/{child_dot.name}); "
+                        "choose exactly one rule file to prevent conflicting rules and context duplication"
+                    )
+    return errors
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Validate skill structure and cross-machine portability.")
+    parser.add_argument("workspaces", nargs="*", type=Path, help="Optional workspace directories to check")
+    parser.add_argument("--workspace", dest="extra_workspaces", action="append", type=Path, default=[], help="Workspace directory to check")
+    args = parser.parse_args(argv)
+
+    workspaces: list[Path] = [ROOT]
+    if args.workspaces:
+        workspaces.extend(args.workspaces)
+    if args.extra_workspaces:
+        workspaces.extend(args.extra_workspaces)
+    env_ws = os.environ.get("AGENT_HARNESS_WORKSPACE")
+    if env_ws:
+        workspaces.append(Path(env_ws))
+
+    errors: list[str] = []
+    errors.extend(check_duplicate_rules(workspaces))
+
     names: dict[str, Path] = {}
     skill_dirs = sorted(
         path
         for skill_root in skill_roots()
         for path in skill_root.iterdir()
-        if path.is_dir()
+        if path.is_dir() and path.name != "drafts" and not path.name.startswith(".")
     )
     for skill_dir in skill_dirs:
         skill_file = skill_dir / "SKILL.md"
@@ -144,7 +208,6 @@ def main() -> int:
         ROOT / ".claude-plugin" / "marketplace.json",
         ROOT / ".codex-plugin" / "plugin.json",
     ]
-    import json
     for mf in manifest_files:
         if not mf.is_file():
             errors.append(f"missing required manifest: {mf.relative_to(ROOT)}")
@@ -155,6 +218,17 @@ def main() -> int:
                 errors.append(f"{mf.relative_to(ROOT)}: missing or empty 'name' field")
         except json.JSONDecodeError as exc:
             errors.append(f"{mf.relative_to(ROOT)}: invalid JSON ({exc})")
+
+    # Optional manifests
+    optional_manifests = [
+        ROOT / ".claude-plugin" / "hooks.json",
+    ]
+    for om in optional_manifests:
+        if om.is_file():
+            try:
+                json.loads(om.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                errors.append(f"{om.relative_to(ROOT)}: invalid JSON ({exc})")
 
     # Validate profiles
     profile_dir = ROOT / "profiles"
