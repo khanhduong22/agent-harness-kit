@@ -429,7 +429,12 @@ export function TelemetryDeferredLoader({
 ### CLS (Cumulative Layout Shift) Mastery (≤ 0.05, Target: 0)
 1. **Explicit Dimensions & Aspect Ratios**: Always set `width` and `height` attributes or CSS `aspect-ratio` on all `<img>`, `<video>`, and `<iframe>` elements.
 2. **Skeleton & Placeholders for Dynamic Data**: Every asynchronous component must occupy an exact placeholder box (`min-height`) before data returns.
-3. **Font Display Strategy**: Use `font-display: swap` combined with size-adjust fallbacks to eliminate font swap shifts.
+3. **Structural Bounding Box Locking (Headers & Toolbars)**: Unconstrained padding on top-level bars (`padding: 1rem` without explicit `height`) expands dynamically when web fonts arrive or child buttons render (e.g., button height shifts from 35px to 38px, pushing down the entire viewport by 3px and generating a massive CLS of ~0.208).
+   - Permanently lock structural bars with explicit height: `height: 64px; min-height: 64px; display: flex; align-items: center;`.
+   - Lock interactive buttons inside toolbars with explicit bounding boxes: `height: 38px; min-height: 38px; min-width: 38px; display: inline-flex; align-items: center; justify-content: center;`.
+4. **Toolbar Flow vs Absolute Centering Collisions**: Avoid centering toolbar controls using `position: absolute; left: 50%; transform: translateX(-50%)` when flanking button groups have variable widths. On medium desktop viewports (1200px-1350px), this causes controls to collide and overlap, shrinking the unobstructed touch target diameter (failing WCAG 2.5.8 Target Size) and inducing layout jitter. Use modern flex flow (`display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%`) with `position: static` and `margin-left: auto` for trailing toolbars.
+5. **Icon Font & Web Font FOUT Elimination**: For desktop and SPA layouts, `font-display: swap` can cause severe layout shifts if font metrics differ from fallback system fonts. Use `font-display: optional` combined with `<link rel="preload" as="font" type="font/woff2" crossorigin>` for primary font files and icon fonts (e.g. Bootstrap Icons, JetBrains Mono). This guarantees zero icon/font-swap layout shifts.
+6. **DOM Pre-rendering Hydration Alignment**: When serving pre-rendered static HTML, ensure client-side state (such as `defaultValue` on editors or inputs) matches the pre-rendered DOM state so parser engines (e.g. Marked, Prism) do not wipe and re-insert identical markup on initial mount.
 
 ---
 
@@ -628,10 +633,11 @@ Modern audit engines score how cleanly autonomous AI agents can browse, interpre
 3. **Document Structure**: Exactly one `<main>` landmark per page, valid `<html lang="en">` (or appropriate BCP 47 code), and document `<title>`.
 4. **Interactive Control Names & Discernible Text**: Every `<button>` and `<a>` must have discernible text or `aria-label`. Icon-only buttons (`<button class="tool-button"><i class="bi ..."></i></button>`) MUST include explicit `aria-label` attributes.
 5. **Focusable Separator / Splitter Attributes**: Any divider with `role="separator"` that is keyboard-focusable (`tabindex="0"`) **MUST** provide `aria-valuenow`, `aria-valuemin`, and `aria-valuemax` (e.g. `aria-valuenow="50" aria-valuemin="20" aria-valuemax="80"`).
-6. **`role="tablist"` Container & Child Isolation**: Under W3C ARIA, direct children of `role="tablist"` must strictly have `role="tab"` (or `role="presentation"` / `role="none"`). Do NOT place secondary action buttons (e.g. "Close Tabs", "Reset", or "+" buttons) directly inside `role="tablist"`. Separate secondary actions into an adjacent toolbar or wrap non-tab children in `<div role="presentation">`.
-7. **Touch Target Size & Spacing**: All mobile touch targets must measure at least 48x48px (or retain adequate padding/margins).
-8. **Zoom & Viewport Invariant**: Never restrict user zooming (`user-scalable=no` and `maximum-scale < 5` are strictly prohibited).
-9. **Favicon 404 Prevention (Best Practices Gate)**: Always supply both `favicon.svg` and `favicon.ico` in the root web directory to prevent 404 network errors in the browser console.
+6. **`role="tablist"` Container & Child Isolation**: Under W3C ARIA, direct children of `role="tablist"` must strictly have `role="tab"` (or `role="presentation"` / `role="none"`). **Axe-core Rule**: Do NOT place interactive elements (such as `<button class="tab-new-btn">`) inside `role="tablist"` even if wrapped in `<div role="presentation">`. Interactive elements inside `role="presentation"` fail the accessible hierarchy check (`Certain ARIA roles must contain particular children`). All secondary action buttons (e.g. "+", "New Tab", "Close Tabs", "Reset") MUST be placed completely OUTSIDE the `role="tablist"` element as adjacent siblings in the parent container.
+7. **WCAG 2.5.3 Label-in-Name Alignment**: The accessible name (`aria-label`) of an interactive element must contain the string of text presented visually on the screen. If a button visually says "On" or "Off", its `aria-label` must include "Sync On" or "Sync Off" (never an unrelated string like "Toggle Scroll"), ensuring voice-control users can activate the control by speaking its visible label.
+8. **WCAG 2.5.8 Target Size (Minimum)**: Pointer targets must measure at least 24x24 CSS pixels, or provide an unobstructed 24px diameter circle centered on the bounding box without overlapping adjacent clickable elements. For touch screens, target at least 48x48px or retain adequate margins.
+9. **Zoom & Viewport Invariant**: Never restrict user zooming (`user-scalable=no` and `maximum-scale < 5` are strictly prohibited).
+10. **Favicon 404 Prevention (Best Practices Gate)**: Always supply both `favicon.svg` and `favicon.ico` in the root web directory to prevent 404 network errors in the browser console.
 
 ---
 
