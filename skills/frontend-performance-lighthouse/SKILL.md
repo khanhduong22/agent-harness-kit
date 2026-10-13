@@ -868,4 +868,27 @@ Dynamic user profile avatars from third-party CDNs (e.g. Google user profiles `l
 ```
 - Guarantees CLS = 0 and eliminates main-thread image decoding stutters during fast scroll.
 
+### 9.7. Tab-Deferred Micro-Chunking in Management Consoles
+Administrative settings and multi-tab management pages routinely aggregate 5-10 distinct functional modules (e.g., General Settings, Holidays, Database Backups, Security Whitelists, Roles).
+- **Problem**: Statically importing all tab components into the parent page causes the browser to download, parse, and evaluate hundreds of kilobytes of code for tabs the user has not even opened.
+- **Implementation Standard**: Convert all secondary tab contents into `React.lazy()` micro-chunks wrapped in localized `<React.Suspense>` boundaries:
+```tsx
+const HolidayManager = React.lazy(() => import("@/components/admin/HolidayManager"));
+const BackupManager = React.lazy(() => import("@/components/admin/BackupManager"));
+
+// In JSX:
+<TabsContent value="holidays">
+  <React.Suspense fallback={<div className="p-8 text-center text-muted-foreground">Đang tải...</div>}>
+    <HolidayManager />
+  </React.Suspense>
+</TabsContent>
+<TabsContent value="backup">
+  <React.Suspense fallback={<div className="p-8 text-center text-muted-foreground">Đang tải...</div>}>
+    <BackupManager />
+  </React.Suspense>
+</TabsContent>
+```
+- Reduces initial route chunk payload by 40-60%, eliminates unnecessary JS parse penalties, and guarantees zero TBT impact on route navigation.
+
+
 
