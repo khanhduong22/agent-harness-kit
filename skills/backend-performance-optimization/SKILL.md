@@ -320,3 +320,61 @@ export async function handleRequest(req: Request, res: Response) {
 - [ ] Endpoints return `Server-Timing` headers for visibility.
 - [ ] Keyset/cursor pagination used for unbounded collections.
 - [ ] Event loop lag remains under 10ms during peak load tests.
+- [ ] Healthcheck endpoints (/health) bypassed in request loggers to eliminate disk I/O.
+- [ ] Postgres connection pools bounded via connection_limit and pool_timeout parameters.
+- [ ] Multi-entity list cache keys sorted deterministically.
+
+---
+
+## 8. Production Runtime & Database Pool Guardrails
+
+### 8.1. Healthcheck Log Noise & Disk I/O Suppression
+In containerized architectures behind reverse proxies (Caddy, Nginx, AWS ALB, Docker healthcheck probing `/health` every 10-15s):
+- **Problem**: Default request logging middleware (`console.log(<-- GET /health)`) generates thousands of log lines daily, flooding terminal log stream viewers (Dozzle, CloudWatch) and creating continuous disk I/O on limited VPS SSDs.
+- **Implementation Standard**: Request logging middleware MUST explicitly bypass `/health` before timing evaluation:
+```typescript
+app.use("*", async (c, next) => {
+  if (c.req.path === "/health") {
+    return next();
+  }
+  const start = performance.now();
+  await next();
+  console.log(`--> ${c.req.method} ${c.req.path} ${c.res.status} ${(performance.now() - start).toFixed(1)}ms`);
+});
+```
+
+### 8.2. PostgreSQL Connection Pool Boundary Constraints
+Prisma and standard ORMs often default to unbounded connection pools or scale with CPU count. On memory-constrained VPS instances (e.g. 4 vCPUs, 8GB RAM):
+- **Problem**: When multiple worker containers, subagents running test suites, or concurrent CLI instances run simultaneously, database connection counts explode past PostgreSQL's `max_connections`, causing catastrophic fatal crashes: `FATAL: remaining connection slots are reserved for non-replication superuser connections`.
+- **Implementation Standard**: All container manifests and production `DATABASE_URL` strings MUST explicitly bound pool parameters:
+```text
+postgresql://user:pass@host:5432/db?sslmode=disable&connection_limit=10&pool_timeout=15
+```
+- `connection_limit=10`: Restricts maximum concurrent client connection pool size per instance.
+- `pool_timeout=15`: Sets maximum wait time (15 seconds) before throwing error if pool is saturated, preventing unbounded connection queues.
+
+### 8.3. Valkey/Redis Fast-Path for Chained Audit Trails (SHA-256)
+Tamper-evident audit trails with cryptographic block chaining require retrieving the preceding record's hash to compute `Hash = SHA256(PrevHash + Data)`.
+- **Problem**: Executing `prisma.sessionAuditLog.findFirst({ orderBy: { createdAt: 'desc' } })` on every single mutating operation creates heavy database read contention and adds 10-25ms to API write latency.
+- **Fast-Path Implementation Standard**:
+  1. Upon successful audit log creation, cache the newly generated hash to Valkey: `await redis.set("audit:latest_hash", hash, "EX", 86400)`.
+  2. For subsequent records, read `audit:latest_hash` directly from Valkey first. Fallback to PostgreSQL `findFirst` only on cache miss. This drops hash resolution from 15ms down to <0.5ms.
+
+### 8.4. Deterministic Multi-Entity Cache Keys
+For endpoints querying multiple entity IDs (e.g. `?userIds=userB,userA` vs `?userIds=userA,userB`):
+- **Implementation Standard**: ALWAYS sort entity IDs lexicographically before constructing the cache key:
+```typescript
+const sortedIds = [...targetUserIds].sort().join(",");
+const cacheKey = `staff-tasks:stats:${role}:${sortedIds}`;
+```
+- Eliminates duplicate cache entries caused by parameter order permutations and maximizes the cache hit ratio.
+
+### 8.5. Integer Lower-Bound Jitter Range Assertion in Tests
+When verifying Jittered TTL in unit test suites (e.g. base TTL 30s with ±15% jitter):
+- In JavaScript, `30 * (1 - 0.15)` produces `25.499999999999996` in IEEE-754 double precision, which integer rounding or random generators can evaluate to `25`.
+- **Testing Standard**: Always apply `Math.floor()` for lower bound assertions to prevent IEEE-754 test flakiness:
+```typescript
+expect(actualTTL).toBeGreaterThanOrEqual(Math.floor(baseTTL * (1 - jitterRatio)));
+expect(actualTTL).toBeLessThanOrEqual(Math.ceil(baseTTL * (1 + jitterRatio)) + 1);
+```
+

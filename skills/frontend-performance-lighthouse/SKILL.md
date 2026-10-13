@@ -744,3 +744,62 @@ When PageSpeed Insights reports an unexpected score collapse (e.g., Performance 
 | **Cumulative Layout Shift (CLS)** | 0.18 | **0.00** | **-100%** |
 | **Performance Score (Mobile)** | **64 - 74** | **99 - 100** | **+35 pts** |
 | **Telemetry Event Accuracy** | Baseline | **100% Preserved** | **Zero Loss** |
+
+---
+
+## 9. Production Build Hygiene & Web Server Delivery
+
+### 9.1. Production Console & Debugger Stripping (`esbuild.drop`)
+By default, Vite and Rollup preserve `console.log()` and `debugger` statements in production bundles.
+- **Problem**: On mobile devices with 4x CPU throttling, calling `console.log` with large objects/arrays consumes main-thread execution time because the browser serializes arguments. Additionally, internal state, auth tokens, or debugging logs can leak to the browser console.
+- **Implementation Standard**: In `vite.config.ts`, strip console and debugger calls during production builds:
+```typescript
+export default defineConfig(({ mode }) => ({
+  esbuild: {
+    drop: mode === "production" ? ["console", "debugger"] : [],
+  },
+  // ...
+}));
+```
+
+### 9.2. Non-Blocking Google Fonts & TCP/TLS Socket Warming
+To achieve FCP < 0.9s and 0ms TBT when loading Google Fonts:
+- **Implementation Standard**: Combine `dns-prefetch` alongside `preconnect`, and load the font stylesheet asynchronously without blocking initial render (`media="print"` with `onload="this.media='all'"`):
+```html
+<link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+<link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+  media="print"
+  onload="this.media='all'"
+/>
+<noscript>
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+  />
+</noscript>
+```
+
+### 9.3. Public Asset Hygiene & Favicon Sizing
+- **Prohibited**: NEVER reference high-resolution raw PNG images (>100KB) as favicons in `<link rel="icon">`. Favicons must be lightweight `favicon.png` or `favicon.ico` (≤16KB).
+- **Periodic Asset Sweep**: Audit `public/` directories to evict unreferenced legacy hero/mascot PNGs (>500KB) and convert static iconography to optimized WebP format (target <20KB per icon, saving >95% payload).
+
+### 9.4. Nginx Location-Block Security Headers Inheritance
+In Nginx, the `add_header` directive **DOES NOT** inherit from the parent `server` block if a child `location` block defines any `add_header` (such as `add_header Cache-Control ...`).
+- **Consequence**: Hashed static assets and PWA service worker scripts silently lose critical security headers (`X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`).
+- **Implementation Standard**: Re-declare complete security headers inside EVERY `location` block that specifies `Cache-Control`:
+```nginx
+location ~* \.(?:css|js|woff2|webp)$ {
+    expires 1y;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+}
+```
+
