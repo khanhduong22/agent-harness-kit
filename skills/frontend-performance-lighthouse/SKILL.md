@@ -7,15 +7,16 @@ description: Frontend performance optimization and Core Web Vitals mastery (LCP,
 
 ## Overview & Purpose
 
-Achieve **0ms Total Blocking Time (TBT)**, **100/100 Lighthouse Performance**, and **All-Green Core Web Vitals** on throttled mobile devices without sacrificing user experience, tracking accuracy, or visual fidelity.
+Achieve **0ms Total Blocking Time (TBT)**, **100/100 Lighthouse Performance**, **100/100 Accessibility**, **100/100 Agentic Browsing**, and **All-Green Core Web Vitals** on throttled mobile and desktop devices without sacrificing user experience, tracking accuracy, or visual fidelity.
 
 This skill equips AI agents and frontend engineers with battle-tested architectural patterns across the browser runtime:
 1. **The 3-Tier Viewport & Dynamic Overlay Protocol** (eliminating chunk bloat and layout shifts).
 2. **Pure Interaction-Driven Lossless Telemetry** (0ms TBT with 100% event capture).
-3. **Core Web Vitals Optimization Engine** (LCP, INP, CLS, and TBT).
+3. **Core Web Vitals Optimization Engine** (LCP, INP, CLS = 0, and TBT = 0ms).
 4. **Invisible Auth Iframe Elimination** (lazy guest authentication, instant JWT rehydration).
-5. **Resource Hint & Font Hygiene** (self-hosted fonts, eliminating unused preconnects).
+5. **Resource Hint & Font Hygiene** (self-hosted preloaded fonts, `font-display: optional`, eliminating unused preconnects).
 6. **Main Thread Protection** (`content-visibility: auto`, image decoding, zero-redirect rewrites).
+7. **100% Agentic Browsing & WCAG AA Accessibility** (`llms.txt`, deterministic DOM geometry, dark craft contrast).
 
 ---
 
@@ -579,10 +580,22 @@ Using asynchronous Google Fonts (`media="print" onload="this.media='all'"`) with
 
 ---
 
-### Accessibility & Best Practice Hygiene Checklist
+### 4. 100% Agentic Browsing & WCAG AA Accessibility Invariants
 
-- **Dark-Mode Contrast Trap (100/100 Accessibility)**: Default Tailwind `text-zinc-500` (`#71717a`) on deep dark backgrounds (`#0a0a0a` / `#111111`) fails WCAG AA (contrast ~3.9:1 < 4.5:1). Always configure `zinc.500: '#8e8e99'` (contrast 5.8:1 - 6.1:1) in the dark theme to secure a 100/100 Accessibility score while preserving dark craft aesthetics.
-- **Favicon 404 Console Error Trap (100/100 Best Practices)**: Browsers and audit bots always request `/favicon.ico`. A missing favicon logs a 404 in console errors and drops Best Practices from 100 to 96. Always supply both `favicon.svg` and `favicon.ico` in the root web directory and link them explicitly in `<head>`.
+#### A. 100% Agentic Browsing Standard (PageSpeed Insights & Lighthouse 13.5+)
+Modern audit engines score how cleanly autonomous AI agents can browse, interpret, and navigate your website:
+1. **`/llms.txt` Invariant**: A machine-readable Markdown file MUST be placed at root `/llms.txt` following [llmstxt.org](https://llmstxt.org/) standards. It must contain at least one `# H1 Title`, concise system capabilities, developer docs links, and optional `/llms-full.txt`.
+2. **Zero Layout Shift for Autonomous Web Drivers**: Headless AI scrapers and browser agents (Puppeteer, Playwright, Chrome DevTools) navigate via calculated viewport coordinates. Layout shifts (CLS > 0.1) cause agents to mis-click or lose state, immediately penalizing the Agentic Browsing score. Zero-CLS architecture (`font-display: optional`, fixed skeleton wrappers) directly guarantees passing the Agentic CLS gate.
+3. **Structured Entity Graph (JSON-LD)**: Embed complete Schema.org JSON-LD (`@type: Person`, `WebSite`, `ProfilePage`, `Organization`) with authoritative `sameAs` entity links (Wikidata, GitHub, LinkedIn).
+4. **Clean Semantic DOM Tree**: Provide unambiguous landmarks (`<main>`, `<nav>`, `<header>`, `<footer>`), valid heading hierarchy (`h1` -> `h2` -> `h3`), and descriptive action links.
+
+#### B. 100% WCAG AA Accessibility Standard
+1. **Dark-Mode Craft Contrast (4.5:1 Gate)**: Default Tailwind `#71717a` (`text-zinc-500`) on `#0a0a0a` / `#111111` fails WCAG AA (yielding ~3.9:1). In dark themes, always remap `zinc.500: '#8e8e99'` (or higher) to achieve **5.83:1 to 6.11:1** contrast ratio.
+2. **Document Structure**: Exactly one `<main>` landmark per page, valid `<html lang="en">` (or appropriate BCP 47 code), and document `<title>`.
+3. **Interactive Control Names**: Every `<button>` and `<a>` must have discernible text or `aria-label`.
+4. **Touch Target Size & Spacing**: All mobile touch targets must measure at least 48x48px (or retain adequate padding/margins).
+5. **Zoom & Viewport Invariant**: Never restrict user zooming (`user-scalable=no` and `maximum-scale < 5` are strictly prohibited).
+6. **Favicon 404 Prevention (Best Practices Gate)**: Always supply both `favicon.svg` and `favicon.ico` in the root web directory to prevent 404 network errors in the browser console.
 
 ---
 
