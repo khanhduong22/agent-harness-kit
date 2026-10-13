@@ -19,14 +19,36 @@ This skill equips AI agents and frontend engineers with battle-tested architectu
 
 ---
 
-## Core Web Vitals Lab & Field Targets
+## Google & Sentry Performance Standards
 
-| Metric | Good (Target) | Needs Improvement | Poor | Primary Root Cause & Fix |
-|:---|:---|:---|:---|:---|
-| **LCP** (Largest Contentful Paint) | **≤ 2.5s** | 2.5s - 4.0s | > 4.0s | Slow server TTFB, unoptimized hero images, render-blocking JS/CSS |
-| **INP** (Interaction to Next Paint) | **≤ 200ms** | 200ms - 500ms | > 500ms | Long tasks (>50ms) on main thread, heavy event handlers, layout thrashing |
-| **CLS** (Cumulative Layout Shift) | **≤ 0.05** (Target 0) | 0.05 - 0.25 | > 0.25 | Images/embeds without dimensions, unsized dynamic modules, web font swap |
-| **TBT** (Total Blocking Time - Lab) | **0ms** (Budget: ≤ 50ms) | 50ms - 600ms | > 600ms | Eager 3rd-party scripts (GA4/Clarity), heavy static modals, auth iframes |
+### 1. Google Core Web Vitals Standard (Official CrUX 75th Percentile & GSC Gate)
+
+Google evaluates page experience using the Chrome User Experience Report (CrUX) over a 28-day rolling window at the **75th percentile (p75)** of real-world mobile and desktop user sessions:
+
+| Metric | Google Standard (Good) | Production Target | Needs Improvement | Poor | Primary Root Cause & Fix |
+|:---|:---|:---|:---|:---|:---|
+| **LCP** (Largest Contentful Paint) | **≤ 2.5s** | **≤ 1.5s** | 2.5s - 4.0s | > 4.0s | Slow server TTFB, unoptimized hero images, render-blocking JS/CSS |
+| **INP** (Interaction to Next Paint) | **≤ 200ms** | **≤ 50ms** | 200ms - 500ms | > 500ms | Long tasks (>50ms) on main thread, heavy event handlers, layout thrashing |
+| **CLS** (Cumulative Layout Shift) | **≤ 0.1** | **≤ 0.05** (Target 0) | 0.1 - 0.25 | > 0.25 | Images/embeds without dimensions, unsized dynamic modules, web font swap |
+| **FCP** (First Contentful Paint) | **≤ 1.8s** | **≤ 0.9s** | 1.8s - 3.0s | > 3.0s | Render-blocking CSS/JS in head, slow DNS/TLS/TTFB |
+| **TTFB** (Time to First Byte) | **≤ 800ms** | **≤ 150ms** (Edge) | 800ms - 1800ms | > 1800ms | Origin server latency, lack of Edge caching / Cloudflare 0-RTT |
+| **TBT** (Total Blocking Time - Lab) | **≤ 200ms** | **0ms** (Budget: ≤ 50ms) | 200ms - 600ms | > 600ms | Eager 3rd-party scripts (GA4/Clarity), heavy static modals, auth iframes |
+
+- **Google Search Console (GSC) Page Experience Gate**: 100% of URLs must report "Good" status on mobile. Zero intrusive popups/interstitials on initial load.
+- **Lighthouse v10+ Scoring Weights**: TBT (30%), LCP (25%), CLS (25%), FCP (10%), Speed Index (10%). Total Blocking Time carries the highest weight — eliminating TBT directly produces a 99-100 Performance Score.
+
+### 2. Sentry APM & Web Vitals Reliability Standard
+
+Sentry monitors real user transactions and tracks user satisfaction against APM error budgets:
+
+| Sentry Metric | Production Standard | Critical / Poor Threshold | Impact & Architectural Remediation |
+|:---|:---|:---|:---|
+| **Apdex (Application Performance Index)** | **≥ 0.95** | < 0.85 | Ratio of satisfied vs tolerating/frustrated user requests ($T = 500\text{ms}$) |
+| **User Misery Threshold** | **< 1.0%** | > 3.0% | Percentage of unique users experiencing transactions > 4x threshold ($4T = 2000\text{ms}$) |
+| **Client SDK Boot Penalty** | **0ms (Lazy)** | > 50ms Long Task | Sentry SDK MUST NOT load in initial critical bundle; defer via idle callback/gesture |
+| **Background Tab Hygiene** | **100% Filtered** | Unfiltered | Drop LCP/TTFB when `document.visibilityState === 'hidden'` to protect p75/p95 curves |
+| **Runaway Transaction Clamping** | **Max 28s** | > 30s | Drop idle background transactions in `beforeSendTransaction` |
+| **Clarity / Replay Trace Link** | **Active Bridge** | Missing Link | Forward `sentry_event_id` to Microsoft Clarity for 1-click video session reproduction |
 
 ---
 
