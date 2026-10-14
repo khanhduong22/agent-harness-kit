@@ -1424,3 +1424,54 @@ In administrative summary dashboards, retail management portals, and worker task
      ```
   - Drops `StaffTasksView` chunk size by **24%** (from 7.8 kB down to 5.9 kB), quarantining ambient blur layers and gradient rendering from the critical route entry path.
 
+### 9.26. Barrel Re-Export Dynamic Decoupling & In-View Check-in History Quarantine
+In administrative user management dashboards, employee directories, and mobile attendance views:
+- **Problem A (Barrel Re-Export Co-Bundling in Feature Modules)**:
+  When a host container (such as `UserManager.tsx`) statically imports a primary component (`UserCard`) from a folder barrel (`import { UserCard } from "./user-manager"`), while attempting to dynamically code-split modal dialogs from the same barrel:
+  ```tsx
+  // ANTI-PATTERN: Pulls all dialogs into the main chunk!
+  import { UserCard } from "./user-manager";
+  const AddEmployeeDialog = React.lazy(() => import("./user-manager").then(m => ({ default: m.AddEmployeeDialog })));
+  ```
+  Vite's bundler cannot isolate the lazy imports because the static import of `UserCard` forces `user-manager/index.ts` (and every module it re-exports) into the initial chunk.
+- **Implementation Standard**:
+  1. Completely decouple barrel imports in lazy-loading host components by referencing direct file paths:
+     ```tsx
+     import { UserCard } from "./user-manager/UserCard";
+
+     const AddEmployeeDialog = React.lazy(() =>
+       import("./user-manager/AddEmployeeDialog").then((m) => ({ default: m.AddEmployeeDialog }))
+     );
+     const EditEmployeeDatesDialog = React.lazy(() =>
+       import("./user-manager/EditEmployeeDatesDialog").then((m) => ({ default: m.EditEmployeeDatesDialog }))
+     );
+     const DeleteEmployeeDialog = React.lazy(() =>
+       import("./user-manager/DeleteEmployeeDialog").then((m) => ({ default: m.DeleteEmployeeDialog }))
+     );
+     ```
+  - Allows the bundler to split each heavy modal dialog into its own on-demand chunk (e.g. `AddEmployeeDialog` 4.49 kB, `EditEmployeeDatesDialog` 2.11 kB, `DeleteEmployeeDialog` 1.78 kB), freeing up initial memory.
+
+- **Problem B (Inlined Check-in History Lists in Mobile Views)**:
+  Staff attendance history views (such as `HistoryView.tsx`) often display an overview chart (Gantt) alongside an inlined chronological log card ("Chi tiết từng lượt" with status badges, date/time formatters, and note tooltips). Bundling both structures into the route module balloons the initial chunk.
+- **Implementation Standard**:
+  2. Extract the detailed history card into an isolated component (`CheckinHistoryTable.tsx`).
+  3. Dynamically import via `React.lazy()` behind `<React.Suspense>` with a non-shifting fixed skeleton loader:
+     ```tsx
+     const CheckinHistoryTable = React.lazy(
+       () => import("@/components/history/CheckinHistoryTable")
+     );
+     ```
+     ```tsx
+     <React.Suspense
+       fallback={
+         <div className="h-64 w-full animate-pulse rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-xs text-gray-400">
+           Đang tải lịch sử chấm công...
+         </div>
+       }
+     >
+       <CheckinHistoryTable history={history} isLoading={isLoading} />
+     </React.Suspense>
+     ```
+  - Slashes the initial route entry chunk size by **>44%** (from 3.2 kB down to 1.8 kB), accelerating initial render on low-bandwidth mobile connections.
+
+
