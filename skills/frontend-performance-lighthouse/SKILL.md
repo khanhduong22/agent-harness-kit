@@ -1012,3 +1012,41 @@ In Next.js App Router applications using `export const dynamic = 'force-dynamic'
     },
     ```
   - Unlocks **100% Back/Forward Cache (`bf-cache: score = 1`)** across both `/` and `/?tab=*`, prevents CDN query-key collisions, and eliminates `/manifest.json` from the critical network dependency tree.
+
+### 9.14. PWA Service Worker (`sw.js`) RSC Bypass & `text/html` Content-Type Guard
+In Next.js App Router PWAs using a custom Service Worker (`public/sw.js`):
+- **Problem**: If a Service Worker's navigation strategy (`request.mode === 'navigate'`) caches any `networkResponse.status === 200` without verifying `content-type`, a temporary CDN misconfiguration that serves `text/x-component` (RSC Flight payload) with HTTP `200` will be **permanently cached inside the user's phone `CacheStorage`**, leaving the PWA stuck on a black screen even after the CDN is fixed.
+- **Implementation Standard**:
+  1. **Bypass all RSC & Router Prefetch Requests in `sw.js`**:
+     ```javascript
+     function isRscOrApiRequest(url, request) {
+       if (
+         url.searchParams.has('_rsc') ||
+         request.headers.get('rsc') === '1' ||
+         request.headers.get('next-router-prefetch') === '1' ||
+         request.headers.get('accept')?.includes('text/x-component')
+       ) {
+         return true;
+       }
+       return url.pathname.startsWith('/api/');
+     }
+     ```
+  2. **Guard Navigation Cache with `isHtmlResponse(response)`**:
+     ```javascript
+     function isHtmlResponse(response) {
+       if (!response || response.status !== 200) return false;
+       const contentType = response.headers.get('content-type') || '';
+       return contentType.includes('text/html');
+     }
+     // Only cache preloadResponse / networkResponse when isHtmlResponse(res) is true,
+     // and only return cachedResponse on offline fallback if isHtmlResponse(cachedResponse) is true.
+     ```
+  3. **Bump `CACHE_NAME` Version (`vN` -> `vN+1`)** whenever recovering from any edge caching incident so `activate` automatically purges stale client `CacheStorage` without touching `localStorage` or auth cookies.
+
+### 9.15. In-Memory Multi-Route Coordinator Shell Navigation (`history.replaceState` over `router.replace`)
+In multi-route Next.js App Router applications where a shared Client Coordinator Shell (`WinterArcShell`, `AppShell`) is mounted across static sub-routes (`/app`, `/app/today`, `/app/goals`) and already manages tab switching in memory:
+- **Problem**: Calling `router.replace('/app/today')` inside `useEffect` on initial mount (for example, when a PWA launches `start_url: "/app"` and redirects returning users to `/app/today`) triggers a full Next.js App Router network fetch (`GET /app/today` with `RSC: 1`), causing a visible 1-frame flash on startup and exposing the app to RSC network/cache errors. Additionally, `<Link prefetch={true}>` on bottom navigation tabs fires 5 redundant `_rsc` network requests on initial load even when `onClick` uses `e.preventDefault(); setTab(tab.id)`.
+- **Implementation Standard**:
+  1. Use `window.history.replaceState({ tab: target }, '', targetRoute)` alongside `setCurrentTab(target)` for initial smart routing so the URL updates in **0ms** in memory with zero network round-trips.
+  2. Set `prefetch={false}` on `<Link>` elements in tab bars whose `onClick` handlers switch tabs in memory via `e.preventDefault()`.
+
