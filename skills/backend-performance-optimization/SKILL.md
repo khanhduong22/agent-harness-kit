@@ -458,12 +458,16 @@ In SSR dashboards (Next.js App Router Server Components) backed by remote Postgr
      ```
   - Guarantees `now < entry.expiresAt` is permanently true (`100%` L1 RAM hit rate) and keeps DB sockets warm, delivering consistent `<10ms` server compute time and `<100ms` end-to-end TTFB even after hours of zero visitor traffic.
 
-### 8.11. TimescaleDB Compressed Hypertable Chunk Exclusion (Partition-Key Time Bounds)
+### 8.11. TimescaleDB Compressed Hypertable Chunk Exclusion & High-Frequency Cron Short-Circuiting
 In TimescaleDB hypertables partitioned by a `timestamptz` column (e.g. `price_ticks` partitioned by `created_at` with 80+ historical compressed columnar chunks):
 - **Problem A (Unbounded `DISTINCT ON` / `MAX` / `ORDER BY ... LIMIT` Queries)**:
   Querying latest prices or health timestamps (`SELECT DISTINCT ON (symbol) symbol, price, created_at FROM price_ticks WHERE symbol LIKE 'METAL/%' ORDER BY symbol ASC, created_at DESC` or `SELECT MAX(created_at) FROM price_ticks WHERE symbol = ...`) **without** a lower bound on the partition column (`created_at`) forces TimescaleDB to plan and decompress all 80+ compressed columnar chunks from the beginning of time (`Planning Time: 41.6ms`, `Execution Time: 439.3ms` = **`480.9ms`**, `Buffers: shared hit=6701+`).
-- **Problem B (Filtering Only on a Secondary Epoch Column Instead of the Partition Column)**:
-  If rows store both a Unix epoch `timestamp BIGINT` column and the hypertable partition key `created_at TIMESTAMPTZ`, filtering only by `WHERE timestamp >= $1 AND timestamp <= $2` prevents TimescaleDB chunk exclusion! Every compressed chunk must be decompressed and scanned (`85.4ms`, `226,000+` rows filtered).
+- **Problem B (Filtering Only on a Secondary Epoch Column or Non-Partitioned ID in `SELECT` / `UPDATE` / `WHERE NOT EXISTS`)**:
+  If rows store both a Unix epoch `timestamp BIGINT` column (or unindexed `id`) and the hypertable partition key `created_at TIMESTAMPTZ`:
+  1. Filtering `SELECT` or `WHERE NOT EXISTS` subqueries only by `WHERE timestamp = $1` (or `timestamp <= $1`) prevents TimescaleDB chunk exclusion — spawning parallel workers across all 80+ compressed chunks and decompressing `290,000+` rows (`126.8ms`, `12,500+` shared buffers) on every cron tick.
+  2. Running `UPDATE price_ticks SET price = $1 WHERE id = $2` without `AND created_at = $3` forces `ModifyHypertable` to execute a sequential scan across **all** uncompressed/compressed hypertable chunks (`126.2ms` mean, `2,008ms` max).
+- **Problem C (Querying Hypertables Before Checking Subscriber / Cooldown Eligibility in Cron Jobs)**:
+  Background alert workers running every 30s (`checkAndSendSpikeAlerts`, `checkAndSendP2PGapAlerts`, `checkAndSendRsiBbAlerts`, `checkAndSendDiscountAlerts`) often query `price_ticks` or `daily_ohlc` **before** checking whether any subscriber in `push_subscriptions` is enabled and out of cooldown — wasting 99%+ of hypertable reads when 0 subscribers are eligible.
 - **Implementation Standard**:
   1. **Always Bound the Partition Column (`created_at`) on Latest-Row Queries (with Unbounded Fallback)**:
      Add `AND created_at > NOW() - INTERVAL '14 days'` so TimescaleDB prunes all historical compressed chunks at startup (`480.9ms` $\rightarrow$ **`27.4ms`**, `17.5x` faster, `-94.3%` latency), falling back to an unbounded query only if the recent window returns empty:
@@ -484,20 +488,27 @@ In TimescaleDB hypertables partitioned by a `timestamptz` column (e.g. `price_ti
        `;
      }
      ```
-  2. **Always Co-Filter by the Partition Key (`created_at`) When Querying by Epoch `timestamp`**:
-     Convert `[startTimestamp, endTimestamp]` (with a ±60s clock-skew buffer) into ISO `timestamptz` bounds so the planner excludes all irrelevant chunks and uses the `(symbol, source, created_at DESC)` index (`85.4ms` $\rightarrow$ **`9.9ms`**, `8.6x` faster):
+  2. **Always Co-Filter by the Partition Key (`created_at`) on Epoch `timestamp` Reads, `WHERE NOT EXISTS`, and `UPDATE` Statements**:
+     - For time-window or lookback reads, convert `[startTimestamp, endTimestamp]` into ISO `timestamptz` bounds and `ORDER BY created_at DESC LIMIT 1` (`126.8ms` / `12,500` buffers $\rightarrow$ **`0.21ms` / `3` buffers**, `427x` faster execution).
+     - For `UPDATE` upserts, select `SELECT id, created_at` within a `created_at` window (`timestamp ± 2 days`) and include `AND created_at = ${exists[0].created_at}` in the `UPDATE ... WHERE` clause so `ModifyHypertable` prunes all other chunks at startup:
      ```javascript
-     const minCreatedIso = new Date(startTimestamp - 60_000).toISOString();
-     const maxCreatedIso = new Date(endTimestamp + 60_000).toISOString();
-     return await sql`
-       SELECT timestamp, price, volume
-       FROM price_ticks
-       WHERE symbol = ${symbol}
-         AND source = ${source}
+     const minCreatedIso = new Date(timestamp - 2 * 86_400_000).toISOString();
+     const maxCreatedIso = new Date(timestamp + 2 * 86_400_000).toISOString();
+     const exists = await sql`
+       SELECT id, created_at FROM price_ticks
+       WHERE symbol = ${symbol} AND source = ${source}
          AND created_at >= ${minCreatedIso}::timestamptz
          AND created_at <= ${maxCreatedIso}::timestamptz
-         AND timestamp >= ${startTimestamp}
-         AND timestamp <= ${endTimestamp}
-       ORDER BY timestamp ASC
+         AND timestamp = ${timestamp}
+       LIMIT 1
      `;
+     if (exists.length > 0) {
+       await sql`
+         UPDATE price_ticks SET price = ${price}
+         WHERE id = ${exists[0].id} AND created_at = ${exists[0].created_at}
+       `;
+     }
      ```
+  3. **Short-Circuit Background Alert Jobs by Checking Subscribers & Cooldowns First**:
+     Fetch subscribers and filter by `alert_cooldown` **before** touching `price_ticks` or `daily_ohlc`. If `cooldownOkSubs.length === 0`, return immediately with `0` hypertable queries.
+
