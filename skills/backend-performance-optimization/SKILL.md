@@ -1093,3 +1093,46 @@ In multi-role operational task management, checklist templates, and weekly sched
      ```
   - Enables index-only scans for weekly manager task aggregations and eliminates in-memory quicksorts on staff and manager task lists.
 
+### 8.26. Bi-Directional Schedule Cache Invalidation & Multi-Model Temporal Equality Indexing
+In retail workforce scheduling, shift swapping marketplaces, and chronological notification tracking:
+- **Problem A (Stale Schedule Caches Across Multi-Role Shift Mutations)**:
+  Mobile worker PWAs cache personal monthly work shifts under keys such as `staff:schedule:${userId}:${month}:${year}` (120s TTL). When workers register shifts (`POST /schedule/register`), cancel shifts (`POST /schedule/cancel`), list shifts on the swap marketplace (`POST /schedule/:id/swap`), or claim open shifts (`POST /schedule/:id/take`) — or when managers make administrative schedule modifications (`POST/PUT/DELETE /api/admin/schedule`) — failing to invalidate `staff:schedule:*` leaves client calendars displaying phantom or out-of-date shifts.
+- **Implementation Standard**:
+  1. Add `invalidateCachePattern("staff:schedule:*")` and `invalidateCachePattern("shifts:*")` into the `Promise.all` invalidation array across all worker, generic, and administrative mutation handlers:
+     ```ts
+     await Promise.all([
+       invalidateShiftDutyCache(),
+       invalidateCachePattern(`shifts:my-shifts:${userId}:*`),
+       invalidateCachePattern("admin:schedule:*"),
+       invalidateCachePattern("admin:schedule:history:*"),
+       invalidateCachePattern("staff:schedule:*"),
+       invalidateCachePattern("shifts:*"),
+     ]).catch(() => {});
+     ```
+  - Guarantees immediate cache consistency between admin management tables and worker PWA calendars.
+
+- **Problem B (Shift Approval Range & Notification Read Indexing)**:
+  - Work shifts filter on user identity, approval state, and chronological time interval (`WHERE userId = ? AND status = ? AND start >= ? AND start <= ?`).
+  - Read notification tracking filters by user and chronological read time (`WHERE userId = ? ORDER BY readAt DESC`).
+  - User achievement awards filter by user and award timestamp (`WHERE userId = ? ORDER BY unlockedAt DESC`).
+- **Implementation Standard**:
+  2. Implement composite B-tree indexes matching equality fields first and range/sort fields second:
+     ```prisma
+     model WorkShift {
+       // ...
+       @@index([userId, status, start])
+     }
+
+     model AnnouncementRead {
+       // ...
+       @@index([userId, readAt])
+     }
+
+     model UserAchievement {
+       // ...
+       @@index([userId, unlockedAt])
+     }
+     ```
+  - Replaces multi-index bitmap merges with single-pass B-tree index range scans for shift filtering and notification tracking.
+
+
