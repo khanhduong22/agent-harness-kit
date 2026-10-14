@@ -824,20 +824,8 @@ To achieve FCP < 0.9s and 0ms TBT when loading Google Fonts:
 - **Prohibited**: NEVER reference high-resolution raw PNG images (>100KB) as favicons in `<link rel="icon">`. Favicons must be lightweight `favicon.png` or `favicon.ico` (≤16KB).
 - **Periodic Asset Sweep**: Audit `public/` directories to evict unreferenced legacy hero/mascot PNGs (>500KB) and convert static iconography to optimized WebP format (target <20KB per icon, saving >95% payload).
 
-### 9.4. Nginx Location-Block Security Headers Inheritance
-In Nginx, the `add_header` directive **DOES NOT** inherit from the parent `server` block if a child `location` block defines any `add_header` (such as `add_header Cache-Control ...`).
-- **Consequence**: Hashed static assets and PWA service worker scripts silently lose critical security headers (`X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`).
-- **Implementation Standard**: Re-declare complete security headers inside EVERY `location` block that specifies `Cache-Control`:
-```nginx
-location ~* \.(?:css|js|woff2|webp)$ {
-    expires 1y;
-    add_header Cache-Control "public, max-age=31536000, immutable";
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-}
-```
+### 9.4. Reverse Proxy & Edge CDN Headers (Delegated to `infra-performance-optimization`)
+- For Nginx `location` block `add_header` security header inheritance, Caddy `encode zstd gzip` + upstream keepalive pooling, and Cloudflare SSR HTML Edge Cache Rules (`CDN-Cache-Control` + `RSC: 1` bypass), refer to the companion **`infra-performance-optimization`** skill (§2 and §4).
 
 ### 9.5. Tier 1 Dynamic Overlays, Action Dialogs & Constant Isolation (`React.lazy`)
 Interactive modals, submission forms, review sheets, and delete confirmation dialogs must never be statically imported into route entry points:

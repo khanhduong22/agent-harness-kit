@@ -40,7 +40,7 @@ The agent must strictly operate within designated boundaries based on task scope
 ### Autonomous Run Boundary (`/build auto` & `/op-goal`)
 When `/build auto` or `/op-goal` is explicitly invoked:
 - The agent is authorized to proceed autonomously through the agreed workflow steps for the current task.
-- When `/op-goal` (or `/goal /op-goal`) is invoked, execute the full `op-goal` skill loop: **Measure & Diagnose** → **Optimize FE (`frontend-performance-lighthouse`) + BE (`backend-performance-optimization`) & Verify Tests** → **Ship (`1 commit` + `gh run watch` to green `✓`) & Re-Measure Live** → **Distill & Deduplicate (`/learn` novel patterns into `agent-harness-kit` while consolidating duplicates, verify, push, and `./scripts/install.sh --targets all --rules`)**.
+- When `/op-goal` (or `/goal /op-goal`) is invoked, execute the full `op-goal` skill loop across the **3-Pillar Performance Triad**: **Measure & Diagnose** → **Optimize FE (`frontend-performance-lighthouse`) + BE (`backend-performance-optimization`) + Infra (`infra-performance-optimization`) & Verify Tests** → **Ship (`1 commit` + `gh run watch` to green `✓`) & Re-Measure Live** → **Distill & Deduplicate (`/learn` novel patterns into `agent-harness-kit` while consolidating duplicates, verify, push, and `./scripts/install.sh --targets all --rules`)**.
 - The agent **CANNOT** self-authorize expanding scope, modifying infrastructure, changing production configurations, or executing destructive database actions. Any such requirement halts execution immediately for explicit user approval.
 
 ## 4. Tiered Risk-Based Workflow Routing

@@ -1,49 +1,53 @@
 ---
 name: op-goal
-description: Autonomous end-to-end performance optimization, deployment, verification, and skill distillation loop (/op-goal). Combines frontend Core Web Vitals (Lighthouse 100/100, 0ms TBT, CLS 0) and backend TTFB/query/cache optimization with CI/CD rollout verification and zero-duplicate skill distillation (/learn).
+description: Autonomous end-to-end performance optimization, deployment, verification, and skill distillation loop (/op-goal). Combines the Full-Stack Performance Triad — Frontend Core Web Vitals (frontend-performance-lighthouse), Backend Query/Cache/TTFB (backend-performance-optimization), and Infra/Edge CDN/Kernel tuning (infra-performance-optimization) — with CI/CD rollout verification and zero-duplicate skill distillation (/learn).
 ---
 
-# Autonomous Performance Optimization & Skill Distillation Loop (`/op-goal`)
+# Autonomous Full-Stack Performance Optimization & Skill Distillation Loop (`/op-goal`)
 
-When the user invokes `/op-goal` (or `/goal /op-goal`), execute this end-to-end autonomous loop without stopping until every target metric, deployment check, and skill distillation gate is 100% green.
+When the user invokes `/op-goal` (or `/goal /op-goal`), execute this end-to-end autonomous loop across the **Full-Stack Performance Triad (FE + BE + Infra)** without stopping until every target metric, deployment check, and skill distillation gate is 100% green.
 
 ```mermaid
 flowchart LR
-    A["1. Measure & Diagnose<br/>(Lighthouse + TTFB + Bundles)"] --> B["2. Optimize & Verify<br/>(FE CWV + BE Cache/DB + Tests)"]
+    A["1. Measure & Diagnose<br/>(Lighthouse + TTFB + Edge/Infra)"] --> B["2. Optimize Triad (FE + BE + Infra)<br/>(CWV + Cache/DB + CDN/Proxy/Kernel)"]
     B --> C["3. Ship & Monitor CI/CD<br/>(1 Commit + gh run watch + Live Audit)"]
     C --> D["4. Distill & Deduplicate<br/>(/learn to Kit + Verify + Install)"]
 ```
 
 ---
 
-## Phase 1: Empirical Baseline & Root-Cause Diagnosis
+## Phase 1: Empirical Baseline & 3-Layer Root-Cause Diagnosis
 
-1. **Read Companion Skills First**:
-   - Load `frontend-performance-lighthouse` and `backend-performance-optimization`.
-2. **Capture Live / Local Baseline**:
-   - **TTFB & Cache Headers**: Measure cold and warm `time_starttransfer` (`curl -s -o /dev/null -w "TTFB: %{time_starttransfer}s\n"`) and inspect `Cache-Control`, `Vary`, and edge CDN headers.
-   - **HTML & RSC Payload Audit**: Check HTML transfer size, hidden Suspense fallbacks (`grep -c 'id="S:0"'`), and RSC Flight serialization bloat (`self.__next_f.push`).
-   - **Client Bundle & Manifest Audit**: Inspect route entry chunks (`.next/server/app/*_client-reference-manifest.js` or Vite build output) to spot leaked vendor libraries (`recharts`, `lightweight-charts`, `@radix-ui`, `xlsx`, barrel `index.ts` co-bundling).
-   - **Lighthouse CLI Mobile & Desktop Audit**: Run headless Chrome Lighthouse (`--form-factor=mobile` Slow 4G + `--preset=desktop`) and inspect `elementRenderDelay`, `subgraph` critical request chains, `long-tasks`, and `bf-cache`.
+1. **Load the Performance Triad Skills**:
+   - **Frontend**: `frontend-performance-lighthouse`
+   - **Backend**: `backend-performance-optimization`
+   - **Infra & Edge**: `infra-performance-optimization`
+2. **Capture Live / Local Baseline Across All 3 Layers**:
+   - **Layer 1 — Edge CDN & Network Infra**: Dissect cold vs. warm HTTP/2 connection timing (`Connect`, `TLS`, `TTFB`) and inspect `cf-cache-status`, `cf-ray`, `Cache-Control`, `CDN-Cache-Control`, and `Vary` headers.
+   - **Layer 2 — Backend App & Database**: Measure server compute time (`Warm TTFB - 1 RTT`), inspect Singleflight/Valkey cache hit rates, check DB connection pool settings, and run `EXPLAIN (ANALYZE, BUFFERS)` on slow queries.
+   - **Layer 3 — Frontend Browser & Bundles**: Check HTML transfer size, hidden Suspense fallbacks (`grep -c 'id="S:0"'`), RSC Flight payload bloat (`self.__next_f.push`), entry JS manifest chunks, and run headless Chrome Lighthouse (`--form-factor=mobile` Slow 4G + `--preset=desktop`).
 
 ---
 
-## Phase 2: Full-Stack Optimization & Local Quality Gates
+## Phase 2: Full-Stack Triad Optimization & Local Quality Gates
 
-Apply root-cause fixes across both Frontend and Backend layers following the **7-Rung Ladder**:
+Apply root-cause fixes across Frontend, Backend, and Infra following the **7-Rung Ladder**:
 
-1. **Frontend (Core Web Vitals — Target 100/100 Mobile & Desktop, 0ms TBT, 0.000 CLS)**:
+1. **Frontend (`frontend-performance-lighthouse` — Target 100/100 Mobile & Desktop, 0ms TBT, 0.000 CLS)**:
    - Eliminate RSC `<Suspense>` `div[hidden]#S:0` traps around already-awaited Server Components and replace `useSearchParams()` in root client shells with Server Component prop passing + `popstate` listeners.
    - Quarantine secondary tabs, modals, and heavy chart/table/export libraries (`React.lazy` / `next/dynamic`) and bypass folder barrel (`index.ts`) imports so entry JS stays minimal (`<50 KB`).
    - Trim RSC Flight JSON payloads by pre-computing compact SSR summaries and fetching heavy time-series arrays on client interaction.
    - Remove unused `next/font/google` preloads or switch `display: 'swap'` to `'optional'` on hero text to prevent Slow 4G LCP timer resets.
-   - Unlock `bf-cache` (`score = 1`) by overriding Next.js `no-store` with query-aware `Cache-Control` headers.
-2. **Backend (Sub-100ms TTFB, SingleFlight Coalescing & Index Synthesis)**:
+2. **Backend (`backend-performance-optimization` — Target `<10ms` Server Compute, 100% L1/L2 Cache Hit)**:
    - Wrap high-read SSR/API queries in Singleflight + Stale-While-Revalidate (`singleflight.execute` / `getOrSetCache`).
    - Detach background SWR revalidation via `setTimeout(..., 0)` so Server Component streaming never waits on background database promises.
-   - Add a lightweight `.unref()` background cache warmer (`interval < ttlMs`) with warm DB connection pooling (`idle_timeout >= 120s`) so `now < entry.expiresAt` is permanently true (`<1ms` L1 RAM hit).
+   - Add a lightweight `.unref()` background cache warmer (`interval < ttlMs`) with warm DB connection pooling (`idle_timeout >= 120s`) so `now < entry.expiresAt` is permanently true.
    - Parallelize independent queries (`Promise.all`), eliminate duplicate queries, and synthesize composite B-Tree indexes (`Equality First, Range/Sort Second`).
-3. **Mandatory Local Verification**:
+3. **Infra & Edge (`infra-performance-optimization` — Target `<25ms` Edge HIT, Zero-Downtime Rollout)**:
+   - Scope `Cache-Control` and `CDN-Cache-Control` headers with `missing: [{ type: 'header', key: 'rsc' }]` so Cloudflare caches pure HTML document responses without poisoning RSC client navigations, while preserving browser `bf-cache = 1.0` (never emit `no-store` on public pages).
+   - Verify Reverse Proxy (Caddy/Nginx) Zstandard/Brotli compression and upstream `keepalive` connection pooling.
+   - Verify Linux VPS kernel `tcp_congestion_control = bbr`, PostgreSQL `shm_size` & `random_page_cost = 1.1`, and Docker log rotation (`max-size: 10m`).
+4. **Mandatory Local Verification**:
    - Run the project's native build, linter, and test suites (`bun run build`, `bun run test`, `tsc --noEmit`) and confirm zero errors before committing.
 
 ---
@@ -56,7 +60,7 @@ Apply root-cause fixes across both Frontend and Backend layers following the **7
    - Monitor the CI/CD workflow (`gh run list` / `gh run watch <run-id> --exit-status`) until all jobs (Build, Test, Zero-Downtime Deployment) finish with a green checkmark (`✓`).
    - If any job fails, inspect `gh run view <run-id> --log-failed`, fix the root cause, and re-verify.
 3. **Post-Deploy Live Audit**:
-   - Re-run `curl` TTFB checks and Lighthouse CLI Mobile + Desktop audits against the live production/staging URL to prove the optimization in production.
+   - Re-run `curl` TTFB/header checks and Lighthouse CLI Mobile + Desktop audits against the live production/staging URL to prove the optimization in production.
 
 ---
 
@@ -66,11 +70,13 @@ Whenever a new non-trivial root cause or architectural pattern is proven in prod
 
 1. **Locate the Kit Checkout**:
    - Resolve the `agent-harness-kit` repository path via `readlink ~/.claude/skills/frontend-performance-lighthouse` (never hardcode user home paths).
-2. **Audit & Deduplicate Existing Sections First (`Prevent Duplicate` Gate)**:
-   - Before appending a new subsection to `skills/frontend-performance-lighthouse/SKILL.md`, `skills/backend-performance-optimization/SKILL.md`, or `skills/next-best-practices/*.md`, scan the file for overlapping or repetitive project-specific micro-logs (e.g., multiple sections repeating the same `React.lazy`, `onError`, barrel decoupling, `getOrSetCache`, or `@@index` pattern).
-   - **Consolidate** repetitive examples into a single canonical, generalized pattern section rather than appending near-duplicate numbered subsections.
+2. **Route to the Correct Triad Skill & Deduplicate (`Prevent Duplicate` Gate)**:
+   - Route Browser/CWV/RSC bundle lessons to `skills/frontend-performance-lighthouse/SKILL.md`.
+   - Route App/Singleflight/Valkey/SQL index lessons to `skills/backend-performance-optimization/SKILL.md`.
+   - Route CDN/Cloudflare/Caddy/Nginx/Docker/Kernel lessons to `skills/infra-performance-optimization/SKILL.md`.
+   - Before adding any section, scan the target file (and sibling Triad skills) for overlapping or repetitive micro-logs and **consolidate** them into a single canonical pattern so zero duplicate content exists across the kit.
 3. **Follow the 4-Step Harness Lifecycle**:
-   - **Step 1 (Edit in Kit)**: Generalize the new pattern (zero project-specific secrets or `/Users/<name>` paths) and merge/deduplicate cleanly inside `agent-harness-kit`.
+   - **Step 1 (Edit in Kit)**: Generalize the pattern (zero project-specific secrets or `/Users/<name>` paths) inside `agent-harness-kit`.
    - **Step 2 (Verify Locally)**: Run `./scripts/verify.sh` and `bash tests/test_harness.sh` and confirm `OK` / `0 failed`.
    - **Step 3 (Commit & Push Kit)**: Commit (`docs(skills): ...`) and `git push origin main`.
    - **Step 4 (Propagate Locally)**: Run `./scripts/install.sh --targets all --rules` so `~/.gemini`, `~/.claude`, and `~/.agents` receive the updated skills immediately.
