@@ -432,14 +432,19 @@ In PostgreSQL, single-column indexes on high-cardinality operational tables (`Ch
        @@index([action, status, createdAt])
        @@index([userId, action, createdAt])
      }
-     ```
-  2. **Explicit Foreign Key Child Indexes**: Always declare `@@index([parentId])` on child tables participating in `onDelete: Cascade` (e.g. `ManagerChecklistCompletion.taskId`) to prevent table locks during parent deletion.
 
-### 8.8. Multi-Table Aggregation Caching, SingleFlight Coalescing & Dynamic State-Aware TTL
-High-level dashboards, payroll summaries, and multi-sheet data exports routinely execute 4–10 queries per request:
+     model ManagerChecklistTask {
+       // WHERE assigneeId = $1 ORDER BY "order" ASC, "createdAt" ASC
+       @@index([assigneeId, order, createdAt])
+     }
+     ```
+  2. **Explicit Foreign Key Child Indexes**: Always declare `@@index([parentId])` or `@@index([parentId, createdAt])` on child tables participating in `onDelete: Cascade` or sorted child lookups (e.g. `ShiftDuty([shiftId, createdAt])`, `ManagerChecklistCompletion.taskId`) to prevent table locks and in-memory sorts.
+
+### 8.8. Multi-Table Read/Write Parallelization, SingleFlight Coalescing & Dynamic State-Aware TTL
+High-level dashboards, checklist carry-over workflows, and payroll summaries routinely execute 3–10 database or cache operations per request:
 - **Implementation Standard**:
-  1. **Parallelize Independent Queries (`Promise.all`)**: Never `await` independent entity queries sequentially; overlap database I/O with `const [users, checkins, shifts, requests] = await Promise.all([...])`.
-  2. **SingleFlight Coalesced Caching (`getOrSetCache`)**: Wrap multi-query aggregations in `getOrSetCache(cacheKey, ttl, fetcher)` with in-flight promise deduplication and ±15% TTL jitter so burst traffic coalesces into 1 DB query batch.
+  1. **Parallelize Independent Reads, Writes & Cache Evictions (`Promise.all`)**: Never `await` independent entity queries, multi-table mutations (e.g. updating an old weekly task + creating a carry-over task + creating an approval request), or multi-pattern `invalidateCachePattern` calls sequentially; overlap I/O with `await Promise.all([...])`.
+  2. **SingleFlight Coalesced Caching (`getOrSetCache`)**: Wrap multi-query aggregations and frequently opened modal detail lists (e.g. `shift-duties:shift:${shiftId}`) in `getOrSetCache(cacheKey, ttl, fetcher)` with in-flight promise deduplication and ±15% TTL jitter so burst traffic coalesces into 1 DB query batch.
   3. **Immutable Closed-Period Fast Path & Dynamic State-Aware TTL**: When querying historical financial or payroll periods (`GET /api/admin/payroll`, `GET /api/staff/payroll`), check if `period.status === "CLOSED"`. If closed, serve the frozen `Payslip` snapshot directly without recalculating live attendance/shift joins, and assign a longer TTL via a state-aware resolver (`ttlSeconds: (data) => data.isClosed ? 300 : 60`).
 
 ### 8.9. Container Runtime, PostgreSQL `shm_size` & Blue-Green Rollout (Delegated to `infra-performance-optimization`)

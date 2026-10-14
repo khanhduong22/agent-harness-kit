@@ -827,24 +827,29 @@ To achieve FCP < 0.9s and 0ms TBT when loading Google Fonts:
 ### 9.4. Reverse Proxy & Edge CDN Headers (Delegated to `infra-performance-optimization`)
 - For Nginx `location` block `add_header` security header inheritance, Caddy `encode zstd gzip` + upstream keepalive pooling, and Cloudflare SSR HTML Edge Cache Rules (`CDN-Cache-Control` + `RSC: 1` bypass), refer to the companion **`infra-performance-optimization`** skill (§2 and §4).
 
-### 9.5. Tier 1 Dynamic Overlays, Action Dialogs & Constant Isolation (`React.lazy`)
-Interactive modals, submission forms, review sheets, and delete confirmation dialogs must never be statically imported into route entry points:
-- **Problem A (Static Modal Imports)**: Statically importing dialog trees into table or list routes bloats the initial route bundle by 20–60 kB and forces the browser to parse form schemas and validation ASTs before the user interacts with the page.
-- **Problem B (Shared Constants Defeating `React.lazy`)**: When developers extract a modal into `React.lazy(() => import("./CreateRequestModal"))` but keep domain constants (`REQUEST_TYPES`, status badges) inside `CreateRequestModal.tsx` and statically import those constants into the parent list view, the bundler (Vite/Rollup/Webpack) is forced to bundle the entire modal file back into the initial route chunk.
+### 9.5. Tier 1 Dynamic Overlays, Conditional Mount Gating & Constant Isolation (`React.lazy`)
+Interactive modals, submission forms, review sheets, and delete confirmation dialogs must never be statically imported or unconditionally mounted in route entry points or home widgets:
+- **Problem A (Static Modal Imports & Inlined Home Widget Dialogs)**: Statically importing dialog trees into table routes or inlining `<Dialog>` overlays inside home-screen widgets (`ShiftDutyHomeWidget.tsx`) bloats initial bundles by 20–60 kB (`@radix-ui/react-dialog` + form ASTs) before the user interacts with the page.
+- **Problem B (Shared Constants Defeating `React.lazy`)**: Keeping domain constants (`REQUEST_TYPES`, status badges) inside `CreateRequestModal.tsx` and statically importing them into the parent list view forces the bundler (Vite/Rollup/Webpack) to bundle the entire modal file back into the initial route chunk.
+- **Problem C (Unconditional Mounting of `React.lazy` Overlays)**: Rendering `<React.Suspense fallback={null}><CreateChecklistDialog /></React.Suspense>` unconditionally while relying on an internal `<Dialog open={isCreateOpen}>` check causes React to **immediately fetch and parse the lazy chunk on initial page mount** even when `isCreateOpen === false`.
 - **Implementation Standard**:
   1. Extract shared constants, types, and lightweight helpers into a standalone `*-constants.ts` or `*-utils.ts` file.
-  2. Dynamically import all dialogs via `React.lazy()` and render them conditionally inside `<React.Suspense fallback={null}>`:
+  2. Gate the `<React.Suspense>` boundary itself behind the boolean open state (`isCreateOpen`, `modalOpen`) so zero network requests or script evaluations occur until triggered, optionally pairing the trigger button with gesture prefetching (`onMouseEnter` / `onTouchStart`):
      ```tsx
      import { REQUEST_TYPES } from "./request-constants";
-     const CreateRequestModal = React.lazy(() => import("./CreateRequestModal"));
-     const TaskReviewModal = React.lazy(() => import("./TaskReviewModal"));
+     const loadDetailsModal = () => import("./ShiftDutyDetailsModal");
+     const ShiftDutyDetailsModal = React.lazy(loadDetailsModal);
 
-     <React.Suspense fallback={null}>
-       {isCreateOpen && <CreateRequestModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />}
-       {reviewTarget && <TaskReviewModal item={reviewTarget} onClose={() => setReviewTarget(null)} />}
-     </React.Suspense>
+     <button onMouseEnter={loadDetailsModal} onTouchStart={loadDetailsModal} onClick={() => setModalOpen(true)}>
+       Xem chi tiết
+     </button>
+     {modalOpen && (
+       <React.Suspense fallback={null}>
+         <ShiftDutyDetailsModal modalOpen={modalOpen} setModalOpen={setModalOpen} />
+       </React.Suspense>
+     )}
      ```
-  - Isolates each modal into a 2–15 kB on-demand chunk loaded strictly upon user interaction, cutting initial route bundles by 40–60%.
+  - Isolates each modal into a 2–15 kB on-demand chunk (`ShiftDutyHomeWidget` reduced by **-55%**, `DailyChecklistTab` reduced by **-30.5%**), cutting initial route bundles by 40–60%.
 
 ### 9.6. Non-Recursive Image Error Fallback & CLS Avatar Guard
 Dynamic user profile avatars, leaderboard badges, and third-party CDN images:
