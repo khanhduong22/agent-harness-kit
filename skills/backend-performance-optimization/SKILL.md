@@ -1178,3 +1178,59 @@ In workforce analytics, monthly compensation reports, and security audit tracing
   - Eliminates table lookups and in-memory sorting, delivering sub-millisecond index-only query scans across critical dashboard and mobile feeds.
 
 
+
+
+### 8.28. Gamified Lucky Wheel Status Caching & Composite Index Synthesis
+In gamified workforce applications, shift duty management, and multi-tenant task assignment:
+- **Problem A (Multi-Table Aggregation on Gamified User Status Queries)**:
+  Endpoints calculating gamified feature eligibility (e.g. `GET /api/lucky-wheel` determining if an employee can spin) often join or query 5+ database tables on every navigation:
+  - Checking today's attendance check-in status (`Checkin.findFirst`).
+  - Checking today's spun status (`LuckyWheelSpin.findFirst`).
+  - Verifying user active and role status (`User.findUnique`).
+  - Retrieving active reward prizes (`LuckyWheelPrize.findMany`).
+  - Loading user prize history (`LuckyWheelSpin.findMany`).
+  Under repeated app opening or screen switching, this generates heavy database connection pressure and repetitive query latency. When cached with a short TTL (e.g. 60s under key `lucky-wheel:status:${userId}:${dateStr}`), cross-domain mutations must immediately invalidate the cache:
+  - Attendance check-in (`POST /api/checkins`, `/sync-offline`) must invalidate `lucky-wheel:status:${userId}:*` so staff who just checked in can spin immediately.
+  - Executing a spin (`POST /api/lucky-wheel/spin`) must evict `lucky-wheel:status:${userId}:*`.
+  - Winning monetary prizes must synchronously invoke `invalidatePayrollCache()` and `invalidateCachePattern("staff:home:*")` to update earnings counters.
+- **Implementation Standard**:
+  1. Wrap the 5-table computation in `getOrSetCache(`lucky-wheel:status:${userId}:${dateStr}`, 60, ...)` with jitter:
+     ```ts
+     const cacheKey = `lucky-wheel:status:${userId}:${startOfDay.toISOString().slice(0, 10)}`;
+     return getOrSetCache(cacheKey, 60, async () => {
+       // execute database queries and status computation
+       return { canSpin, user, prizes, history };
+     });
+     ```
+  2. Evict the user cache pattern `lucky-wheel:status:${userId}:*` across both attendance check-in handlers (`checkins.route.ts`) and post-spin mutations (`luckyWheelRoute.post("/spin")`).
+  3. Invalidate payroll and staff home caches whenever a prize includes direct monetary additions.
+
+- **Problem B (Compound Filtering on Shift Duties, Task Items & Work Shifts)**:
+  - Daily shift duties query by user, date, and completion status (`WHERE userId = ? AND date = ? AND isCompleted = ?`).
+  - Assigned task items query by assignee, status, and deadline (`WHERE assigneeId = ? AND status = ? AND deadline >= ?`).
+  - Manager assigned tasks query by assignee, status, and deadline (`WHERE assigneeId = ? AND status = ? AND deadline >= ?`).
+  - Work shifts query by user, status, and start/end time ranges (`WHERE userId = ? AND status = ? AND start >= ? AND end <= ?`).
+- **Implementation Standard**:
+  4. Synthesize covering composite B-tree indexes matching equality-before-range order:
+     ```prisma
+     model ShiftDuty {
+       // ...
+       @@index([userId, date, isCompleted])
+     }
+
+     model TaskItem {
+       // ...
+       @@index([assigneeId, status, deadline])
+     }
+
+     model ManagerTask {
+       // ...
+       @@index([assigneeId, status, deadline])
+     }
+
+     model WorkShift {
+       // ...
+       @@index([userId, status, start, end])
+     }
+     ```
+  - Replaces slow sequential scans and multi-index bitmaps with single-pass B-tree index scans, speeding up daily duty checks and deadline sorting to under 1ms.
