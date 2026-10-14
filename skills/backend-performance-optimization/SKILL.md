@@ -1135,4 +1135,46 @@ In retail workforce scheduling, shift swapping marketplaces, and chronological n
      ```
   - Replaces multi-index bitmap merges with single-pass B-tree index range scans for shift filtering and notification tracking.
 
+### 8.27. Unified Reports Cache Invalidation Across Cross-Cutting Mutations & Covering Index Synthesis
+In workforce analytics, monthly compensation reports, and security audit tracing:
+- **Problem A (Fragmented Reports Cache Invalidation Across Mutation Domains)**:
+  Aggregated monthly report endpoints (`GET /api/staff/reports?month=M&year=Y`) compute cross-cutting statistics from four distinct subsystems: attendance check-ins, point tasks, carrying tasks, and scheduled work shifts. When this endpoint is cached in Valkey with a TTL (e.g. 180s under key `staff:reports:${month}:${year}`), mutations in any of these subsystems must synchronously evict this cache. If attendance routes (`/api/checkins`, `/sync-offline`) or schedule mutations only invalidate admin-scoped keys (`admin:reports:*`) while missing `staff:reports:*`, staff devices continue viewing stale attendance hours, missing shifts, or unreflected overtime for up to 180 seconds.
+- **Implementation Standard**:
+  1. Add `invalidateCachePattern("staff:reports:*")` into the atomic `Promise.all` invalidation array across all cross-cutting mutation entry points:
+     - Shift schedule modifications (`invalidateScheduleCache()`).
+     - Payroll adjustments and status changes (`invalidatePayrollCache()`).
+     - Live attendance check-in/checkout handlers (`handleCheckinPost` in `checkins.route.ts`).
+     - Offline attendance synchronization batch handlers (`/sync-offline` in `checkins.route.ts`).
+  2. Implement comprehensive regression test suites verifying zero stale cache hits post-mutation across both online and offline sync workflows.
+
+- **Problem B (Multi-Predicate Filtering in Task Queues, Checklists & Session Audits)**:
+  - Staff tasks frequently filter by assignee, completion status, and chronological submission timestamp (`WHERE assigneeId = ? AND status = ? ORDER BY submittedAt DESC`).
+  - User tasks in admin review queues filter by status and submission timestamp while linking to users (`WHERE status = ? AND submittedAt >= ? AND userId = ?`).
+  - Checklist item completions filter by task ID, completion status, and date (`WHERE taskId = ? AND completed = ? AND date = ?`).
+  - Security audit trails filter by user, specific security action, and timestamp (`WHERE userId = ? AND action = ? ORDER BY createdAt DESC`).
+- **Implementation Standard**:
+  3. Add compound covering B-tree indexes matching the exact equality + range/sort sequence:
+     ```prisma
+     model StaffTask {
+       // ...
+       @@index([assigneeId, status, submittedAt])
+     }
+
+     model UserTask {
+       // ...
+       @@index([status, submittedAt, userId])
+     }
+
+     model ManagerChecklistCompletion {
+       // ...
+       @@index([taskId, completed, date])
+     }
+
+     model SessionAuditLog {
+       // ...
+       @@index([userId, action, createdAt])
+     }
+     ```
+  - Eliminates table lookups and in-memory sorting, delivering sub-millisecond index-only query scans across critical dashboard and mobile feeds.
+
 
