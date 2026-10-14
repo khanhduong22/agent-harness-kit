@@ -1284,3 +1284,31 @@ In enterprise management interfaces, task management views, and mobile check-in 
      );
      ```
   - Reduces top-level view chunk sizes by **~50%** (e.g. from 28.43 kB down to 14.50 kB in `StaffTasksPage`, and shaves 6 kB off `HomeCheckinView`), quarantining complex modal and table DOM until required.
+
+### 9.22. Heavy Tab List Decoupling & In-View On-Demand Marketplace Quarantine
+In enterprise workflow management, admin review portals, and gig/task marketplaces:
+- **Problem**: Tabbed views (such as `TasksPage.tsx` in management SPAs or `TasksView.tsx` in staff PWAs) often bundle complex review forms (`ReviewPendingTab`) or market item grids (`MarketTaskList`) into the initial route module. Even when users visit the page to check history or general tasks, statically imported review and market components inflate entry chunks to **12-15 kB**, forcing mobile and low-power devices to parse unnecessary DOM nodes and scoring math.
+- **Implementation Standard**:
+  1. Statically retain tab navigation bars, view headers, and lightweight types in the entry chunk to enable instant initial render.
+  2. Dynamically code-split heavy tab views and marketplace item lists using `React.lazy()`:
+     ```tsx
+     const ReviewPendingTab = React.lazy(() =>
+       import("@/components/tasks/wfh").then((m) => ({ default: m.ReviewPendingTab }))
+     );
+     const MarketTaskList = React.lazy(() =>
+       import("@/components/tasks").then((m) => ({ default: m.MarketTaskList }))
+     );
+     ```
+  3. Wrap each lazy tab within `<React.Suspense>` using non-shifting pulse skeleton fallbacks:
+     ```tsx
+     <React.Suspense
+       fallback={
+         <div className="h-64 w-full animate-pulse rounded-2xl bg-stone-100 flex items-center justify-center text-xs text-stone-400">
+           Đang tải chợ nhiệm vụ...
+         </div>
+       }
+     >
+       <MarketTaskList items={marketItems} ... />
+     </React.Suspense>
+     ```
+  - Reduces initial route chunk sizes by **>25-50%** (e.g. `TasksPage` dropped from 12.3 kB to 8.9 kB, and `WfhTaskTabs` dropped from 3.3 kB to 1.3 kB), completely removing review math and market DOM from the critical hydration path.
