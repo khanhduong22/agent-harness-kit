@@ -820,9 +820,12 @@ To achieve FCP < 0.9s and 0ms TBT when loading Google Fonts:
 </noscript>
 ```
 
-### 9.3. Public Asset Hygiene & Favicon Sizing
+### 9.3. Public Asset Hygiene, Favicon Sizing & Multi-SPA Subpath Parity Guard
 - **Prohibited**: NEVER reference high-resolution raw PNG images (>100KB) as favicons in `<link rel="icon">`. Favicons must be lightweight `favicon.png` or `favicon.ico` (≤16KB).
 - **Periodic Asset Sweep**: Audit `public/` directories to evict unreferenced legacy hero/mascot PNGs (>500KB) and convert static iconography to optimized WebP format (target <20KB per icon, saving >95% payload).
+- **Multi-SPA Subpath Reverse Proxy Parity Guard**: When two SPAs share a single domain behind a reverse proxy (e.g. Caddy routing `/admin*` to `admin-spa` with `base: "/admin/"` and `/*` to `staff-pwa` at root):
+  1. Unprefixed `<img src="/icons/...">` inside the `/admin` SPA will bypass the `/admin*` proxy rule and hit the root `staff-pwa` container! Always prefix subpath SPA public assets with `/admin/icons/...` (or `import.meta.env.BASE_URL`) AND mirror shared `public/icons/*.webp` into both containers.
+  2. When converting `.png` icons to `.webp`, add an Nginx rewrite rule (`rewrite ^(/admin)?(/icons/[a-z0-9_]+)\.png$ $1$2.webp last;`) and bump the PWA Workbox `cacheName` (`v2` ➔ `v3`) so legacy references and Service Worker caches never serve stale 404s.
 
 ### 9.4. Reverse Proxy & Edge CDN Headers (Delegated to `infra-performance-optimization`)
 - For Nginx `location` block `add_header` security header inheritance, Caddy `encode zstd gzip` + upstream keepalive pooling, and Cloudflare SSR HTML Edge Cache Rules (`CDN-Cache-Control` + `RSC: 1` bypass), refer to the companion **`infra-performance-optimization`** skill (§2 and §4).
