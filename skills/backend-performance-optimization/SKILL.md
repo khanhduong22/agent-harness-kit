@@ -400,52 +400,27 @@ When read endpoints cache domain or aggregate state (dashboards, monthly reports
   3. Synchronize bi-directional task marketplace caches (`tasks:items:*`, `staff:tasks:*`, `admin:tasks:*`, `user:tasks:my:*`) across both admin definition/item mutations and staff task-claim actions (`POST /api/staff/tasks/claim`).
 
 ### 8.7. Composite B-Tree Index Synthesis: Equality First, Range/Sort Second & FK Cascades
-In PostgreSQL, single-column indexes on high-cardinality operational tables (`CheckIn`, `WorkShift`, `UserTask`, `TaskDefinition`, `StaffTask`, `SessionAuditLog`, `Payslip`, `Request`) force the planner into Bitmap Index Scans followed by expensive heap rechecks or in-memory/disk `Sort Key` operations. Furthermore, PostgreSQL does **not** automatically index child Foreign Key columns, causing sequential table scans during `onDelete: Cascade`.
+In PostgreSQL, single-column indexes on high-cardinality operational tables force the planner into Bitmap Index Scans followed by expensive heap rechecks or in-memory/disk `Sort Key` operations. Furthermore, PostgreSQL does **not** automatically index child Foreign Key columns, causing sequential table scans during `onDelete: Cascade`.
 - **Implementation Standard**:
   1. **Equality First, Range/Sort Second**: Always order composite B-Tree index columns with exact equality predicates (`=`) first, followed by range (`BETWEEN`, `>=`, `<=`) or sort (`ORDER BY ... DESC`) columns:
      ```prisma
-     model CheckIn {
-       // WHERE userId = $1 AND type = $2 AND timestamp BETWEEN $3 AND $4
-       @@index([userId, type, timestamp])
-     }
-
      model WorkShift {
        // WHERE userId = $1 AND status = $2 AND start >= $3 AND end <= $4
        @@index([userId, status, start, end])
      }
-
-     model TaskDefinition {
-       // WHERE unit = $1 AND active = true ORDER BY baseReward ASC
-       @@index([unit, active, baseReward])
-       @@index([active, name])
-     }
-
      model UserTask {
        // WHERE status = $1 AND taskDefId = $2 ORDER BY submittedAt DESC
        @@index([status, taskDefId, submittedAt])
-       @@index([userId, taskDefId, createdAt])
-       @@index([userId, status, submittedAt])
-     }
-
-     model SessionAuditLog {
-       // WHERE action = $1 AND status = $2 ORDER BY createdAt DESC
-       @@index([action, status, createdAt])
-       @@index([userId, action, createdAt])
-     }
-
-     model ManagerChecklistTask {
-       // WHERE assigneeId = $1 ORDER BY "order" ASC, "createdAt" ASC
-       @@index([assigneeId, order, createdAt])
      }
      ```
-  2. **Explicit Foreign Key Child Indexes**: Always declare `@@index([parentId])` or `@@index([parentId, createdAt])` on child tables participating in `onDelete: Cascade` or sorted child lookups (e.g. `ShiftDuty([shiftId, createdAt])`, `ManagerChecklistCompletion.taskId`) to prevent table locks and in-memory sorts.
+  2. **Explicit Foreign Key Child Indexes**: Always declare `@@index([parentId])` or `@@index([parentId, createdAt])` on child tables participating in `onDelete: Cascade` or sorted child lookups to prevent table locks and in-memory sorts.
 
 ### 8.8. Multi-Table Read/Write Parallelization, SingleFlight Coalescing & Dynamic State-Aware TTL
 High-level dashboards, checklist carry-over workflows, and payroll summaries routinely execute 3–10 database or cache operations per request:
 - **Implementation Standard**:
-  1. **Parallelize Independent Reads, Writes & Cache Evictions (`Promise.all`)**: Never `await` independent entity queries, multi-table mutations (e.g. updating an old weekly task + creating a carry-over task + creating an approval request), or multi-pattern `invalidateCachePattern` calls sequentially; overlap I/O with `await Promise.all([...])`.
-  2. **SingleFlight Coalesced Caching (`getOrSetCache`)**: Wrap multi-query aggregations and frequently opened modal detail lists (e.g. `shift-duties:shift:${shiftId}`) in `getOrSetCache(cacheKey, ttl, fetcher)` with in-flight promise deduplication and ±15% TTL jitter so burst traffic coalesces into 1 DB query batch.
-  3. **Immutable Closed-Period Fast Path & Dynamic State-Aware TTL**: When querying historical financial or payroll periods (`GET /api/admin/payroll`, `GET /api/staff/payroll`), check if `period.status === "CLOSED"`. If closed, serve the frozen `Payslip` snapshot directly without recalculating live attendance/shift joins, and assign a longer TTL via a state-aware resolver (`ttlSeconds: (data) => data.isClosed ? 300 : 60`).
+  1. **Parallelize Independent Reads, Writes & Cache Evictions (`Promise.all`)**: Never `await` independent entity queries, multi-table mutations, or multi-pattern `invalidateCachePattern` calls sequentially; overlap I/O with `await Promise.all([...])`.
+  2. **SingleFlight Coalesced Caching (`getOrSetCache`)**: Wrap multi-query aggregations and frequently opened modal detail lists in `getOrSetCache(cacheKey, ttl, fetcher)` with in-flight promise deduplication and ±15% TTL jitter so burst traffic coalesces into 1 DB query batch.
+  3. **Immutable Closed-Period Fast Path & Dynamic State-Aware TTL**: When querying historical financial or payroll periods, check if `period.status === "CLOSED"`. If closed, serve the frozen snapshot directly without recalculating live joins, and assign a longer TTL via a state-aware resolver (`ttlSeconds: (data) => data.isClosed ? 300 : 60`).
 
 ### 8.9. Container Runtime, PostgreSQL `shm_size` & Blue-Green Rollout (Delegated to `infra-performance-optimization`)
 - For dual-network Blue-Green container attachment (`ops_bridge` + `<project>-infra`), strict `"status":"ok"` health probes, PostgreSQL container `shm_size: 512mb` + `random_page_cost=1.1`, and Linux kernel TCP BBR tuning, refer to the companion **`infra-performance-optimization`** skill (§3, §5, and §6).
@@ -453,7 +428,7 @@ High-level dashboards, checklist carry-over workflows, and payroll summaries rou
 ### 8.10. Perpetual Background Singleflight Cache Warmer & Detached SWR Revalidation (Sub-10ms SSR TTFB)
 In SSR dashboards (Next.js App Router Server Components) backed by remote PostgreSQL databases:
 - **Problem A (Synchronous SWR Revalidation Blocking RSC Stream Completion)**:
-  In an in-memory Singleflight + Stale-While-Revalidate (SWR) cache (`singleflight.execute(key, fn, { ttlMs, staleTtlMs })`), when a request arrives in the stale window (`now >= entry.expiresAt && now < entry.staleUntil`), calling `this._revalidate(key, fn, ttlMs, staleTtlMs)` synchronously inside the Server Component's execution context can cause Next.js's async context tracking to wait for the spawned promise before closing the HTTP response stream — resulting in a `1.2s–2.3s` TTFB spike whenever the cache is stale.
+  In an in-memory Singleflight + Stale-While-Revalidate (SWR) cache (`singleflight.execute(key, fn, ttlMs, staleTtlMs)`), when a request arrives in the stale window (`now >= entry.expiresAt && now < entry.staleUntil`), calling `this._revalidate(key, fn, ttlMs, staleTtlMs)` synchronously inside the Server Component's execution context can cause Next.js's async context tracking to wait for the spawned promise before closing the HTTP response stream — resulting in a `1.2s–2.3s` TTFB spike whenever the cache is stale.
 - **Problem B (DB Connection Pool Idle Drop + Cold Cache Expiry)**:
   If PostgreSQL client `idle_timeout` is short (`30s`) and cache `ttlMs` is `60s`, 60 seconds of quiet traffic causes all pooled TCP connections to close **and** the L1 cache entry to expire simultaneously. The next visitor pays the full TCP/TLS handshake + multi-query penalty.
 - **Implementation Standard**:
@@ -482,3 +457,47 @@ In SSR dashboards (Next.js App Router Server Components) backed by remote Postgr
      }
      ```
   - Guarantees `now < entry.expiresAt` is permanently true (`100%` L1 RAM hit rate) and keeps DB sockets warm, delivering consistent `<10ms` server compute time and `<100ms` end-to-end TTFB even after hours of zero visitor traffic.
+
+### 8.11. TimescaleDB Compressed Hypertable Chunk Exclusion (Partition-Key Time Bounds)
+In TimescaleDB hypertables partitioned by a `timestamptz` column (e.g. `price_ticks` partitioned by `created_at` with 80+ historical compressed columnar chunks):
+- **Problem A (Unbounded `DISTINCT ON` / `MAX` / `ORDER BY ... LIMIT` Queries)**:
+  Querying latest prices or health timestamps (`SELECT DISTINCT ON (symbol) symbol, price, created_at FROM price_ticks WHERE symbol LIKE 'METAL/%' ORDER BY symbol ASC, created_at DESC` or `SELECT MAX(created_at) FROM price_ticks WHERE symbol = ...`) **without** a lower bound on the partition column (`created_at`) forces TimescaleDB to plan and decompress all 80+ compressed columnar chunks from the beginning of time (`Planning Time: 41.6ms`, `Execution Time: 439.3ms` = **`480.9ms`**, `Buffers: shared hit=6701+`).
+- **Problem B (Filtering Only on a Secondary Epoch Column Instead of the Partition Column)**:
+  If rows store both a Unix epoch `timestamp BIGINT` column and the hypertable partition key `created_at TIMESTAMPTZ`, filtering only by `WHERE timestamp >= $1 AND timestamp <= $2` prevents TimescaleDB chunk exclusion! Every compressed chunk must be decompressed and scanned (`85.4ms`, `226,000+` rows filtered).
+- **Implementation Standard**:
+  1. **Always Bound the Partition Column (`created_at`) on Latest-Row Queries (with Unbounded Fallback)**:
+     Add `AND created_at > NOW() - INTERVAL '14 days'` so TimescaleDB prunes all historical compressed chunks at startup (`480.9ms` $\rightarrow$ **`27.4ms`**, `17.5x` faster, `-94.3%` latency), falling back to an unbounded query only if the recent window returns empty:
+     ```javascript
+     let data = await sql`
+       SELECT DISTINCT ON (symbol) symbol, price, created_at
+       FROM price_ticks
+       WHERE symbol LIKE 'METAL/%'
+         AND created_at > NOW() - INTERVAL '14 days'
+       ORDER BY symbol ASC, created_at DESC
+     `;
+     if (data.length === 0) {
+       data = await sql`
+         SELECT DISTINCT ON (symbol) symbol, price, created_at
+         FROM price_ticks
+         WHERE symbol LIKE 'METAL/%'
+         ORDER BY symbol ASC, created_at DESC
+       `;
+     }
+     ```
+  2. **Always Co-Filter by the Partition Key (`created_at`) When Querying by Epoch `timestamp`**:
+     Convert `[startTimestamp, endTimestamp]` (with a ±60s clock-skew buffer) into ISO `timestamptz` bounds so the planner excludes all irrelevant chunks and uses the `(symbol, source, created_at DESC)` index (`85.4ms` $\rightarrow$ **`9.9ms`**, `8.6x` faster):
+     ```javascript
+     const minCreatedIso = new Date(startTimestamp - 60_000).toISOString();
+     const maxCreatedIso = new Date(endTimestamp + 60_000).toISOString();
+     return await sql`
+       SELECT timestamp, price, volume
+       FROM price_ticks
+       WHERE symbol = ${symbol}
+         AND source = ${source}
+         AND created_at >= ${minCreatedIso}::timestamptz
+         AND created_at <= ${maxCreatedIso}::timestamptz
+         AND timestamp >= ${startTimestamp}
+         AND timestamp <= ${endTimestamp}
+       ORDER BY timestamp ASC
+     `;
+     ```
