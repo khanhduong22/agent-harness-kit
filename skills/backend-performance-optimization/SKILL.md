@@ -1044,3 +1044,52 @@ In multi-tier docker deployments, reverse proxies, and relational workflow pipel
      }
      ```
   - Enables single-pass B-tree index scans for complex user requests, task templates, session validations, and ordered checklist views.
+
+### 8.25. Manager Task User Cache Invalidation & Multi-Tier Task Lifecycle Indexing
+In multi-role operational task management, checklist templates, and weekly scheduling:
+- **Problem A (Stale User Lists on Employee Profile & Status Mutations)**:
+  Manager task views cache assignee user lists under `admin:manager-tasks:users` for up to 300s. When administrators create (`POST /api/admin/employees`), update profile/role/salary (`PUT`/`PATCH /api/admin/employees/:id`), toggle status (`PATCH /api/admin/employees/:id/status`), or delete employees (`DELETE /api/admin/employees/:id`), failing to invalidate `admin:manager-tasks:*` causes manager assignment dropdowns to show stale or deactivated employees. Similarly, modifying checklist templates (`/api/manager-tasks/templates`) or reordering tasks without invalidating both `admin:manager-tasks:*` and `manager-tasks:templates:*` results in out-of-sync task templates.
+- **Implementation Standard**:
+  1. Add `invalidateCachePattern("admin:manager-tasks:*")` into the parallel invalidation batch across all user mutation routes in `admin.route.ts`:
+     ```ts
+     await Promise.all([
+       invalidateCachePattern("admin:dashboard*"),
+       invalidateCachePattern("admin:employees*"),
+       invalidateCachePattern("admin:payroll*"),
+       invalidateCachePattern("admin:manager-tasks:*"),
+     ]).catch(() => {});
+     ```
+  2. In `manager-tasks.route.ts`, purge both patterns on checklist/template mutations:
+     ```ts
+     await Promise.all([
+       invalidateCachePattern("manager-tasks:templates:*"),
+       invalidateCachePattern("admin:manager-tasks:*"),
+     ]).catch(() => {});
+     ```
+  - Eliminates stale assignee dropdowns and template caches while maintaining high-performance Valkey caching.
+
+- **Problem B (Weekly Task Boundary & Creator Task Sorting Indexes)**:
+  - Weekly manager tasks filter by week start and end dates (`WHERE weekStart >= ? AND weekEnd <= ?`).
+  - Manager tasks filter by creator, match status, and sort by deadline (`WHERE createdById = ? AND status = ? ORDER BY deadline ASC`).
+  - Staff tasks filter by assigned employee, sorting/filtering by deadline and completion status (`WHERE assigneeId = ? ORDER BY deadline ASC, status ASC`).
+  Without composite B-tree indexes matching these exact query shapes, PostgreSQL performs sequential table scans or sorts in working memory.
+- **Implementation Standard**:
+  3. Define compound B-tree indexes on models:
+     ```prisma
+     model ManagerWeeklyTask {
+       // ...
+       @@index([weekStart, weekEnd])
+     }
+
+     model ManagerTask {
+       // ...
+       @@index([createdById, status, deadline])
+     }
+
+     model StaffTask {
+       // ...
+       @@index([assigneeId, deadline, status])
+     }
+     ```
+  - Enables index-only scans for weekly manager task aggregations and eliminates in-memory quicksorts on staff and manager task lists.
+
