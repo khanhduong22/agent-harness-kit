@@ -1234,3 +1234,41 @@ In gamified workforce applications, shift duty management, and multi-tenant task
      }
      ```
   - Replaces slow sequential scans and multi-index bitmaps with single-pass B-tree index scans, speeding up daily duty checks and deadline sorting to under 1ms.
+
+### 8.29. Cross-Domain Gacha Eligibility Cache Synchronization & Covering B-Tree Indexes
+In gamified workforce reward systems (`GET /api/gacha`, `POST /api/gacha/roll`) and weekly checklist management:
+- **Problem A (Stale Gacha Roll Eligibility After Attendance Check-in)**:
+  When `GET /api/gacha` caches user roll eligibility in Valkey under `gacha:status:${userId}:${dateStr}` (30s TTL), an employee who checks in online (`POST /api/checkins`) or syncs an offline check-in (`POST /api/checkins/sync-offline`) transitions from ineligible (`hasCheckedInToday = false`) to eligible (`hasCheckedInToday = true`). If the attendance route only invalidates `lucky-wheel:status:${userId}:*` while omitting `gacha:status:${userId}:*`, navigating to the Gacha screen within 30s of check-in serves stale cached ineligibility. Conversely, winning a `MONEY` prize on `POST /api/gacha/roll` without calling `invalidatePayrollCache()` and `invalidateCachePattern("staff:home:*")` leaves payroll summaries and home earnings counters stale.
+- **Implementation Standard**:
+  1. Include `invalidateCachePattern(\`gacha:status:\${userId}:*\`)` in both online (`handleCheckinPost`) and offline (`/sync-offline`) attendance invalidation batches in `checkins.route.ts`.
+  2. In `POST /api/gacha/roll`, always evict `staff:home:*` alongside `gacha:status:${userId}:*`, and invoke `invalidatePayrollCache()` whenever `selectedPrize.type === "MONEY" && selectedPrize.value > 0`.
+
+- **Problem B (Active Inventory & Weekly Assignment Covering Indexes)**:
+  - Active gacha/lucky-wheel prize selection queries `WHERE active = true AND remaining > 0`.
+  - Admin task review queues filter `UserTask` by `WHERE status = ? AND taskDefId = ? ORDER BY submittedAt DESC`.
+  - Document lookup and search sort/filter by `title`.
+  - Weekly manager tasks filter by `WHERE assigneeId = ? AND weekStart >= ? AND weekEnd <= ?`.
+- **Implementation Standard**:
+  3. Add composite B-Tree indexes matching equality and range/sort columns:
+     ```prisma
+     model LuckyWheelPrize {
+       // ...
+       @@index([active, remaining])
+     }
+
+     model UserTask {
+       // ...
+       @@index([status, taskDefId, submittedAt])
+     }
+
+     model Document {
+       // ...
+       @@index([title])
+     }
+
+     model ManagerWeeklyTask {
+       // ...
+       @@index([assigneeId, weekStart, weekEnd])
+     }
+     ```
+  - Enables index-only scans for active prize pool checks and weekly manager task lookups.
