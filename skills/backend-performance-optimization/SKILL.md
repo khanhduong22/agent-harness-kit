@@ -442,11 +442,8 @@ High-level dashboards, payroll summaries, and multi-sheet data exports routinely
   2. **SingleFlight Coalesced Caching (`getOrSetCache`)**: Wrap multi-query aggregations in `getOrSetCache(cacheKey, ttl, fetcher)` with in-flight promise deduplication and ±15% TTL jitter so burst traffic coalesces into 1 DB query batch.
   3. **Immutable Closed-Period Fast Path & Dynamic State-Aware TTL**: When querying historical financial or payroll periods (`GET /api/admin/payroll`, `GET /api/staff/payroll`), check if `period.status === "CLOSED"`. If closed, serve the frozen `Payslip` snapshot directly without recalculating live attendance/shift joins, and assign a longer TTL via a state-aware resolver (`ttlSeconds: (data) => data.isClosed ? 300 : 60`).
 
-### 8.9. Dual-Network Blue-Green Container Attachment & Strict Health Assertions
-In zero-downtime Blue-Green Docker rollouts where reverse proxies live on an edge network (`ops_bridge`) and databases/caches live on an isolated internal network (`<project>-infra`):
-- **Implementation Standard**:
-  1. Attach the candidate container (`<service>_next`) to the internal backing network (`docker network connect <project>-infra "${CANDIDATE_CONTAINER}"`) **before** running migrations or health probes.
-  2. Assert explicitly on `"status":"ok"` (`wget -q -O - http://127.0.0.1:4000/health | grep -q '"status":"ok"'`) rather than loose substring matches like `"status":`, preventing degraded instances (`{"status":"degraded","db":"disconnected"}`) from ever being promoted to production.
+### 8.9. Container Runtime, PostgreSQL `shm_size` & Blue-Green Rollout (Delegated to `infra-performance-optimization`)
+- For dual-network Blue-Green container attachment (`ops_bridge` + `<project>-infra`), strict `"status":"ok"` health probes, PostgreSQL container `shm_size: 512mb` + `random_page_cost=1.1`, and Linux kernel TCP BBR tuning, refer to the companion **`infra-performance-optimization`** skill (§3, §5, and §6).
 
 ### 8.10. Perpetual Background Singleflight Cache Warmer & Detached SWR Revalidation (Sub-10ms SSR TTFB)
 In SSR dashboards (Next.js App Router Server Components) backed by remote PostgreSQL databases:
