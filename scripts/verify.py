@@ -16,7 +16,7 @@ from sync_rules import parse_profile_mcp  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-ABSOLUTE_USER_RE = re.compile(r"/(?:Users|home)/[^/]+/")
+ABSOLUTE_USER_RE = re.compile(r"(?<![a-zA-Z0-9_.-])/(?:Users|home)/[^/\s]+/")
 SECRET_KEY_RE = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH", re.IGNORECASE)
 VAR_REF_RE = re.compile(r"^\$\{[A-Za-z_][A-Za-z0-9_]*\}$")
 EMBEDDED_CREDENTIAL_RE = re.compile(r"://[^/\s:@]++:([^/\s@]++)@")
