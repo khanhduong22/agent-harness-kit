@@ -929,3 +929,52 @@ In financial systems, employee compensation engines, and high-volume payroll das
      }
      ```
   - Enables PostgreSQL single-pass B-tree index scans for staff task filtering, task definition metrics, and user achievement audits.
+
+### 8.23. Bi-Directional Task Summary Invalidation & Composite Access-Path Indexing
+In piece-rate employee tracking, gig operations, and asynchronous managerial approval workflows:
+- **Problem A (Stale Task Summaries on Asynchronous Approval/Submission)**: Employee task summary endpoints (`GET /api/staff/tasks/carrying-summary` and `/packing-summary`) cache aggregate monthly points, approved trip counts, and pending submissions for an employee (`staff:tasks:carrying-summary:${userId}`). When staff submit new packing/carrying declarations, or when administrators approve, reject, review, or bulk-purge stale pending items, failure to proactively flush these summary caches causes staff to see stale points and trip counts for up to a minute or forces systems to rely on artificially short TTLs.
+- **Implementation Standard**:
+  1. Export a dedicated summary cache invalidator `invalidateTaskSummaryCache(userId?: string)`:
+     ```ts
+     export async function invalidateTaskSummaryCache(userId?: string): Promise<void> {
+       try {
+         if (userId) {
+           await invalidateCachePattern(`staff:tasks:carrying-summary:${userId}*`);
+           await invalidateCachePattern(`staff:tasks:packing-summary:${userId}*`);
+         } else {
+           await invalidateCachePattern(`staff:tasks:carrying-summary:*`);
+           await invalidateCachePattern(`staff:tasks:packing-summary:*`);
+         }
+       } catch (e) {
+         console.warn("[Cache Warning] Failed to invalidate task summary cache:", e);
+       }
+     }
+     ```
+  2. Wire `invalidateTaskSummaryCache` bi-directionally into:
+     - Staff Submissions: `POST /tasks/submit-packing`, `POST /tasks/submit-carrying`, `POST /tasks/submit`.
+     - Admin Review Actions: `PATCH/POST /tasks/:id/approve`, `PATCH/POST /tasks/:id/reject`, `PATCH/POST /tasks/:id/review`, `DELETE/POST /tasks/stale-pending`, `DELETE /tasks/:id`.
+  3. Once immediate invalidation is guaranteed across all mutators, safely extend the summary cache TTL to 120s with jitter, halving database load for active warehouse workers.
+- **Problem B (Chronological Sort & Completion State Indexing)**:
+  - Piece-rate tasks filter by employee or task definition and sort chronologically (`WHERE userId = ? ORDER BY createdAt DESC` or `WHERE taskDefId = ? ORDER BY createdAt DESC`).
+  - Daily manager checklists filter by task and completion state (`WHERE taskId = ? AND completed = ?`).
+  Without composite B-tree indexes matching these exact query shapes, PostgreSQL must perform sequential scans or in-memory quicksorts.
+- **Implementation Standard**:
+  4. Add composite indexes matching exact equality and range/sort columns:
+     ```prisma
+     model UserTask {
+       userId    String
+       taskDefId String
+       createdAt DateTime @default(now())
+       // ...
+       @@index([userId, createdAt])
+       @@index([taskDefId, createdAt])
+     }
+
+     model ManagerChecklistCompletion {
+       taskId    String
+       completed Boolean @default(false)
+       // ...
+       @@index([taskId, completed])
+     }
+     ```
+  - Eliminates in-memory sorting on user task histories and provides index-only scans for manager checklist status checks.

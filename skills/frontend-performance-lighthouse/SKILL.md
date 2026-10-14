@@ -1312,3 +1312,32 @@ In enterprise workflow management, admin review portals, and gig/task marketplac
      </React.Suspense>
      ```
   - Reduces initial route chunk sizes by **>25-50%** (e.g. `TasksPage` dropped from 12.3 kB to 8.9 kB, and `WfhTaskTabs` dropped from 3.3 kB to 1.3 kB), completely removing review math and market DOM from the critical hydration path.
+
+### 9.23. Heavy Historical List Extraction & Complex Detail Table Quarantine
+In administrative detail portals, piece-rate gig records, and employee profile views:
+- **Problem**: Comprehensive detail pages (such as `EmployeeDetailPage.tsx` or `CarryingView.tsx`) frequently inline complete chronological attendance logs (`dailyDetails` table with checkin/checkout/hours formatting) or historical submission lists (`CarryingHistoryList` with rejection reasons, evidence anchors, and modal re-submit handlers) directly into the parent view module. Bundling these non-critical, below-the-fold list templates inflates route chunks to **14-17 kB**, creating unnecessary DOM complexity and blocking main-thread responsiveness.
+- **Implementation Standard**:
+  1. Extract the heavy data table or historical list into an isolated, strongly-typed component (`EmployeeAttendanceTable.tsx` / `CarryingHistoryList.tsx`).
+  2. Retain top-level summary metrics, stat cards, and month selectors in the initial chunk so the view shell renders instantly without layout shifts.
+  3. Dynamically import the extracted table or history component via `React.lazy()`:
+     ```tsx
+     const EmployeeAttendanceTable = React.lazy(
+       () => import("@/components/admin/employee-detail/EmployeeAttendanceTable")
+     );
+     const CarryingHistoryList = React.lazy(
+       () => import("@/components/carrying/CarryingHistoryList")
+     );
+     ```
+  4. Wrap inside `<React.Suspense>` with matching skeleton placeholders:
+     ```tsx
+     <React.Suspense
+       fallback={
+         <div className="h-96 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-xs text-slate-400">
+           Đang tải bảng chấm công chi tiết...
+         </div>
+       }
+     >
+       <EmployeeAttendanceTable month={month} year={year} dailyDetails={stats?.dailyDetails} />
+     </React.Suspense>
+     ```
+  - Drops host view bundle sizes by **17-34%** (e.g. `EmployeeDetailPage` reduced from 12.13 kB to 10.01 kB, and `CarryingView` reduced from 8.6 kB to 5.7 kB), deferring detailed historical row rendering until the shell is ready.
