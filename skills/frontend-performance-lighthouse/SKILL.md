@@ -1247,3 +1247,40 @@ In gamification screens, reward hubs, and employee recognition views:
      </React.Suspense>
      ```
   - Reduces the initial view chunk size by **>42%** (e.g. from 7.02 kB down to 4.04 kB), deferring heavy podium DOM and ranking lists until the route shell is rendered.
+
+### 9.21. In-View Table & Administrative Heavy Modal Quarantine
+In enterprise management interfaces, task management views, and mobile check-in homes:
+- **Problem**: Admin task pages (such as `StaffTasksPage.tsx`) and mobile homes (such as `HomeCheckinView.tsx`) often statically bundle entire data tables (`StaffTasksTable`, `StaffKpiStatsCards`), holiday widgets (`SpecialDaysWidget`), or creation/submission modals (`TaskDetailModal`, `TaskSubmitModal`) directly into the route chunk. Statically importing these components inflates route entry files to **25-30 kB**, delaying interaction metrics (INP, TBT) even when the user only views summary statistics or filters.
+- **Implementation Standard**:
+  1. Dynamically import heavy table views and below-the-fold statistics cards using `React.lazy()`:
+     ```tsx
+     const StaffTasksTable = React.lazy(() =>
+       import("@/components/tasks/staff").then((m) => ({ default: m.StaffTasksTable }))
+     );
+     const StaffKpiStatsCards = React.lazy(() =>
+       import("@/components/tasks/staff").then((m) => ({ default: m.StaffKpiStatsCards }))
+     );
+     ```
+  2. Retain top-level filter bars and headers statically in the initial chunk for instant user feedback.
+  3. Wrap lazy components in `<React.Suspense>` with matching skeleton placeholders to prevent Layout Shifts (CLS):
+     ```tsx
+     <React.Suspense
+       fallback={
+         <div className="h-96 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-xs text-slate-400">
+           Đang tải danh sách công việc...
+         </div>
+       }
+     >
+       <StaffTasksTable ... />
+     </React.Suspense>
+     ```
+  4. Decouple action modals into lazy components wrapped with `<React.Suspense fallback={null}>` in staff PWAs:
+     ```tsx
+     const TaskDetailModal = React.lazy(() =>
+       import("@/components/tasks").then((m) => ({ default: m.TaskDetailModal }))
+     );
+     const TaskSubmitModal = React.lazy(() =>
+       import("@/components/tasks").then((m) => ({ default: m.TaskSubmitModal }))
+     );
+     ```
+  - Reduces top-level view chunk sizes by **~50%** (e.g. from 28.43 kB down to 14.50 kB in `StaffTasksPage`, and shaves 6 kB off `HomeCheckinView`), quarantining complex modal and table DOM until required.

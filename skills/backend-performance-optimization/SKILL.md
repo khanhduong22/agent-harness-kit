@@ -812,3 +812,71 @@ In multi-tenant gamification engines, store operations, and employee performance
      }
      ```
   - Grants PostgreSQL single-pass B-tree index scans for prize distribution, shift duty lookups, and weekly task filtering.
+
+### 8.21. Immutable Snapshot Caching for Closed Historical Financial Periods & Audit Trail Compound Indexing
+In accounting systems, payroll engines, and high-frequency employee audit logs:
+- **Problem A (Repeated Heavy Joins on Closed Historical Records)**: In payroll management (`GET /api/admin/payroll/summary` and `/payroll`), historical periods marked as closed (`period.status === "CLOSED"`) contain immutable financial snapshots (payslips, user rates, employment types, bonus adjustments). Re-executing deep relational joins (`payslips` joined with `user` and `adjustments`) across all active staff on every dashboard view or summary reload generates unnecessary database load and query latency on frozen data.
+- **Implementation Standard**:
+  1. Wrap closed period payslip retrieval with a dedicated cache layer:
+     ```ts
+     const cacheKey = `admin:payroll:closed-payslips:${month}:${year}`;
+     const payslips = await getOrSetCache(cacheKey, 300, async () => {
+       return await prisma.payslip.findMany({
+         where: { month, year },
+         include: {
+           user: {
+             select: {
+               id: true,
+               name: true,
+               email: true,
+               role: true,
+               employmentType: true,
+               hourlyRate: true,
+               adjustments: {
+                 where: { date: { gte: startDate, lte: endDate } },
+                 orderBy: { date: "desc" },
+               },
+             },
+           },
+         },
+       });
+     });
+     ```
+  2. Tie cache invalidation explicitly to state transition mutators:
+     - `POST /api/admin/payroll/reopen`
+     - `POST /api/admin/payroll/close`
+     - `POST /api/admin/payroll/bonus`
+     - Background closure jobs in `closePayrollMonth()`.
+- **Problem B (Audit Log & Payroll Adjustment Compound Indexing)**:
+  - Audit logs filter by action type and order chronologically (`WHERE action = ? ORDER BY createdAt DESC`).
+  - Payslips filter by employee, status, month, and year (`WHERE userId = ? AND status = ? AND month = ? AND year = ?`).
+  - Payroll adjustments filter by employee, date range, and amount (`WHERE userId = ? AND date BETWEEN ? AND ?`).
+  Without composite B-tree indexes matching these exact query shapes, PostgreSQL must perform index scans followed by heap filtering.
+- **Implementation Standard**:
+  3. Implement composite indexes matching exact equality and range filter dimensions:
+     ```prisma
+     model ShiftAuditLog {
+       action    String
+       createdAt DateTime @default(now())
+       // ...
+       @@index([action, createdAt])
+     }
+
+     model Payslip {
+       userId String
+       status PayslipStatus @default(PENDING)
+       month  Int
+       year   Int
+       // ...
+       @@index([userId, status, month, year])
+     }
+
+     model PayrollAdjustment {
+       userId String
+       date   DateTime
+       amount Float
+       // ...
+       @@index([userId, date, amount])
+     }
+     ```
+  - Grants PostgreSQL single-pass B-tree index scans for audit trails and zero-heap filtering on employee payroll calculations.
