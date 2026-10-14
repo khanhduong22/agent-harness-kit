@@ -880,3 +880,52 @@ In accounting systems, payroll engines, and high-frequency employee audit logs:
      }
      ```
   - Grants PostgreSQL single-pass B-tree index scans for audit trails and zero-heap filtering on employee payroll calculations.
+
+### 8.22. Closed Period Individual Payslip Fast-Path & Dynamic State-Aware Cache TTL
+In financial systems, employee compensation engines, and high-volume payroll dashboards:
+- **Problem A (Redundant Live Salary Recalculation on Frozen Periods)**: In staff and employee detail payroll endpoints (`GET /api/staff/payroll` and `GET /api/admin/payroll/:userId`), when a payroll month is closed (`period.status === "CLOSED"`), the database already stores the frozen, immutable financial snapshot in the `Payslip` table. Re-invoking `calculateUserMonthlyStats(userId, date)`—which runs dozens of joins across checkins, shifts, and adjustments—wastes CPU cycles and database connection pool bandwidth on data that cannot change.
+- **Implementation Standard**:
+  1. Check if the period is closed. If closed, query `prisma.payslip.findUnique(...)` via the compound unique index `[userId, month, year]` and immediately return `payslip.content` as `stats`, bypassing live calculation entirely.
+  2. Implement Dynamic State-Aware Cache TTL in `getOrSetCache(cacheKey, ttlResolver, fetcher)`:
+     ```ts
+     export async function getOrSetCache<T>(
+       key: string,
+       ttlSeconds: number | ((data: T) => number),
+       fetcher: () => Promise<T>
+     ): Promise<T> {
+       // ...
+       const resolvedTtl = typeof ttlSeconds === "function" ? ttlSeconds(freshData) : ttlSeconds;
+       await client.set(key, JSON.stringify(freshData), "EX", applyJitter(resolvedTtl));
+     }
+     ```
+     Assign an extended TTL (e.g. 300s with jitter) when closed, while maintaining shorter TTLs (e.g. 60-120s) for active/open periods.
+- **Problem B (High-Frequency Equality-Filter & Chronological Compound Indexing)**:
+  - Staff task dashboards query tasks by assignee, status, and creation date (`WHERE assigneeId = ? AND status = ? ORDER BY createdAt DESC`).
+  - Task reporting filters tasks by definition and approval status (`WHERE taskDefId = ? AND status = ?`).
+  - Achievement badges and leaderboards query chronological unlock events (`WHERE unlockedAt >= ? ORDER BY unlockedAt DESC`).
+  Without composite B-tree indexes matching these exact query shapes, PostgreSQL must perform sequential scans or bitmap heap scans.
+- **Implementation Standard**:
+  3. Add composite indexes matching exact equality and range/sort columns:
+     ```prisma
+     model StaffTask {
+       assigneeId String
+       status     String   @default("TODO")
+       createdAt  DateTime @default(now())
+       // ...
+       @@index([assigneeId, status, createdAt])
+     }
+
+     model UserTask {
+       taskDefId String
+       status    TaskStatus @default(PENDING)
+       // ...
+       @@index([taskDefId, status])
+     }
+
+     model UserAchievement {
+       unlockedAt DateTime @default(now())
+       // ...
+       @@index([unlockedAt])
+     }
+     ```
+  - Enables PostgreSQL single-pass B-tree index scans for staff task filtering, task definition metrics, and user achievement audits.
