@@ -26,6 +26,7 @@ CATEGORY A: MONOREPO TOPOLOGY & CROSS-SERVICE ARCHITECTURE
 - **Cross-Service Data Contracts**: API response envelopes (`{ data, meta }`) and data schemas MUST remain strictly synchronized across services. When changing response structures in `index-api`, verify and update parsers (`parseApiResponseEnvelope`) in `index-admin-cms`, `index-data`, and `index-web`.
 - **Developer Service Ownership & Policy (Khánh Dương / khanhduong22)**:
   - **Owned & Active Codebases (Full Modification Rights)**: Strictly `index-api`, `index-admin-cms`, and `index-data`.
+  - **Issue-Repo vs. True Service Owner Principle**: Even if a GitHub issue is filed under `idx-vn/index-web`, any task involving direct database queries, bulk content aggregation, or lifecycle-driven static generation (e.g. incremental sitemaps, feeds, cache warming) MUST be implemented in the owning backend service (`index-admin-cms` or `index-api`). Never place direct PostgreSQL (`pg` / `Bun.sql`) scripts or heavy multi-page aggregation loops inside `index-web`; `index-web` may only invoke a lightweight HTTP trigger endpoint exposed by the backend/CMS.
   - **`index-web` Service Policy (Read-Only Analysis & E2E Video Verification Gate)**:
     - `index-web` source code belongs to other frontend team members. **STRICTLY DO NOT MODIFY, EDIT, OR COMMIT CODE IN `index-web`**.
     - **Authorized & Encouraged Actions**: Agents are fully authorized to:
@@ -100,6 +101,7 @@ CATEGORY C: WORKSPACE QUALITY GATES & PR PROTOCOL
   1. Direct clickable GitHub PR link (e.g. `• 🔗 PR: <https://github.com/idx-vn/<repo>/pull/<id>>`).
   2. Summary of verification status (unit test pass count, TypeScript 0 errors).
   3. Touched files scope.
+- **Strict Personal Webhook Source (`notify-slack.sh` ONLY)**: Always send handover notifications via `.agents/scripts/notify-slack.sh` (which loads `SLACK_WEBHOOK_URL` exclusively from `~/.config/agent-harness/secrets.env`). **STRICTLY PROHIBITED**: Never grep, extract, or curl `SLACK_WEBHOOK_URL` from `.github/workflows/*.yml`, repository `.env` files, or CI scripts — those webhooks post to shared company channels (e.g. `Tech Pulse Notifications`).
 
 ## 10. Cross-Service UI E2E Video Recording & Closed-Loop Verification Gate
 - **CMS Admin Gate (`index-admin-cms`)**: Playwright E2E testing with video recording is mandatory for every CMS feature or bugfix before PR completion.
