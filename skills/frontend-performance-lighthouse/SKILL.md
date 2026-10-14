@@ -908,15 +908,18 @@ Heavy third-party rendering engines, secondary management tabs, and below-the-fo
      };
      ```
 
-### 9.8. Barrel Re-Export (`index.ts`) Decoupling for Code-Splitting
-In Vite, Rollup, and Webpack applications using directory barrel files (`components/tasks/index.ts`):
+### 9.8. Barrel Re-Export (`index.ts`) Decoupling & Nested Overlay Quarantine
+In Vite, Rollup, and Webpack applications using directory barrel files (`components/tasks/index.ts`, `components/pwa/index.ts`):
 - **Problem**:
   - **Static + Lazy Barrel Mixing**: Statically importing one symbol (`import { FilterBar } from "@/components/tasks"`) while lazy-loading another (`React.lazy(() => import("@/components/tasks").then(m => ({ default: m.TaskModal })))`) forces the bundler to pull the entire barrel and all re-exported modals into the initial entry chunk.
   - **Lazy-Only Barrel Co-Bundling**: Even with zero static imports, pointing multiple `React.lazy()` calls to the same barrel index forces the bundler to emit a single monolithic shared chunk containing all re-exported tabs and dialogs.
-- **Implementation Standard**: Always bypass folder barrels (`index.ts`) in route entry points and lazy-loading hosts by importing directly from constituent module files:
+  - **Hook Imports via UI Component Barrels**: Importing lightweight utility hooks (`triggerPwaInstallPrompt`) from a UI barrel (`@/components/pwa`) pulls heavy modal trees (`PwaInstallModal`, `PwaStepCards`) into the caller chunk.
+  - **Nested Static Overlays Inside Lazy Containers**: Even when a heavy feature container (`ScheduleCalendar.tsx`) is lazy-loaded by its parent route, statically importing action dialogs (`CreateShiftDialog`, `ShiftActionDialog`, `ShiftDutySheet`) and mobile sub-views (`MobileScheduleList`) inside it bloats the feature chunk by 25+ kB.
+- **Implementation Standard**: Always bypass folder barrels (`index.ts`) by importing directly from constituent module files, and lazy-load second-tier dialogs/tables even inside already-lazy parent containers:
   ```tsx
   // CORRECT: Direct constituent file imports preserve granular chunk splitting
   import { StaffTasksFilterBar } from "@/components/tasks/staff/StaffTasksFilterBar";
+  import { triggerPwaInstallPrompt } from "@/lib/pwa/usePwaInstallPrompt";
   const StaffTasksTable = React.lazy(() => import("@/components/tasks/staff/StaffTasksTable"));
   const StaffTaskFormDialog = React.lazy(() => import("@/components/tasks/staff/StaffTaskFormDialog"));
   ```
