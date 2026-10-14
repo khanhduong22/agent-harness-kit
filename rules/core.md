@@ -37,9 +37,10 @@ The agent must strictly operate within designated boundaries based on task scope
 | **Mandatory Escalation (MUST ASK)** | • Proposing schema migrations or data alterations.<br>• Modifying public API contracts or breaking signatures.<br>• Adding new third-party dependencies.<br>• Resolving merge conflicts touching other team members' code.<br>• Pushing git commits to remote repository (outside explicit `/ship`). | • Proceeding with DB reset or data drops without sign-off.<br>• Silently altering business logic without clarification. |
 | **Strictly Prohibited** | *None* | • Modifying, editing, or committing code in any repository the project profile marks read-only (analysis and verification recordings only).<br>• Suppressing errors with empty `catch {}` blocks.<br>• Silencing type errors with `@ts-ignore` or unchecked `any`.<br>• Hardcoding credentials, API keys, or secrets.<br>• Running destructive commands (`rm -rf`, destructive database resets (e.g. prisma migrate reset, drop database)) without explicit command from user.<br>• Multiple commits in PR branch (must squash to 1 commit).<br>• Manual ad-hoc container builds or manual deployments via SSH on remote servers (e.g. `ssh ... docker compose build / up / deploy`). When CI/CD or automated deployment pipelines (GitHub Actions, deploy.sh) are configured, deployments MUST go through git push to trigger automated pipelines; never bypass pipelines via manual SSH builds. |
 
-### Autonomous Run Boundary (`/build auto`)
-When `/build auto` is explicitly invoked:
+### Autonomous Run Boundary (`/build auto` & `/op-goal`)
+When `/build auto` or `/op-goal` is explicitly invoked:
 - The agent is authorized to proceed autonomously through the agreed workflow steps for the current task.
+- When `/op-goal` (or `/goal /op-goal`) is invoked, execute the full `op-goal` skill loop: **Measure & Diagnose** → **Optimize FE (`frontend-performance-lighthouse`) + BE (`backend-performance-optimization`) & Verify Tests** → **Ship (`1 commit` + `gh run watch` to green `✓`) & Re-Measure Live** → **Distill & Deduplicate (`/learn` novel patterns into `agent-harness-kit` while consolidating duplicates, verify, push, and `./scripts/install.sh --targets all --rules`)**.
 - The agent **CANNOT** self-authorize expanding scope, modifying infrastructure, changing production configurations, or executing destructive database actions. Any such requirement halts execution immediately for explicit user approval.
 
 ## 4. Tiered Risk-Based Workflow Routing

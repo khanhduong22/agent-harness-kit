@@ -839,758 +839,89 @@ location ~* \.(?:css|js|woff2|webp)$ {
 }
 ```
 
-### 9.5. Tier 1 Dynamic Overlays (React.lazy) Standard
-Heavy interactive dialogs, submission review sheets, settings modals, and delete confirmations must never be statically imported into route pages:
-- **Problem**: Static dialog imports bloat the route's initial JavaScript bundle and trigger unnecessary parsing and layout calculation before the user even interacts with the component.
-- **Implementation Standard**: Convert static overlay imports into `React.lazy()` micro-chunks wrapped in `<React.Suspense fallback={null}>`:
-```tsx
-const ShiftHistoryDialog = React.lazy(() => import("@/components/admin/ShiftHistoryDialog"));
-const PrizeDialog = React.lazy(() => import("@/components/admin/PrizeDialog"));
-
-// In JSX:
-<React.Suspense fallback={null}>
-  {isHistoryOpen && <ShiftHistoryDialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen} />}
-  {isPrizeOpen && <PrizeDialog open={isPrizeOpen} onOpenChange={setIsPrizeOpen} />}
-</React.Suspense>
-```
-- Each overlay builds into an isolated 1-15 kB on-demand asset loaded strictly upon user action, keeping initial route bundles < 200 kB.
-
-### 9.6. Cumulative Layout Shift (CLS) Avatar Protection
-Dynamic user profile avatars from third-party CDNs (e.g. Google user profiles `lh3.googleusercontent.com`) or API uploads:
-- **Problem**: Images without declared width/height attributes cause unexpected layout shifts when rendering finishes during scroll, spiking the CLS metric.
-- **Implementation Standard**: Always declare explicit dimensions, async decoding, lazy loading, and an `onError` fallback:
-```tsx
-<img
-  src={user.avatar || "/icons/default-avatar.webp"}
-  alt={user.name}
-  width="32"
-  height="32"
-  loading="lazy"
-  decoding="async"
-  className="h-8 w-8 rounded-full object-cover"
-  onError={(e) => {
-    (e.target as HTMLImageElement).src = "/icons/default-avatar.webp";
-  }}
-/>
-```
-- Guarantees CLS = 0 and eliminates main-thread image decoding stutters during fast scroll.
-
-### 9.7. Tab-Deferred Micro-Chunking in Management Consoles
-Administrative settings and multi-tab management pages routinely aggregate 5-10 distinct functional modules (e.g., General Settings, Holidays, Database Backups, Security Whitelists, Roles).
-- **Problem**: Statically importing all tab components into the parent page causes the browser to download, parse, and evaluate hundreds of kilobytes of code for tabs the user has not even opened.
-- **Implementation Standard**: Convert all secondary tab contents into `React.lazy()` micro-chunks wrapped in localized `<React.Suspense>` boundaries:
-```tsx
-const HolidayManager = React.lazy(() => import("@/components/admin/HolidayManager"));
-const BackupManager = React.lazy(() => import("@/components/admin/BackupManager"));
-
-// In JSX:
-<TabsContent value="holidays">
-  <React.Suspense fallback={<div className="p-8 text-center text-muted-foreground">Đang tải...</div>}>
-    <HolidayManager />
-  </React.Suspense>
-</TabsContent>
-<TabsContent value="backup">
-  <React.Suspense fallback={<div className="p-8 text-center text-muted-foreground">Đang tải...</div>}>
-    <BackupManager />
-  </React.Suspense>
-</TabsContent>
-```
-- Reduces initial route chunk payload by 40-60%, eliminates unnecessary JS parse penalties, and guarantees zero TBT impact on route navigation.
-
-### 9.8. Non-Recursive Image Error Fallback Guard
-When implementing `onError` event handlers on avatar or mascot `<img>` tags to provide fallback placeholders:
-- **Problem**: If the fallback image asset is also missing or blocked by network/CORS (e.g. offline mode without service worker caching), setting `target.src = fallback` triggers another error event, throwing the browser into an infinite synchronous event loop that locks the main thread (100% CPU usage, INP > 1000ms).
-- **Implementation Standard**: Always clear the error handler (`e.currentTarget.onerror = null`) before re-assigning the source:
-```tsx
-<img
-  src={avatarUrl}
-  alt={name}
-  width="48"
-  height="48"
-  loading="lazy"
-  decoding="async"
-  onError={(e) => {
-    e.currentTarget.onerror = null; // Break potential recursive loops
-    e.currentTarget.src = "/icons/fallback-avatar.webp";
-  }}
-/>
-```
-- Completely prevents infinite event thrashing and protects the main-thread event loop under network failure conditions.
-
-### 9.9. Heavy Third-Party Rendering Isolation (Markdown & AST Parsers)
-In enterprise SPAs (Help centers, documentation browsers, chat assistants), rich text and Markdown parser libraries (`react-markdown`, `remark-gfm`, `marked`, `highlight.js`, `prismjs`):
-- **Problem**: Statically importing markdown packages directly into page entry points inflates the initial route chunk by 100-200 kB, stalling client-side hydration and increasing TBT even if the active tab only shows a simple FAQ accordion or list.
-- **Implementation Standard**: Encapsulate the parser into an isolated component and dynamic-import it via `React.lazy()`:
-```tsx
-// 1. Separate component: src/components/help/MarkdownRenderer.tsx
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-
-export default function MarkdownRenderer({ content }: { content: string }) {
-  return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>;
-}
-
-// 2. Parent page: src/pages/HelpPage.tsx
-const MarkdownRenderer = React.lazy(() => import("@/components/help/MarkdownRenderer"));
-
-<React.Suspense fallback={<div className="text-xs text-muted-foreground">Đang hiển thị...</div>}>
-  <MarkdownRenderer content={message.content} />
-</React.Suspense>
-```
-- Drops route entry bundle by 80-90% (e.g. from 175 kB down to 18 kB), completely removing markdown AST compilation overhead from the critical render path.
-
-### 9.10. Heavy Export & Spreadsheet Isolation (xlsx, exceljs, pdf engines)
-In administrative dashboards and reporting modules with data export capabilities:
-- **Problem**: Statically importing spreadsheet generation engines (`xlsx`, `exceljs`, `jspdf`) or modals containing export formatting introduces massive 300-500 kB bundles into the primary route entry points, even though exports are only triggered on rare, deliberate user actions.
+### 9.5. Tier 1 Dynamic Overlays, Action Dialogs & Constant Isolation (`React.lazy`)
+Interactive modals, submission forms, review sheets, and delete confirmation dialogs must never be statically imported into route entry points:
+- **Problem A (Static Modal Imports)**: Statically importing dialog trees into table or list routes bloats the initial route bundle by 20–60 kB and forces the browser to parse form schemas and validation ASTs before the user interacts with the page.
+- **Problem B (Shared Constants Defeating `React.lazy`)**: When developers extract a modal into `React.lazy(() => import("./CreateRequestModal"))` but keep domain constants (`REQUEST_TYPES`, status badges) inside `CreateRequestModal.tsx` and statically import those constants into the parent list view, the bundler (Vite/Rollup/Webpack) is forced to bundle the entire modal file back into the initial route chunk.
 - **Implementation Standard**:
-  1. Always isolate export dialogs and spreadsheet generation modules into dynamic on-demand imports:
+  1. Extract shared constants, types, and lightweight helpers into a standalone `*-constants.ts` or `*-utils.ts` file.
+  2. Dynamically import all dialogs via `React.lazy()` and render them conditionally inside `<React.Suspense fallback={null}>`:
      ```tsx
-     // In Dashboard or Payroll client component:
-     const PayrollExportModal = React.lazy(() =>
-       import("./payroll/PayrollExportModal").then((m) => ({ default: m.PayrollExportModal }))
-     );
-
-     <React.Suspense fallback={null}>
-       {isExportOpen && (
-         <PayrollExportModal
-           open={isExportOpen}
-           onClose={() => setIsExportOpen(false)}
-           data={payrollData}
-         />
-       )}
-     </React.Suspense>
-     ```
-  2. In export helper modules, dynamically import spreadsheet libraries (`await import("xlsx")`) inside the trigger handler:
-     ```typescript
-     export async function exportToXLSX(data: any[], filename: string) {
-       const XLSX = await import("xlsx");
-       const wb = XLSX.utils.book_new();
-       // ... build sheets
-       XLSX.writeFile(wb, `${filename}.xlsx`);
-     }
-     ```
-  - Isolates 400+ kB of vendor code into on-demand chunks, keeping primary dashboard and table routes lightning-fast (<20 kB).
-
-### 9.11. Form Modal Extraction & Constant Isolation Pattern
-In dynamic Single-Page Applications and Progressive Web Apps:
-- **Problem**: When extracting form dialogs or creation modals into dynamic `React.lazy()` chunks, developers often keep domain constants (e.g. `REQUEST_TYPES`, status badges, validation lists) in the same file as the modal component. When the parent list/table component statically imports those constants to render badges or filter bars, the JavaScript bundler (Vite, Rollup, Webpack) is forced to bundle the entire modal form back into the initial chunk, silently defeating `React.lazy()`!
-- **Implementation Standard**:
-  1. Always isolate shared constants, types, and schema helpers into an independent, lightweight file (e.g. `*-constants.ts`):
-     ```typescript
-     // src/components/requests/request-constants.ts
-     export const REQUEST_TYPES = [
-       { value: "leave", label: "Xin nghỉ phép" },
-       { value: "late", label: "Đi muộn / Về sớm" },
-       { value: "overtime", label: "Tăng ca" },
-     ] as const;
-     ```
-  2. The parent list or table imports purely from `request-constants.ts`:
-     ```tsx
-     // src/components/requests/RequestListClient.tsx
      import { REQUEST_TYPES } from "./request-constants";
      const CreateRequestModal = React.lazy(() => import("./CreateRequestModal"));
+     const TaskReviewModal = React.lazy(() => import("./TaskReviewModal"));
 
-     // Render modal only on trigger:
-     {isOpen && (
-       <React.Suspense fallback={null}>
-         <CreateRequestModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
-       </React.Suspense>
-     )}
-     ```
-  3. The modal itself imports from `request-constants.ts` and exports as the default or named chunk.
-  - Ensures the modal form, input libraries, and validation schemas stay 100% quarantined in a separate on-demand chunk (<3 kB), keeping the list route bundle minimal and initial render instantaneous.
-
-### 9.12. Action Dialog Decoupling from Management Table Routes
-In administrative dashboards, audit suites, and operational management pages:
-- **Problem**: Table routes (such as `StaffTasksPage`, `SchedulePage`, `UserManager`) frequently statically import multiple action dialogs (create task dialog, review modal, rejection reason prompt, definition drawer). Even if the user only views or filters the table without triggering an action, the bundle still downloads and parses all modal ASTs, ballooning route entry chunks (>50 kB) and penalizing TBT/FCP.
-- **Implementation Standard**:
-  1. Statically import only the critical interactive table, KPI cards, and filter bar components:
-     ```tsx
-     import {
-       StaffTasksFilterBar,
-       StaffTasksTable,
-       StaffKpiStatsCards,
-     } from "@/components/tasks/staff";
-     ```
-  2. Dynamically import all action and confirmation dialogs via `React.lazy()`:
-     ```tsx
-     const StaffTaskFormDialog = React.lazy(() =>
-       import("@/components/tasks/staff").then((m) => ({ default: m.StaffTaskFormDialog }))
-     );
-     const TaskReviewModal = React.lazy(() =>
-       import("@/components/tasks/staff").then((m) => ({ default: m.TaskReviewModal }))
-     );
-     const CreateTaskDefinitionDialog = React.lazy(() =>
-       import("@/components/tasks/staff").then((m) => ({ default: m.CreateTaskDefinitionDialog }))
-     );
-     const TaskRejectDialog = React.lazy(() =>
-       import("@/components/tasks/staff").then((m) => ({ default: m.TaskRejectDialog }))
-     );
-     ```
-  3. Wrap each dialog in an independent `<React.Suspense fallback={null}>` boundary at the bottom of the page container.
-  - Drops management route entry chunks by **40% to 50%** (e.g. from 52.5 kB down to 28.4 kB), dramatically reducing Total Blocking Time and ensuring 60FPS fluid table interactions.
-
-### 9.13. Heavy Scheduling & Calendar Grid Chunk Quarantine
-In administrative scheduling interfaces and appointment booking platforms:
-- **Problem**: Scheduling pages (such as `SchedulePage`) frequently integrate full-featured calendar systems (`react-big-calendar`, `@fullcalendar/react`, drag-and-drop addons, date-fns/moment locales). Statically importing the calendar component directly into the route entry point inflates the initial bundle to **250-300 kB** (e.g. 286 kB), heavily damaging FCP, LCP, and TBT even for users who only wish to view alternative column/list views or toggle dates.
-- **Implementation Standard**:
-  1. Keep top-level headers, date-range controls, and view toggles in the primary lightweight route entry point (<10 kB).
-  2. Dynamically code-split both the heavy calendar view and alternative views via `React.lazy()`:
-     ```tsx
-     const ScheduleCalendar = React.lazy(
-       () => import("@/components/schedule/ScheduleCalendar")
-     );
-     const ScheduleColumnsView = React.lazy(
-       () => import("@/components/schedule/ScheduleColumnsView")
-     );
-     const UploadScheduleButton = React.lazy(
-       () => import("@/components/schedule/UploadScheduleButton")
-     );
-     ```
-  3. Wrap the view container in `<React.Suspense>` with a non-shifting animated skeleton fallback:
-     ```tsx
-     <React.Suspense
-       fallback={
-         <div className="p-12 text-center text-sm text-muted-foreground animate-pulse">
-           Đang tải giao diện lịch làm việc...
-         </div>
-       }
-     >
-       {viewMode === "calendar" ? (
-         <ScheduleCalendar events={events} onEventsChange={mutate} />
-       ) : (
-         <ScheduleColumnsView events={events} />
-       )}
+     <React.Suspense fallback={null}>
+       {isCreateOpen && <CreateRequestModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />}
+       {reviewTarget && <TaskReviewModal item={reviewTarget} onClose={() => setReviewTarget(null)} />}
      </React.Suspense>
      ```
-  - Drops the route entry chunk by **97.8%** (e.g. from 286.03 kB down to 6.25 kB), completely banishing calendar parsing delay from the critical path while preserving rich drag-and-drop calendar capabilities on demand.
+  - Isolates each modal into a 2–15 kB on-demand chunk loaded strictly upon user interaction, cutting initial route bundles by 40–60%.
 
-
-### 9.14. Data-Grid & Table Heavyweight Engine Chunk Quarantine
-In administrative data explorers, security audit explorers, and log auditing dashboards:
-- **Problem**: Table routes (such as `AuditLogPage`) frequently import full-featured headless data-table libraries (`@tanstack/react-table`, column helpers, pagination models, sorting, filtering logic). Statically bundling the table engine directly into the page entry point balloons the chunk to **50-70 kB** (e.g. 61.11 kB), bloating the route parse time even when users are navigating or switching filters.
-- **Implementation Standard**:
-  1. Extract the entire `@tanstack/react-table` setup, column definitions, table JSX, and pagination controls into a dedicated component (`AuditLogTable.tsx`).
-  2. In the top-level route page (`AuditLogPage.tsx`), remove `@tanstack/react-table` imports and dynamically import the table component via `React.lazy()`:
-     ```tsx
-     const AuditLogTable = React.lazy(() => import("@/components/admin/audit/AuditLogTable"));
-     ```
-  3. Wrap the table component in `<React.Suspense>` with a non-shifting animated skeleton fallback:
-     ```tsx
-     <React.Suspense
-       fallback={
-         <div className="h-64 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-xs text-slate-400">
-           Đang tải nhật ký...
-         </div>
-       }
-     >
-       <AuditLogTable
-         logs={logs}
-         totalPages={totalPages}
-         totalCount={totalCount}
-         pageIndex={pageIndex}
-         pageSize={pageSize}
-         setPageIndex={setPageIndex}
-         setPageSize={setPageSize}
-       />
-     </React.Suspense>
-     ```
-  - Reduces the route entry chunk by **>90%** (e.g. from 61.11 kB down to 4.30 kB), isolating data-grid parser weights until data arrives.
-
-### 9.15. Global Non-Recursive Image Error Fallback Guard
-Across user avatars, celebration widgets, mascot illustrations, and leaderboard podiums:
-- **Problem**: When rendering user or third-party image URLs, components frequently implement `onError={(e) => { (e.target as any).src = "/fallback.png"; }}`. If the fallback asset also fails (network offline, 404, or corrupted CDN), the `onError` event fires repeatedly in an infinite microtask loop, freezing the browser UI and causing high CPU spikes.
-- **Implementation Standard**:
-  Always neutralize the error listener before mutating `src`:
+### 9.6. Non-Recursive Image Error Fallback & CLS Avatar Guard
+Dynamic user profile avatars, leaderboard badges, and third-party CDN images:
+- **Problem A (CLS on Image Load)**: Images without explicit `width` and `height` attributes trigger layout shifts when rendering completes during scroll.
+- **Problem B (Infinite `onError` Microtask Loop)**: Writing `onError={(e) => { e.currentTarget.src = "/fallback.webp"; }}` without clearing `onerror` causes an infinite synchronous error loop if the fallback asset is also unreachable (offline mode, 404, or blocked CDN), locking the main thread at 100% CPU (`INP > 1000ms`).
+- **Implementation Standard**: Always declare explicit dimensions, lazy decoding, and neutralize `onerror` before assigning the fallback source:
   ```tsx
   <img
-    src={user?.image || "/fallback.webp"}
+    src={user?.avatar || "/icons/default-avatar.webp"}
     alt={user?.name || "User"}
+    width="32"
+    height="32"
     loading="lazy"
     decoding="async"
+    className="h-8 w-8 rounded-full object-cover"
     onError={(e) => {
-      e.currentTarget.onerror = null;
-      const target = e.currentTarget;
-      if (!target.src.endsWith("/fallback.webp")) {
-        target.src = "/fallback.webp";
+      e.currentTarget.onerror = null; // Prevent recursive error loop
+      if (!e.currentTarget.src.endsWith("/icons/default-avatar.webp")) {
+        e.currentTarget.src = "/icons/default-avatar.webp";
       }
     }}
   />
   ```
-  - Completely eliminates catastrophic recursive error loops on broken networks or misconfigured image CDNs.
 
-
-### 9.16. UI Primitive Isolation & Selector Chunk Decoupling
-In mobile web applications, staff PWAs, and client-facing dashboards:
-- **Problem**: Host views (such as `PayrollView`) often statically import selector bars or dropdown pickers (`PayrollMonthSelector`) that encapsulate heavy UI primitives (`@radix-ui/react-select`, Popper, floating-ui, portal wrappers). Statically bundling these selectors directly into the route entry point inflates the initial view chunk to **30-40 kB** (e.g. 33.64 kB), penalizing TBT and initial parse time for users who only want to view default-period data.
+### 9.7. Tier 2 Heavy Vendor Engines, Secondary Tabs & Below-the-Fold Quarantine
+Heavy third-party rendering engines, secondary management tabs, and below-the-fold data tables must be quarantined from the critical route shell:
+- **Target Candidates for Quarantine**:
+  - **Rich Text & AST Parsers**: `react-markdown`, `remark-gfm`, `highlight.js` (100–200 kB).
+  - **Scheduling & Data Grids**: `react-big-calendar`, `@fullcalendar/react` (250–300 kB), `@tanstack/react-table` (50–70 kB).
+  - **Canvas, Charts & Particle Physics**: `recharts`, `lightweight-charts`, `canvas-confetti`, `lottie-web`.
+  - **Heavy UI Primitives & Below-the-Fold Feeds**: `@radix-ui/react-select` pickers, multi-metric leaderboard grids, podium views, and secondary operational history tabs.
+  - **Spreadsheet & PDF Exporters**: `xlsx`, `exceljs`, `jspdf` (300–500 kB).
 - **Implementation Standard**:
-  1. Extract the selector into a standalone component (`PayrollMonthSelector.tsx`).
-  2. In the host view (`PayrollView.tsx`), dynamically import the selector via `lazy()`:
+  1. Keep only the lightweight route header, primary KPI summary tiles, and tab navigation bar in the static route entry chunk (`<10 kB`).
+  2. Wrap secondary tabs, heavy data tables, and chart/calendar views in `React.lazy()` with dimension-matched `<React.Suspense>` skeleton fallbacks (`h-64` / `h-96`) so CLS remains `0.000`:
      ```tsx
-     const PayrollMonthSelector = lazy(() => import("@/components/PayrollMonthSelector"));
-     ```
-  3. Wrap the selector in `<Suspense>` with a non-shifting placeholder skeleton matching the control's exact height:
-     ```tsx
-     <Suspense fallback={<div className="h-9 w-full bg-slate-100 rounded-md animate-pulse" />}>
-       <PayrollMonthSelector current={`${selectedYear}-${selectedMonth}`} options={monthOptions} onSelect={handleMonthChange} />
-     </Suspense>
-     ```
-  - Isolates Radix Select primitives into an on-demand chunk, dropping the initial host view chunk by **~90%** (e.g. from 33.64 kB down to 3.61 kB).
+     const ScheduleCalendar = React.lazy(() => import("@/components/schedule/ScheduleCalendar"));
+     const AuditLogTable = React.lazy(() => import("@/components/admin/audit/AuditLogTable"));
 
-### 9.17. Submission Form Modal Extraction Pattern
-In activity logs, task lists, and piece-rate reporting views:
-- **Problem**: Views (such as `CarryingView`, `PackingView`) often inline their submission modal forms (inputs, validation schema, error states, submit API helpers, and toast notifications) directly in the same file. Even when users only navigate to inspect existing history or read conversion tables, the browser must parse the entire modal form machinery, doubling bundle size (18-20 kB).
-- **Implementation Standard**:
-  1. Extract the modal form and its input handlers into an isolated component (`CarryingSubmitModal.tsx`, `PackingSubmitModal.tsx`).
-  2. Dynamically import via `React.lazy()` and render conditionally wrapped in `<Suspense fallback={null}>`:
-     ```tsx
-     const CarryingSubmitModal = React.lazy(() => import("@/components/carrying/CarryingSubmitModal"));
-
-     {selectedTaskDef && (
-       <Suspense fallback={null}>
-         <CarryingSubmitModal taskDef={selectedTaskDef} onClose={() => setSelectedTaskDef(null)} onSuccess={mutate} />
-       </Suspense>
-     )}
-     ```
-  - Reduces parent view chunk sizes by **>50%** (e.g. from 18.18 kB down to 8.78 kB), deferring modal code until the user actually taps the action button.
-
-### 9.18. Interactive Mini-Game & Particle Physics Quarantine
-In employee gamification views, reward spinners, celebration flows, and mobile PWAs:
-- **Problem**: Interactive mini-games (e.g. `LuckyWheelGame`) frequently import heavy third-party animation engines, particle physics libraries (`canvas-confetti`, `lottie-web`, physics engines), and modal confirmation trees. Statically importing these games directly into high-level view components (such as `LuckyWheelView`) forces the browser to download and parse canvas physics on initial view load, ballooning chunk sizes and degrading Total Blocking Time on mobile devices.
-- **Implementation Standard**:
-  1. Isolate the game canvas and animation dependencies into a dedicated subcomponent (`LuckyWheelGame.tsx`).
-  2. Dynamically import the game component via `lazy()` in the host view:
-     ```tsx
-     const LuckyWheelGame = lazy(() => import("@/components/LuckyWheelGame"));
-     ```
-  3. Wrap the game in `<React.Suspense>` with a non-shifting placeholder skeleton matching the canvas dimensions:
-     ```tsx
-     <React.Suspense
-       fallback={
-         <div className="h-64 w-full flex items-center justify-center text-xs text-stone-400 animate-pulse">
-           Đang tải vòng quay may mắn...
-         </div>
-       }
-     >
-       <LuckyWheelGame prizes={prizes} />
+     <React.Suspense fallback={<div className="h-96 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200" />}>
+       {viewMode === "calendar" ? <ScheduleCalendar events={events} /> : <AuditLogTable logs={logs} />}
      </React.Suspense>
      ```
-  - Quarantines `canvas-confetti` (10.6 kB+) and canvas physics out of the initial route entry chunk, dropping host view bundle sizes by **~65%** (e.g. from 5.1 kB down to 1.8 kB) and guaranteeing instant navigation.
-
-
-### 9.19. Leaderboard Multi-Metric Grid Extraction & High-Frequency List Decoupling
-In administrative reporting dashboards, team rankings, employee leaderboards, and productivity views:
-- **Problem**: Metric reporting pages (such as `ReportsPage`) frequently inline numerous rich ranking cards (`topHardworking`, `topDiscipline`, `topOvertime`, `topPacking`, `topCarrying`, `topLate`), complete with user avatars, status badges, medal icons, and formatting utilities. Statically bundling 6+ ranking lists directly into the main report page balloons initial JavaScript size to **12-15 kB**, forcing the browser to parse all cards before the month selector or summary stats can become interactive.
-- **Implementation Standard**:
-  1. Extract the entire leaderboard card collection into a dedicated component (`LeaderboardCards.tsx`).
-  2. Implement Section 9.15 Non-Recursive Image Error Fallback Guard on all avatar images:
+  3. For action-triggered export utilities (`xlsx` / `jspdf`), never import the helper file statically at the top of the page; dynamically `await import(...)` both the helper and vendor library inside the click handler:
      ```tsx
-     onError={(e) => {
-       e.currentTarget.onerror = null;
-       const target = e.currentTarget;
-       if (!target.src.endsWith("/icons/capy_dashboard.webp")) {
-         target.src = "/icons/capy_dashboard.webp";
-       }
-     }}
-     ```
-  3. In the host report page (`ReportsPage.tsx`), dynamically import `LeaderboardCards` via `React.lazy()`:
-     ```tsx
-     const LeaderboardCards = React.lazy(
-       () => import("@/components/admin/reports/LeaderboardCards")
-     );
-     ```
-  4. Wrap in `<React.Suspense>` with a non-shifting grid skeleton fallback matching the card layout:
-     ```tsx
-     <React.Suspense
-       fallback={
-         <div className="h-96 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-xs text-slate-400">
-           Đang tải bảng thành tích...
-         </div>
-       }
-     >
-       <LeaderboardCards report={report} />
-     </React.Suspense>
-     ```
-  - Reduces the top-level route entry chunk by **>70%** (e.g. from 12.85 kB down to 3.76 kB), enabling instantaneous tab and month switching while deferring card rendering until report data resolves.
-
-### 9.20. Podium Leaderboard & Tab Content Decoupling Pattern
-In gamification screens, reward hubs, and employee recognition views:
-- **Problem**: Reward views (such as `RewardsView.tsx`) frequently inline both top-3 podium graphics (`renderPodium`) and complete ranking lists (`renderLeaderboardList`) across 5+ metric tabs (Discipline, Hardworking, Overtime, Packing, Carrying). Inlining these heavy DOM trees into the top-level route component balloons the view chunk size to **7.02 kB**, forcing the browser to parse all tab renderings and podium styles before the user even sees the header or selects a tab.
-- **Implementation Standard**:
-  1. Extract the podium rendering, tab switching, and ranking lists into a standalone component (`RewardLeaderboardContent.tsx`).
-  2. Implement Section 9.15 Non-Recursive Image Error Fallback Guard on user avatars and capybara badges:
-     ```tsx
-     onError={(e) => {
-       e.currentTarget.onerror = null;
-       const target = e.currentTarget;
-       if (!target.src.endsWith("/capybara_mascot.webp")) {
-         target.src = "/capybara_mascot.webp";
-       }
-     }}
-     ```
-  3. In `RewardsView.tsx`, dynamically import `RewardLeaderboardContent` via `React.lazy()`:
-     ```tsx
-     const RewardLeaderboardContent = React.lazy(
-       () => import("@/components/rewards/RewardLeaderboardContent")
-     );
-     ```
-  4. Wrap in `<React.Suspense>` with a non-shifting placeholder skeleton matching the podium dimensions:
-     ```tsx
-     <React.Suspense
-       fallback={
-         <div className="h-96 w-full flex items-center justify-center text-xs text-slate-400 animate-pulse bg-slate-50/50 rounded-2xl border border-slate-100">
-           Đang tải bảng vinh danh...
-         </div>
-       }
-     >
-       <RewardLeaderboardContent activeTab={activeTab} leaderboard={leaderboard} isLoading={isLoading} />
-     </React.Suspense>
-     ```
-  - Reduces the initial view chunk size by **>42%** (e.g. from 7.02 kB down to 4.04 kB), deferring heavy podium DOM and ranking lists until the route shell is rendered.
-
-### 9.21. In-View Table & Administrative Heavy Modal Quarantine
-In enterprise management interfaces, task management views, and mobile check-in homes:
-- **Problem**: Admin task pages (such as `StaffTasksPage.tsx`) and mobile homes (such as `HomeCheckinView.tsx`) often statically bundle entire data tables (`StaffTasksTable`, `StaffKpiStatsCards`), holiday widgets (`SpecialDaysWidget`), or creation/submission modals (`TaskDetailModal`, `TaskSubmitModal`) directly into the route chunk. Statically importing these components inflates route entry files to **25-30 kB**, delaying interaction metrics (INP, TBT) even when the user only views summary statistics or filters.
-- **Implementation Standard**:
-  1. Dynamically import heavy table views and below-the-fold statistics cards using `React.lazy()`:
-     ```tsx
-     const StaffTasksTable = React.lazy(() =>
-       import("@/components/tasks/staff").then((m) => ({ default: m.StaffTasksTable }))
-     );
-     const StaffKpiStatsCards = React.lazy(() =>
-       import("@/components/tasks/staff").then((m) => ({ default: m.StaffKpiStatsCards }))
-     );
-     ```
-  2. Retain top-level filter bars and headers statically in the initial chunk for instant user feedback.
-  3. Wrap lazy components in `<React.Suspense>` with matching skeleton placeholders to prevent Layout Shifts (CLS):
-     ```tsx
-     <React.Suspense
-       fallback={
-         <div className="h-96 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-xs text-slate-400">
-           Đang tải danh sách công việc...
-         </div>
-       }
-     >
-       <StaffTasksTable ... />
-     </React.Suspense>
-     ```
-  4. Decouple action modals into lazy components wrapped with `<React.Suspense fallback={null}>` in staff PWAs:
-     ```tsx
-     const TaskDetailModal = React.lazy(() =>
-       import("@/components/tasks").then((m) => ({ default: m.TaskDetailModal }))
-     );
-     const TaskSubmitModal = React.lazy(() =>
-       import("@/components/tasks").then((m) => ({ default: m.TaskSubmitModal }))
-     );
-     ```
-  - Reduces top-level view chunk sizes by **~50%** (e.g. from 28.43 kB down to 14.50 kB in `StaffTasksPage`, and shaves 6 kB off `HomeCheckinView`), quarantining complex modal and table DOM until required.
-
-### 9.22. Heavy Tab List Decoupling & In-View On-Demand Marketplace Quarantine
-In enterprise workflow management, admin review portals, and gig/task marketplaces:
-- **Problem**: Tabbed views (such as `TasksPage.tsx` in management SPAs or `TasksView.tsx` in staff PWAs) often bundle complex review forms (`ReviewPendingTab`) or market item grids (`MarketTaskList`) into the initial route module. Even when users visit the page to check history or general tasks, statically imported review and market components inflate entry chunks to **12-15 kB**, forcing mobile and low-power devices to parse unnecessary DOM nodes and scoring math.
-- **Implementation Standard**:
-  1. Statically retain tab navigation bars, view headers, and lightweight types in the entry chunk to enable instant initial render.
-  2. Dynamically code-split heavy tab views and marketplace item lists using `React.lazy()`:
-     ```tsx
-     const ReviewPendingTab = React.lazy(() =>
-       import("@/components/tasks/wfh").then((m) => ({ default: m.ReviewPendingTab }))
-     );
-     const MarketTaskList = React.lazy(() =>
-       import("@/components/tasks").then((m) => ({ default: m.MarketTaskList }))
-     );
-     ```
-  3. Wrap each lazy tab within `<React.Suspense>` using non-shifting pulse skeleton fallbacks:
-     ```tsx
-     <React.Suspense
-       fallback={
-         <div className="h-64 w-full animate-pulse rounded-2xl bg-stone-100 flex items-center justify-center text-xs text-stone-400">
-           Đang tải chợ nhiệm vụ...
-         </div>
-       }
-     >
-       <MarketTaskList items={marketItems} ... />
-     </React.Suspense>
-     ```
-  - Reduces initial route chunk sizes by **>25-50%** (e.g. `TasksPage` dropped from 12.3 kB to 8.9 kB, and `WfhTaskTabs` dropped from 3.3 kB to 1.3 kB), completely removing review math and market DOM from the critical hydration path.
-
-### 9.23. Heavy Historical List Extraction & Complex Detail Table Quarantine
-In administrative detail portals, piece-rate gig records, and employee profile views:
-- **Problem**: Comprehensive detail pages (such as `EmployeeDetailPage.tsx` or `CarryingView.tsx`) frequently inline complete chronological attendance logs (`dailyDetails` table with checkin/checkout/hours formatting) or historical submission lists (`CarryingHistoryList` with rejection reasons, evidence anchors, and modal re-submit handlers) directly into the parent view module. Bundling these non-critical, below-the-fold list templates inflates route chunks to **14-17 kB**, creating unnecessary DOM complexity and blocking main-thread responsiveness.
-- **Implementation Standard**:
-  1. Extract the heavy data table or historical list into an isolated, strongly-typed component (`EmployeeAttendanceTable.tsx` / `CarryingHistoryList.tsx`).
-  2. Retain top-level summary metrics, stat cards, and month selectors in the initial chunk so the view shell renders instantly without layout shifts.
-  3. Dynamically import the extracted table or history component via `React.lazy()`:
-     ```tsx
-     const EmployeeAttendanceTable = React.lazy(
-       () => import("@/components/admin/employee-detail/EmployeeAttendanceTable")
-     );
-     const CarryingHistoryList = React.lazy(
-       () => import("@/components/carrying/CarryingHistoryList")
-     );
-     ```
-  4. Wrap inside `<React.Suspense>` with matching skeleton placeholders:
-     ```tsx
-     <React.Suspense
-       fallback={
-         <div className="h-96 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-xs text-slate-400">
-           Đang tải bảng chấm công chi tiết...
-         </div>
-       }
-     >
-       <EmployeeAttendanceTable month={month} year={year} dailyDetails={stats?.dailyDetails} />
-     </React.Suspense>
-     ```
-  - Drops host view bundle sizes by **17-34%** (e.g. `EmployeeDetailPage` reduced from 12.13 kB to 10.01 kB, and `CarryingView` reduced from 8.6 kB to 5.7 kB), deferring detailed historical row rendering until the shell is ready.
-
-### 9.24. Heavy Client Export Quarantine & Secondary Tab Operational History Isolation
-In human resource management, piece-rate fulfillment, and transactional reporting views:
-- **Problem A (Top-Level Static Import of Heavy Export Libraries)**:
-  Administrative detail views (such as `EmployeePayrollPage.tsx`) frequently import Excel generation utilities (`import { exportSingleEmployeeXLSX } from "@/lib/payrollExport"`) at the top of the file. Even when `xlsx` itself is dynamically loaded inside the utility, the sheet builder functions, formatting ASTs, and utility wrappers (~10-15 kB) are bundled directly into the primary route entry chunk. Since administrators only occasionally export payroll sheets to Excel, loading this code on every page visit wastes memory and increases TBT.
-- **Implementation Standard**:
-  1. Remove static imports of export functions:
-     ```tsx
-     // AVOID: import { exportSingleEmployeeXLSX } from "@/lib/payrollExport";
-     ```
-  2. Load the export module strictly on-demand inside the user action event handler:
-     ```tsx
-     const handleDownload = async () => {
-       try {
-         const { exportSingleEmployeeXLSX } = await import("@/lib/payrollExport");
-         await exportSingleEmployeeXLSX(user, month, year, isClosed);
-         toast.success("Đã xuất phiếu lương Excel!");
-       } catch (err: any) {
-         toast.error("Lỗi khi xuất phiếu lương: " + (err?.message || ""));
-       }
+     const handleExport = async () => {
+       const { exportToXLSX } = await import("@/lib/payrollExport");
+       await exportToXLSX(rows, "payroll-report");
      };
      ```
-  3. Quarantining heavy modal triggers (such as `SendPayslipButton`) and daily detail breakdown tables (`EmployeePayrollDailyTable`) into dynamic `React.lazy()` chunks cuts the route entry chunk size by **>18%** (e.g. `EmployeePayrollPage` dropped from 11.0 kB to 9.0 kB).
 
-- **Problem B (Inlined Secondary Submission History in High-Frequency Worker Tools)**:
-  Mobile worker views (such as packing stations, warehouse fulfillment, or scanner inputs like `PackingView.tsx`) often include two tabs:
-  - Tab 1: Operational Input & Price List (used constantly throughout shifts).
-  - Tab 2: Historical Submission Log (used rarely to inspect past approved/rejected batches).
-  When Tab 2 is inlined directly into the view component, all history card templates, rejection banners, and resubmission handlers load on initial page mount.
-- **Implementation Standard**:
-  4. Extract the secondary history log into a dedicated lazy component (`PackingHistoryList.tsx`).
-  5. Dynamically import via `React.lazy()` behind `<Suspense>`:
-     ```tsx
-     const PackingHistoryList = React.lazy(
-       () => import("@/components/packing/PackingHistoryList")
-     );
-     ```
-  6. Provide a lightweight non-shifting skeleton loader in `<Suspense fallback={...}>`.
-  - Slashes worker view initial bundle sizes by **>32%** (e.g. `PackingView` dropped from 8.6 kB down to 5.81 kB), ensuring instant load times and seamless responsiveness on warehouse mobile devices.
-
-### 9.25. Dashboard Activity/Schedule Card Decoupling & Staff KPI Progress Banner Code-Splitting
-In administrative summary dashboards, retail management portals, and worker task views:
-- **Problem A (Inlined Secondary Dashboard Grid Cards)**:
-  Admin home dashboards (such as `DashboardPage.tsx`) frequently inline multiple secondary cards below top-level KPI widgets:
-  - "Hoạt động chấm công" (`CheckinActivityCard`): Detailed user avatar list, timestamp formatters, and status badges.
-  - "Lịch làm việc hôm nay" (`TodayScheduleCard`): Image avatars with error fallback guards, links, and shift time intervals.
-  Bundling both cards statically into `DashboardPage` inflates the route chunk to **10-17 kB**, parsing full DOM and image structures before administrators even inspect KPI summary tiles.
-- **Implementation Standard**:
-  1. Extract `CheckinActivityCard.tsx` and `TodayScheduleCard.tsx` into standalone components.
-  2. Implement Section 9.15 non-recursive `onError` fallback guards with explicit dimensions (`width="24" height="24" loading="lazy" decoding="async"`).
-  3. Dynamically import both cards in `DashboardPage.tsx` via `React.lazy()`:
-     ```tsx
-     const CheckinActivityCard = React.lazy(() => import("@/components/home/CheckinActivityCard"));
-     const TodayScheduleCard = React.lazy(() => import("@/components/home/TodayScheduleCard"));
-     ```
-  4. Wrap in `<React.Suspense>` using non-shifting skeleton fallbacks matching exact grid column spans:
-     ```tsx
-     <React.Suspense fallback={<div className="col-span-1 lg:col-span-4 h-64 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200" />}>
-       <CheckinActivityCard checkinsToday={checkinsToday} formatTime={formatTime} getShiftStatus={getShiftStatus} />
-     </React.Suspense>
-     <React.Suspense fallback={<div className="col-span-1 lg:col-span-3 h-64 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200" />}>
-       <TodayScheduleCard todayShifts={todayShifts} formatTime={formatTime} />
-     </React.Suspense>
-     ```
-  - Reduces `DashboardPage` chunk size by **>23.5%** (from 10.32 kB down to 7.89 kB), preserving initial responsiveness and 0ms TBT.
-
-- **Problem B (Heavy SVG & Gradient Banner Inlining in Mobile Task Views)**:
-  Worker task views (such as `StaffTasksView.tsx`) often display a top monthly KPI banner featuring multi-color gradient backgrounds (`bg-gradient-to-br from-indigo-900 via-indigo-950 to-violet-950`), ambient blur glow elements, SVG icons, and a 4-metric summary grid (`Đang làm`, `Chờ duyệt`, `Đã duyệt`, `Trễ hạn`). Bundling this banner directly into the view inflates chunk sizes to **7.8 kB+** and causes layout work during initial route transition.
-- **Implementation Standard**:
-  5. Extract the banner into `StaffTasksKpiBanner.tsx` and dynamically import via `React.lazy()`:
-     ```tsx
-     const StaffTasksKpiBanner = React.lazy(
-       () => import("@/components/tasks/staff/StaffTasksKpiBanner")
-     );
-     ```
-  6. Wrap in `<React.Suspense>` with an exact `h-28` skeleton fallback:
-     ```tsx
-     <React.Suspense fallback={<div className="h-28 w-full animate-pulse rounded-2xl bg-indigo-950/40" />}>
-       <StaffTasksKpiBanner monthlyRatePct={monthlyRatePct} monthlyKPI={monthlyKPI} />
-     </React.Suspense>
-     ```
-  - Drops `StaffTasksView` chunk size by **24%** (from 7.8 kB down to 5.9 kB), quarantining ambient blur layers and gradient rendering from the critical route entry path.
-
-### 9.26. Barrel Re-Export Dynamic Decoupling & In-View Check-in History Quarantine
-In administrative user management dashboards, employee directories, and mobile attendance views:
-- **Problem A (Barrel Re-Export Co-Bundling in Feature Modules)**:
-  When a host container (such as `UserManager.tsx`) statically imports a primary component (`UserCard`) from a folder barrel (`import { UserCard } from "./user-manager"`), while attempting to dynamically code-split modal dialogs from the same barrel:
+### 9.8. Barrel Re-Export (`index.ts`) Decoupling for Code-Splitting
+In Vite, Rollup, and Webpack applications using directory barrel files (`components/tasks/index.ts`):
+- **Problem**:
+  - **Static + Lazy Barrel Mixing**: Statically importing one symbol (`import { FilterBar } from "@/components/tasks"`) while lazy-loading another (`React.lazy(() => import("@/components/tasks").then(m => ({ default: m.TaskModal })))`) forces the bundler to pull the entire barrel and all re-exported modals into the initial entry chunk.
+  - **Lazy-Only Barrel Co-Bundling**: Even with zero static imports, pointing multiple `React.lazy()` calls to the same barrel index forces the bundler to emit a single monolithic shared chunk containing all re-exported tabs and dialogs.
+- **Implementation Standard**: Always bypass folder barrels (`index.ts`) in route entry points and lazy-loading hosts by importing directly from constituent module files:
   ```tsx
-  // ANTI-PATTERN: Pulls all dialogs into the main chunk!
-  import { UserCard } from "./user-manager";
-  const AddEmployeeDialog = React.lazy(() => import("./user-manager").then(m => ({ default: m.AddEmployeeDialog })));
+  // CORRECT: Direct constituent file imports preserve granular chunk splitting
+  import { StaffTasksFilterBar } from "@/components/tasks/staff/StaffTasksFilterBar";
+  const StaffTasksTable = React.lazy(() => import("@/components/tasks/staff/StaffTasksTable"));
+  const StaffTaskFormDialog = React.lazy(() => import("@/components/tasks/staff/StaffTaskFormDialog"));
   ```
-  Vite's bundler cannot isolate the lazy imports because the static import of `UserCard` forces `user-manager/index.ts` (and every module it re-exports) into the initial chunk.
-- **Implementation Standard**:
-  1. Completely decouple barrel imports in lazy-loading host components by referencing direct file paths:
-     ```tsx
-     import { UserCard } from "./user-manager/UserCard";
 
-     const AddEmployeeDialog = React.lazy(() =>
-       import("./user-manager/AddEmployeeDialog").then((m) => ({ default: m.AddEmployeeDialog }))
-     );
-     const EditEmployeeDatesDialog = React.lazy(() =>
-       import("./user-manager/EditEmployeeDatesDialog").then((m) => ({ default: m.EditEmployeeDatesDialog }))
-     );
-     const DeleteEmployeeDialog = React.lazy(() =>
-       import("./user-manager/DeleteEmployeeDialog").then((m) => ({ default: m.DeleteEmployeeDialog }))
-     );
-     ```
-  - Allows the bundler to split each heavy modal dialog into its own on-demand chunk (e.g. `AddEmployeeDialog` 4.49 kB, `EditEmployeeDatesDialog` 2.11 kB, `DeleteEmployeeDialog` 1.78 kB), freeing up initial memory.
-
-- **Problem B (Inlined Check-in History Lists in Mobile Views)**:
-  Staff attendance history views (such as `HistoryView.tsx`) often display an overview chart (Gantt) alongside an inlined chronological log card ("Chi tiết từng lượt" with status badges, date/time formatters, and note tooltips). Bundling both structures into the route module balloons the initial chunk.
-- **Implementation Standard**:
-  2. Extract the detailed history card into an isolated component (`CheckinHistoryTable.tsx`).
-  3. Dynamically import via `React.lazy()` behind `<React.Suspense>` with a non-shifting fixed skeleton loader:
-     ```tsx
-     const CheckinHistoryTable = React.lazy(
-       () => import("@/components/history/CheckinHistoryTable")
-     );
-     ```
-     ```tsx
-     <React.Suspense
-       fallback={
-         <div className="h-64 w-full animate-pulse rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-xs text-gray-400">
-           Đang tải lịch sử chấm công...
-         </div>
-       }
-     >
-       <CheckinHistoryTable history={history} isLoading={isLoading} />
-     </React.Suspense>
-     ```
-  - Slashes the initial route entry chunk size by **>44%** (from 3.2 kB down to 1.8 kB), accelerating initial render on low-bandwidth mobile connections.
-
-### 9.27. Barrel Decoupling on Critical SPA Entry Points & Client Table Code-Splitting
-In enterprise dashboards and mobile PWA landing routes:
-- **Problem A (Barrel Re-Export Co-Bundling on Primary Entry Points)**:
-  When a high-traffic host route (such as `HomeCheckinView.tsx` or `DashboardPage.tsx`) statically imports symbols from a directory barrel (`import { CheckinHeaderCard, CheckinTimerCard } from "@/components/home"`), while also dynamically code-splitting modal dialogs or secondary widgets from that same barrel:
-  ```tsx
-  // ANTI-PATTERN: Forces Vite to bundle all components exported by the barrel!
-  import { CheckinHeaderCard, CheckinTimerCard } from "@/components/home";
-  const RejectedTasksModal = React.lazy(() => import("@/components/home").then(m => ({ default: m.RejectedTasksModal })));
-  ```
-  Vite/Rollup must include the entire barrel index module into the host chunk. In mobile PWA setups, this pulls in heavy, rarely-used modals (`CheckinDutyModal`, `UncompletedDutiesModal`, `EarlyCheckoutModal`, `HomeTour`), bloating the initial home view chunk to 15+ kB.
-- **Implementation Standard**:
-  1. Eliminate barrel imports on critical route entry points by importing directly from constituent file paths:
-     ```tsx
-     import { CheckinHeaderCard } from "@/components/home/CheckinHeaderCard";
-     import { CheckinTimerCard } from "@/components/home/CheckinTimerCard";
-     import { LateWarningBanner } from "@/components/home/LateWarningBanner";
-     import { PartnerWelcomeBanner } from "@/components/home/PartnerWelcomeBanner";
-     import { HomeNavGrid } from "@/components/home/HomeNavGrid";
-     import { RejectedTasksAlertBanner } from "@/components/home/RejectedTasksAlertBanner";
-
-     const RejectedTasksModal = React.lazy(() =>
-       import("@/components/home/RejectedTasksModal").then((m) => ({ default: m.RejectedTasksModal }))
-     );
-     ```
-  - Reduces initial home entry chunk size by **-21.2%** (from 15.45 kB down to 12.17 kB) while isolating `RejectedTasksModal` to a 3.5 kB on-demand chunk.
-
-- **Problem B (Direct Monolithic Client Tables on Admin Management Pages)**:
-  Administrative routes (such as `RequestsPage.tsx` and `AnnouncementsPage.tsx`) frequently act as light wrappers around heavy data tables with filtering, creation modals, and action bars (`RequestAdminClient`, `AnnouncementAdminClient`). Statically importing these clients embeds 5+ kB of complex interaction logic directly into the route chunk.
-- **Implementation Standard**:
-  2. Dynamically import heavy administrative table clients via `React.lazy()` behind `<React.Suspense>` with dimension-preserving skeleton fallbacks:
-     ```tsx
-     const RequestAdminClient = React.lazy(
-       () => import("@/components/admin/RequestAdminClient")
-     );
-
-     export function RequestsPage() {
-       const { requests, mutate } = useRequests();
-       return (
-         <div className="space-y-6">
-           <React.Suspense
-             fallback={
-               <div className="h-96 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-xs text-slate-400">
-                 Đang tải danh sách yêu cầu nhân sự...
-               </div>
-             }
-           >
-             <RequestAdminClient requests={requests} onRefresh={mutate} />
-           </React.Suspense>
-         </div>
-       );
-     }
-     ```
-  - Slashes route entry chunks down to ~1.3 kB, accelerating admin SPA navigation speed.
-
-
-
-
-### 9.28. Granular Task Barrel Decoupling & Multi-Tab On-Demand Chunk Isolation
-In enterprise task workflows, administrative review portals, and worker task interfaces:
-- **Problem A (Barrel Re-Export Co-Bundling Across Deep Multi-Tab Views)**:
-  When complex task management views (such as `StaffTasksPage.tsx` or `TasksPage.tsx` in admin management, and `TasksView.tsx` or `StaffTasksView.tsx` in staff PWAs) statically import helper utilities or filter components from a feature directory barrel (`import { StaffTasksFilterBar, filterStaffTasks } from "@/components/tasks/staff"` or `import { WfhTaskTabs } from "@/components/tasks"`), while simultaneously attempting to lazy-load constituent tabs or modal dialogs from that same barrel:
-  ```tsx
-  // ANTI-PATTERN: Pulls all dialogs and tabs into the main entry chunk!
-  import { StaffTasksFilterBar } from "@/components/tasks/staff";
-  const StaffTasksTable = React.lazy(() => import("@/components/tasks/staff").then(m => ({ default: m.StaffTasksTable })));
-  const StaffTaskFormDialog = React.lazy(() => import("@/components/tasks/staff").then(m => ({ default: m.StaffTaskFormDialog })));
-  ```
-  Rollup and Vite are unable to tree-shake or code-split the lazy imports because the static import forces the barrel index module (and every dialog/tab it re-exports) directly into the page bundle. Consequently, modal forms, review dialogs, task creation forms, and secondary tabs are parsed on initial load, inflating initial JavaScript by 15-25 kB.
-- **Implementation Standard**:
-  1. Completely decouple barrel imports by targeting direct constituent file paths for both static and lazy imports:
-     ```tsx
-     // Admin Staff Tasks: Direct file paths for static utilities and lazy dialogs
-     import { StaffTasksFilterBar } from "@/components/tasks/staff/StaffTasksFilterBar";
-     import { computeStaffTaskDateRanges, filterStaffTasks } from "@/components/tasks/staff/staff-task-utils";
-
-     const StaffTasksTable = React.lazy(() =>
-       import("@/components/tasks/staff/StaffTasksTable").then((m) => ({ default: m.StaffTasksTable }))
-     );
-     const StaffKpiStatsCards = React.lazy(() =>
-       import("@/components/tasks/staff/StaffKpiStatsCards").then((m) => ({ default: m.StaffKpiStatsCards }))
-     );
-     const StaffTaskFormDialog = React.lazy(() =>
-       import("@/components/tasks/staff/StaffTaskFormDialog").then((m) => ({ default: m.StaffTaskFormDialog }))
-     );
-     const TaskReviewModal = React.lazy(() =>
-       import("@/components/tasks/staff/TaskReviewModal").then((m) => ({ default: m.TaskReviewModal }))
-     );
-     const CreateTaskDefinitionDialog = React.lazy(() =>
-       import("@/components/tasks/staff/CreateTaskDefinitionDialog").then((m) => ({ default: m.CreateTaskDefinitionDialog }))
-     );
-     const TaskRejectDialog = React.lazy(() =>
-       import("@/components/tasks/staff/TaskRejectDialog").then((m) => ({ default: m.TaskRejectDialog }))
-     );
-     ```
-  2. Apply the identical direct-import isolation pattern to staff PWA task views (`TasksView.tsx` and `StaffTasksView.tsx`):
-     ```tsx
-     // Staff PWA Tasks: Direct file paths
-     import { WfhTaskTabs } from "@/components/tasks/WfhTaskTabs";
-     import type { MarketItem, TaskDefItem, UserTaskRecord } from "@/components/tasks/WfhTaskTypes";
-
-     const MarketTaskList = React.lazy(() =>
-       import("@/components/tasks/MarketTaskList").then((m) => ({ default: m.MarketTaskList }))
-     );
-     const GeneralTaskList = React.lazy(() =>
-       import("@/components/tasks/GeneralTaskList").then((m) => ({ default: m.GeneralTaskList }))
-     );
-     const UserTaskHistoryList = React.lazy(() =>
-       import("@/components/tasks/UserTaskHistoryList").then((m) => ({ default: m.UserTaskHistoryList }))
-     );
-     const WfhTaskSubmitModal = React.lazy(() =>
-       import("@/components/tasks/WfhTaskSubmitModal").then((m) => ({ default: m.WfhTaskSubmitModal }))
-     );
-     ```
-  3. Configure Vitest test runner resilience for large test suites (`fileParallelism: false`, `testTimeout: 20000`) to avoid JSDOM concurrency thrashing while preserving 100% test pass fidelity.
-  - Successfully isolates 10+ heavyweight dialogs and tabs into discrete on-demand chunks (2 kB - 11 kB each), eliminating task parsing delays and guaranteeing instant mobile tab responsiveness.
-
-### 9.29. Next.js 16 RSC `<Suspense>` `div[hidden]#S:0` & React 19 Fizz `$RV` 2.3s Paint-Holding Trap
+### 9.9. Next.js 16 RSC `<Suspense>` `div[hidden]#S:0` & React 19 Fizz `$RV` 2.3s Paint-Holding Trap
 In Next.js 15/16 App Router pages with React 19 Server Components:
 - **Problem**: When a Server Component (`app/page.tsx`) has **already awaited** its data (`await getOverviewPayload()`) or `await props.searchParams`, wrapping the returned view inside `<Suspense fallback={<TabSkeleton />}>` or calling `useSearchParams()` inside a top-level Client Component (`HomeTabs`) triggers a CSR bailout inside that boundary (`<!--$?--><template id="B:0"></template>`).
   - Next.js streams the fallback skeleton in the visible document and places the **entire real SSR page inside `<div hidden id="S:0">`** at the bottom of the HTML.
@@ -1605,7 +936,7 @@ In Next.js 15/16 App Router pages with React 19 Server Components:
      # Must output 0
      ```
 
-### 9.30. Next.js 16 Turbopack Server-to-Client Manifest Merging (`entryJSFiles` Pollution)
+### 9.10. Next.js 16 Turbopack Server-to-Client Manifest Merging (`entryJSFiles` Pollution)
 In multi-tab Next.js 16 (Turbopack) dashboards where `app/page.tsx` branches by query parameter (`?tab=gold`, `?tab=usdt`, `?tab=salary`):
 - **Problem**: Turbopack computes `entryJSFiles['[project]/apps/web/app/page']` in `page_client-reference-manifest.js` by merging the client dependencies of **all** modules statically or dynamically imported by `app/page.tsx`. Even if secondary tabs are behind `if (tabParam === 'gold') { const { default: GoldTab } = await import('../components/tabs/GoldTab'); }` on the server, if `GoldTab` directly imports `'use client'` components (`GoldTabClient`), Turbopack injects `<script async>` tags into `<head>` on `/` for **every secondary tab's client libraries** (`recharts` 354 KB, `lightweight-charts` 172 KB, `@radix-ui` 84 KB — totaling 760+ KB across 10 chunks).
 - **Implementation Standard**:
@@ -1626,7 +957,7 @@ In multi-tab Next.js 16 (Turbopack) dashboards where `app/page.tsx` branches by 
      ```
   - Slashes `/page` initial `entryJSFiles` by **94.6%** (from `760 KB` / 10 chunks down to **`41.1 KB` / 2 chunks**).
 
-### 9.31. RSC Flight Payload (`self.__next_f.push`) Diet & Pre-Computed SSR Summaries
+### 9.11. RSC Flight Payload (`self.__next_f.push`) Diet & Pre-Computed SSR Summaries
 In data-intensive Next.js App Router dashboards:
 - **Problem**: Passing large raw datasets (such as 365-day historical OHLC/ROI series = `36.5 KB` or 15 news articles with duplicated AI summaries = `18 KB`) as props from a Server Component into a `'use client'` component forces Next.js to serialize the entire JSON structure into `<script>self.__next_f.push([1, ...])</script>` inside the initial HTML response — even when the initial viewport only displays 5 summary numbers and defers the interactive chart until user scroll/interaction.
 - **Implementation Standard**:
@@ -1635,19 +966,19 @@ In data-intensive Next.js App Router dashboards:
   3. Keep read-only article/news lists inside Server Components so their content is emitted once as HTML and never duplicated in `self.__next_f.push`.
   - Cuts RSC Flight JSON payload by **>60 KB**, accelerating HTML streaming and hydration on Slow 4G.
 
-### 9.32. Unused `next/font/google` Preload & `display: 'swap'` LCP Reset Trap
+### 9.12. Unused `next/font/google` Preload & `display: 'swap'` LCP Reset Trap
 In Next.js applications using Tailwind CSS:
 - **Problem**: Declaring a `next/font/google` font with `display: 'swap'` in `app/layout.tsx` triggers `<link rel="preload" as="font" type="font/woff2" crossorigin>` for 40–60 KB of WOFF2 files in `<head>`. On Slow 4G mobile connections, these font preloads compete with critical HTML/JS bandwidth, arrive around `2,200ms–2,500ms`, and trigger a font-swap repaint on hero headings (`<h1>`/`<h2>`) — **resetting Chrome's LCP timestamp from `1.0s` (FCP) to `2.5s` (`elementRenderDelay = 1,505ms`)**! Worse, if `tailwind.config.cjs` uses a system `font-sans` stack without referencing the font CSS variable, the preloaded WOFF2 files are 100% wasted bandwidth.
 - **Implementation Standard**:
   1. Audit `app/layout.tsx` and `tailwind.config.cjs`: if the UI uses system fonts (`font-sans`), remove `next/font/google` imports completely so zero WOFF2 preloads compete with critical path resources.
   2. When custom web fonts are required on above-the-fold hero headings, use `display: 'optional'` so late-arriving fonts on Slow 4G never trigger a post-FCP repaint that resets the LCP timer.
 
-### 9.33. Unlocking `bf-cache` on Dynamic Next.js Routes (`send-payload.js` `Cache-Control` Override)
+### 9.13. Unlocking `bf-cache` on Dynamic Next.js Routes (`send-payload.js` `Cache-Control` Override & Query Scoping)
 In Next.js App Router applications using `export const dynamic = 'force-dynamic'` or `export const revalidate = 0`:
 - **Problem**: Next.js (`next/dist/server/send-payload.js`) automatically sets `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate` on dynamic routes. The `no-store` directive explicitly disables Chrome's Back/Forward Cache (`bf-cache: score = 0`, `MainResourceHasCacheControlNoStore`). Additionally, `public/` files like `/manifest.json` default to `Cache-Control: public, max-age=0`, adding a 250ms–800ms origin round-trip to Lighthouse's `network-dependency-tree-insight`.
 - **Implementation Standard**:
   - In `next/dist/server/send-payload.js`, Next.js checks `if (cacheControl && !res.getHeader('Cache-Control'))` — meaning any `Cache-Control` header configured in `next.config.mjs` `async headers()` is preserved and **not overwritten** by `revalidate = 0`.
-  - Configure `async headers()` in `next.config.mjs` to replace `no-store` with `public, max-age=0, s-maxage=30, stale-while-revalidate=3600` on dynamic pages and long-lived caching on static metadata/icons:
+  - When a route `/` renders different content based on `?tab=*` query parameters and sits behind a reverse proxy or CDN that might not include query strings in its default cache key, scope `s-maxage=30` strictly to `/` requests **without** `tab` (`missing: [{ type: 'query', key: 'tab' }]`) and serve `private, no-cache, max-age=0, must-revalidate` (without `no-store`) for `/?tab=*`:
     ```javascript
     async headers() {
       return [
@@ -1663,6 +994,7 @@ In Next.js App Router applications using `export const dynamic = 'force-dynamic'
         },
         {
           source: '/',
+          missing: [{ type: 'query', key: 'tab' }],
           headers: [
             {
               key: 'Cache-Control',
@@ -1670,38 +1002,17 @@ In Next.js App Router applications using `export const dynamic = 'force-dynamic'
             },
           ],
         },
+        {
+          source: '/',
+          has: [{ type: 'query', key: 'tab' }],
+          headers: [
+            {
+              key: 'Cache-Control',
+              value: 'private, no-cache, max-age=0, must-revalidate',
+            },
+          ],
+        },
       ];
     },
     ```
-  - Unlocks **100% Back/Forward Cache (`bf-cache: score = 1`)**, enables 30s Cloudflare edge micro-caching with instant browser revalidation (`max-age=0`), and eliminates `/manifest.json` from the critical network dependency tree.
-
-### 9.34. Lazy-Only Barrel Co-Bundling Elimination & Operational Tab List Extraction
-In multi-tab management portals and piece-rate operational views:
-- **Problem A (Lazy-Only Barrel Co-Bundling in Multi-Tab Pages)**:
-  Even when a page (such as `ManagerTasksPage.tsx`) contains **zero static imports** from a directory barrel (`@/components/tasks/manager`), pointing multiple `React.lazy(() => import("@/components/tasks/manager").then(...))` calls to the same barrel index forces Vite/Rollup to emit a single monolithic shared chunk containing every re-exported tab and modal dialog (`DailyChecklistTab`, `TemplatesTab`, `HistoryTab`, `CreateChecklistDialog`, `EditChecklistDialog`). Opening the default tab downloads and parses all secondary tabs and dialogs simultaneously.
-- **Implementation Standard**:
-  1. Point every `React.lazy()` call directly to its constituent module file rather than the folder barrel:
-     ```tsx
-     const DailyChecklistTab = React.lazy(() =>
-       import("@/components/tasks/manager/DailyChecklistTab").then((m) => ({ default: m.DailyChecklistTab }))
-     );
-     const TemplatesTab = React.lazy(() =>
-       import("@/components/tasks/manager/TemplatesTab").then((m) => ({ default: m.TemplatesTab }))
-     );
-     const HistoryTab = React.lazy(() =>
-       import("@/components/tasks/manager/HistoryTab").then((m) => ({ default: m.HistoryTab }))
-     );
-     const CreateChecklistDialog = React.lazy(() =>
-       import("@/components/tasks/manager/CreateChecklistDialog").then((m) => ({ default: m.CreateChecklistDialog }))
-     );
-     const EditChecklistDialog = React.lazy(() =>
-       import("@/components/tasks/manager/EditChecklistDialog").then((m) => ({ default: m.EditChecklistDialog }))
-     );
-     ```
-  - Splits the monolithic barrel into 5 independent on-demand chunks (`DailyChecklistTab` 19.0 kB, `HistoryTab` 8.3 kB, `TemplatesTab` 5.4 kB, `EditChecklistDialog` 2.9 kB, `CreateChecklistDialog` 2.8 kB).
-
-- **Problem B (Inlined Primary Tab Conversion Tables in Multi-Tab Worker Views)**:
-  In mobile worker views (`CarryingView.tsx`), even after extracting Tab 2 (`CarryingHistoryList`) and the submission modal (`CarryingSubmitModal`), keeping Tab 1's conversion card grid ("Bảng quy đổi điểm") inlined in the parent route shell forces the view chunk to bundle card mapping, point badges, and action triggers before the header and summary tiles render.
-- **Implementation Standard**:
-  2. Extract the Tab 1 conversion grid into a dedicated component (`CarryingConversionList.tsx`) and lazy-load it via `React.lazy()` wrapped in `<Suspense>` with a fixed-height skeleton fallback (`h-64`).
-  - Drops `CarryingView` route shell size by another **16%** (from 5.66 kB to 4.76 kB) while isolating the conversion list into a 1.41 kB chunk.
+  - Unlocks **100% Back/Forward Cache (`bf-cache: score = 1`)** across both `/` and `/?tab=*`, prevents CDN query-key collisions, and eliminates `/manifest.json` from the critical network dependency tree.
