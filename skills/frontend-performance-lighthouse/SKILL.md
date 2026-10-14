@@ -1474,4 +1474,58 @@ In administrative user management dashboards, employee directories, and mobile a
      ```
   - Slashes the initial route entry chunk size by **>44%** (from 3.2 kB down to 1.8 kB), accelerating initial render on low-bandwidth mobile connections.
 
+### 9.27. Barrel Decoupling on Critical SPA Entry Points & Client Table Code-Splitting
+In enterprise dashboards and mobile PWA landing routes:
+- **Problem A (Barrel Re-Export Co-Bundling on Primary Entry Points)**:
+  When a high-traffic host route (such as `HomeCheckinView.tsx` or `DashboardPage.tsx`) statically imports symbols from a directory barrel (`import { CheckinHeaderCard, CheckinTimerCard } from "@/components/home"`), while also dynamically code-splitting modal dialogs or secondary widgets from that same barrel:
+  ```tsx
+  // ANTI-PATTERN: Forces Vite to bundle all components exported by the barrel!
+  import { CheckinHeaderCard, CheckinTimerCard } from "@/components/home";
+  const RejectedTasksModal = React.lazy(() => import("@/components/home").then(m => ({ default: m.RejectedTasksModal })));
+  ```
+  Vite/Rollup must include the entire barrel index module into the host chunk. In mobile PWA setups, this pulls in heavy, rarely-used modals (`CheckinDutyModal`, `UncompletedDutiesModal`, `EarlyCheckoutModal`, `HomeTour`), bloating the initial home view chunk to 15+ kB.
+- **Implementation Standard**:
+  1. Eliminate barrel imports on critical route entry points by importing directly from constituent file paths:
+     ```tsx
+     import { CheckinHeaderCard } from "@/components/home/CheckinHeaderCard";
+     import { CheckinTimerCard } from "@/components/home/CheckinTimerCard";
+     import { LateWarningBanner } from "@/components/home/LateWarningBanner";
+     import { PartnerWelcomeBanner } from "@/components/home/PartnerWelcomeBanner";
+     import { HomeNavGrid } from "@/components/home/HomeNavGrid";
+     import { RejectedTasksAlertBanner } from "@/components/home/RejectedTasksAlertBanner";
+
+     const RejectedTasksModal = React.lazy(() =>
+       import("@/components/home/RejectedTasksModal").then((m) => ({ default: m.RejectedTasksModal }))
+     );
+     ```
+  - Reduces initial home entry chunk size by **-21.2%** (from 15.45 kB down to 12.17 kB) while isolating `RejectedTasksModal` to a 3.5 kB on-demand chunk.
+
+- **Problem B (Direct Monolithic Client Tables on Admin Management Pages)**:
+  Administrative routes (such as `RequestsPage.tsx` and `AnnouncementsPage.tsx`) frequently act as light wrappers around heavy data tables with filtering, creation modals, and action bars (`RequestAdminClient`, `AnnouncementAdminClient`). Statically importing these clients embeds 5+ kB of complex interaction logic directly into the route chunk.
+- **Implementation Standard**:
+  2. Dynamically import heavy administrative table clients via `React.lazy()` behind `<React.Suspense>` with dimension-preserving skeleton fallbacks:
+     ```tsx
+     const RequestAdminClient = React.lazy(
+       () => import("@/components/admin/RequestAdminClient")
+     );
+
+     export function RequestsPage() {
+       const { requests, mutate } = useRequests();
+       return (
+         <div className="space-y-6">
+           <React.Suspense
+             fallback={
+               <div className="h-96 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-xs text-slate-400">
+                 Đang tải danh sách yêu cầu nhân sự...
+               </div>
+             }
+           >
+             <RequestAdminClient requests={requests} onRefresh={mutate} />
+           </React.Suspense>
+         </div>
+       );
+     }
+     ```
+  - Slashes route entry chunks down to ~1.3 kB, accelerating admin SPA navigation speed.
+
 
