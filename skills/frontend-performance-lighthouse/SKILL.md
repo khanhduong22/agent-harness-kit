@@ -1341,3 +1341,42 @@ In administrative detail portals, piece-rate gig records, and employee profile v
      </React.Suspense>
      ```
   - Drops host view bundle sizes by **17-34%** (e.g. `EmployeeDetailPage` reduced from 12.13 kB to 10.01 kB, and `CarryingView` reduced from 8.6 kB to 5.7 kB), deferring detailed historical row rendering until the shell is ready.
+
+### 9.24. Heavy Client Export Quarantine & Secondary Tab Operational History Isolation
+In human resource management, piece-rate fulfillment, and transactional reporting views:
+- **Problem A (Top-Level Static Import of Heavy Export Libraries)**:
+  Administrative detail views (such as `EmployeePayrollPage.tsx`) frequently import Excel generation utilities (`import { exportSingleEmployeeXLSX } from "@/lib/payrollExport"`) at the top of the file. Even when `xlsx` itself is dynamically loaded inside the utility, the sheet builder functions, formatting ASTs, and utility wrappers (~10-15 kB) are bundled directly into the primary route entry chunk. Since administrators only occasionally export payroll sheets to Excel, loading this code on every page visit wastes memory and increases TBT.
+- **Implementation Standard**:
+  1. Remove static imports of export functions:
+     ```tsx
+     // AVOID: import { exportSingleEmployeeXLSX } from "@/lib/payrollExport";
+     ```
+  2. Load the export module strictly on-demand inside the user action event handler:
+     ```tsx
+     const handleDownload = async () => {
+       try {
+         const { exportSingleEmployeeXLSX } = await import("@/lib/payrollExport");
+         await exportSingleEmployeeXLSX(user, month, year, isClosed);
+         toast.success("Đã xuất phiếu lương Excel!");
+       } catch (err: any) {
+         toast.error("Lỗi khi xuất phiếu lương: " + (err?.message || ""));
+       }
+     };
+     ```
+  3. Quarantining heavy modal triggers (such as `SendPayslipButton`) and daily detail breakdown tables (`EmployeePayrollDailyTable`) into dynamic `React.lazy()` chunks cuts the route entry chunk size by **>18%** (e.g. `EmployeePayrollPage` dropped from 11.0 kB to 9.0 kB).
+
+- **Problem B (Inlined Secondary Submission History in High-Frequency Worker Tools)**:
+  Mobile worker views (such as packing stations, warehouse fulfillment, or scanner inputs like `PackingView.tsx`) often include two tabs:
+  - Tab 1: Operational Input & Price List (used constantly throughout shifts).
+  - Tab 2: Historical Submission Log (used rarely to inspect past approved/rejected batches).
+  When Tab 2 is inlined directly into the view component, all history card templates, rejection banners, and resubmission handlers load on initial page mount.
+- **Implementation Standard**:
+  4. Extract the secondary history log into a dedicated lazy component (`PackingHistoryList.tsx`).
+  5. Dynamically import via `React.lazy()` behind `<Suspense>`:
+     ```tsx
+     const PackingHistoryList = React.lazy(
+       () => import("@/components/packing/PackingHistoryList")
+     );
+     ```
+  6. Provide a lightweight non-shifting skeleton loader in `<Suspense fallback={...}>`.
+  - Slashes worker view initial bundle sizes by **>32%** (e.g. `PackingView` dropped from 8.6 kB down to 5.81 kB), ensuring instant load times and seamless responsiveness on warehouse mobile devices.
