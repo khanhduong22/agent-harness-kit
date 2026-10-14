@@ -1380,3 +1380,47 @@ In human resource management, piece-rate fulfillment, and transactional reportin
      ```
   6. Provide a lightweight non-shifting skeleton loader in `<Suspense fallback={...}>`.
   - Slashes worker view initial bundle sizes by **>32%** (e.g. `PackingView` dropped from 8.6 kB down to 5.81 kB), ensuring instant load times and seamless responsiveness on warehouse mobile devices.
+
+### 9.25. Dashboard Activity/Schedule Card Decoupling & Staff KPI Progress Banner Code-Splitting
+In administrative summary dashboards, retail management portals, and worker task views:
+- **Problem A (Inlined Secondary Dashboard Grid Cards)**:
+  Admin home dashboards (such as `DashboardPage.tsx`) frequently inline multiple secondary cards below top-level KPI widgets:
+  - "Hoạt động chấm công" (`CheckinActivityCard`): Detailed user avatar list, timestamp formatters, and status badges.
+  - "Lịch làm việc hôm nay" (`TodayScheduleCard`): Image avatars with error fallback guards, links, and shift time intervals.
+  Bundling both cards statically into `DashboardPage` inflates the route chunk to **10-17 kB**, parsing full DOM and image structures before administrators even inspect KPI summary tiles.
+- **Implementation Standard**:
+  1. Extract `CheckinActivityCard.tsx` and `TodayScheduleCard.tsx` into standalone components.
+  2. Implement Section 9.15 non-recursive `onError` fallback guards with explicit dimensions (`width="24" height="24" loading="lazy" decoding="async"`).
+  3. Dynamically import both cards in `DashboardPage.tsx` via `React.lazy()`:
+     ```tsx
+     const CheckinActivityCard = React.lazy(() => import("@/components/home/CheckinActivityCard"));
+     const TodayScheduleCard = React.lazy(() => import("@/components/home/TodayScheduleCard"));
+     ```
+  4. Wrap in `<React.Suspense>` using non-shifting skeleton fallbacks matching exact grid column spans:
+     ```tsx
+     <React.Suspense fallback={<div className="col-span-1 lg:col-span-4 h-64 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200" />}>
+       <CheckinActivityCard checkinsToday={checkinsToday} formatTime={formatTime} getShiftStatus={getShiftStatus} />
+     </React.Suspense>
+     <React.Suspense fallback={<div className="col-span-1 lg:col-span-3 h-64 w-full animate-pulse rounded-xl bg-slate-50 border border-slate-200" />}>
+       <TodayScheduleCard todayShifts={todayShifts} formatTime={formatTime} />
+     </React.Suspense>
+     ```
+  - Reduces `DashboardPage` chunk size by **>23.5%** (from 10.32 kB down to 7.89 kB), preserving initial responsiveness and 0ms TBT.
+
+- **Problem B (Heavy SVG & Gradient Banner Inlining in Mobile Task Views)**:
+  Worker task views (such as `StaffTasksView.tsx`) often display a top monthly KPI banner featuring multi-color gradient backgrounds (`bg-gradient-to-br from-indigo-900 via-indigo-950 to-violet-950`), ambient blur glow elements, SVG icons, and a 4-metric summary grid (`Đang làm`, `Chờ duyệt`, `Đã duyệt`, `Trễ hạn`). Bundling this banner directly into the view inflates chunk sizes to **7.8 kB+** and causes layout work during initial route transition.
+- **Implementation Standard**:
+  5. Extract the banner into `StaffTasksKpiBanner.tsx` and dynamically import via `React.lazy()`:
+     ```tsx
+     const StaffTasksKpiBanner = React.lazy(
+       () => import("@/components/tasks/staff/StaffTasksKpiBanner")
+     );
+     ```
+  6. Wrap in `<React.Suspense>` with an exact `h-28` skeleton fallback:
+     ```tsx
+     <React.Suspense fallback={<div className="h-28 w-full animate-pulse rounded-2xl bg-indigo-950/40" />}>
+       <StaffTasksKpiBanner monthlyRatePct={monthlyRatePct} monthlyKPI={monthlyKPI} />
+     </React.Suspense>
+     ```
+  - Drops `StaffTasksView` chunk size by **24%** (from 7.8 kB down to 5.9 kB), quarantining ambient blur layers and gradient rendering from the critical route entry path.
+
