@@ -48,8 +48,13 @@ curl -sI https://your-domain.com/ | grep -iE "^(http/|cache-control|cdn-cache-co
 By default, Cloudflare only caches static file extensions (`.js`, `.css`, `.png`, `.woff2`, `.webp`) and marks all HTML routes (`content-type: text/html`) as `cf-cache-status: DYNAMIC`, forwarding every request across the ocean to the origin VPS.
 
 ### 2.2. The Next.js App Router RSC Cache Poisoning Trap (`Vary: RSC`)
-In Next.js App Router, client-side `<Link>` transitions send `GET /?tab=gold` with header `RSC: 1` (expecting a `text/x-component` Flight payload), whereas a browser reload sends `GET /?tab=gold` without `RSC: 1` (expecting `text/html`).
-- **Danger**: If you blindly enable "Cache Everything" on Cloudflare without accounting for the `RSC` request header, Cloudflare caches the HTML response and serves it to an RSC client navigation (or vice versa), breaking client routing!
+In Next.js App Router, client-side transitions (`router.push('/route')`, `router.replace('/route')`, `<Link prefetch>`) send `GET /route` **without** `?_rsc=` query parameters, distinguished only by the HTTP request header `RSC: 1` (expecting a `text/x-component` Flight payload starting with `:HL[...]`). Standard Cloudflare plans ignore `Vary: RSC` when caching HTML.
+- **Bidirectional Failure Modes if `RSC: 1` is Not Excluded at the Edge**:
+  1. **RSC Poisons HTML (Black Screen with `:HL[...]` Raw Text on Safari/Chrome)**: If an `RSC: 1` request hits a cold Cloudflare Edge PoP first, Cloudflare caches `content-type: text/x-component` (`:HL["/_next/static/chunks/...", "style"]...`) as the response for `https://domain.com/route`. Subsequent browser loads render raw Flight text on a black background.
+  2. **HTML Poisons RSC (App Router Crash on PWA Startup)**: If `text/html` is cached first, and the app opens `start_url` then runs `router.replace('/route')` with `RSC: 1`, Cloudflare returns `text/html` instead of Flight data, crashing Next.js into `global-error.tsx` after a 1-frame flash.
+- **Cloudflare Wirefilter Absent-Header Syntax Trap**:
+  - **NEVER** write `len(http.request.headers["rsc"]) eq 0` in Cloudflare Rulesets! When a header is absent, `http.request.headers["rsc"]` is `unset`, so `len(...) eq 0` evaluates to `false` for all normal browser requests and silently turns every page into `cf-cache-status: DYNAMIC`.
+  - **ALWAYS** use `not any(http.request.headers["rsc"][*] != "")` (or `ne ""`), which correctly evaluates to `true` when the `RSC` header is absent and `false` when `RSC: 1` is present.
 
 ### 2.3. Safe SSR HTML Edge Caching Standard (`CDN-Cache-Control` + Cache Rule)
 1. **Origin Headers (`next.config.mjs`) — Scope Edge Caching to Pure HTML Document Requests**:
@@ -93,7 +98,7 @@ In Next.js App Router, client-side `<Link>` transitions send `GET /?tab=gold` wi
    Create a single Cache Rule for public SSR HTML pages:
    - **Expression**:
      ```text
-     (http.host eq "your-domain.com" and http.request.method eq "GET" and not http.request.uri.path starts_with "/api/" and not http.request.uri.path starts_with "/_next/" and not any(http.request.headers["rsc"][*] ne "") and not any(http.request.headers["authorization"][*] ne ""))
+     (http.host eq "your-domain.com" and http.request.method eq "GET" and not http.request.uri.path starts_with "/api/" and not http.request.uri.path starts_with "/_next/" and not http.request.uri.query contains "_rsc" and not any(http.request.headers["rsc"][*] != "") and not any(http.request.headers["authorization"][*] != ""))
      ```
    - **Action**: `Eligible for cache` $\rightarrow$ **Edge TTL**: `Use cache-control header if present, bypass cache if not`.
 3. **Cloudflare Speed & Protocol Checklist**:
@@ -101,6 +106,22 @@ In Next.js App Router, client-side `<Link>` transitions send `GET /?tab=gold` wi
    - **0-RTT Connection Resumption**: `ON` (eliminates 1 full TLS round-trip for returning visitors).
    - **Early Hints (`103`)**: `ON` (allows Cloudflare to push `<link rel="preload">` CSS/JS headers while fetching HTML from origin).
    - **Brotli / Zstandard Compression**: `ON`.
+4. **Mandatory 3-Step Bidirectional Cache Isolation Verification**:
+   After deploying or updating any Cloudflare Cache Rule on a Next.js domain, ALWAYS run this verification sequence across cached routes:
+   ```bash
+   # 1. Warm HTML cache & confirm HIT with text/html
+   curl -sI https://your-domain.com/route >/dev/null
+   curl -sI https://your-domain.com/route | grep -iE "http/|content-type|cf-cache-status"
+   # Expected: content-type: text/html; charset=utf-8 AND cf-cache-status: HIT
+
+   # 2. Send RSC: 1 request & confirm DYNAMIC with text/x-component
+   curl -sI -H "RSC: 1" https://your-domain.com/route | grep -iE "http/|content-type|cf-cache-status"
+   # Expected: content-type: text/x-component AND cf-cache-status: DYNAMIC
+
+   # 3. Re-verify HTML request was not poisoned by RSC
+   curl -sI https://your-domain.com/route | grep -iE "http/|content-type|cf-cache-status"
+   # Expected: content-type: text/html; charset=utf-8 AND cf-cache-status: HIT
+   ```
 
 ---
 
