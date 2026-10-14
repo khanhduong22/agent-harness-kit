@@ -1529,3 +1529,149 @@ In enterprise dashboards and mobile PWA landing routes:
   - Slashes route entry chunks down to ~1.3 kB, accelerating admin SPA navigation speed.
 
 
+
+
+### 9.28. Granular Task Barrel Decoupling & Multi-Tab On-Demand Chunk Isolation
+In enterprise task workflows, administrative review portals, and worker task interfaces:
+- **Problem A (Barrel Re-Export Co-Bundling Across Deep Multi-Tab Views)**:
+  When complex task management views (such as `StaffTasksPage.tsx` or `TasksPage.tsx` in admin management, and `TasksView.tsx` or `StaffTasksView.tsx` in staff PWAs) statically import helper utilities or filter components from a feature directory barrel (`import { StaffTasksFilterBar, filterStaffTasks } from "@/components/tasks/staff"` or `import { WfhTaskTabs } from "@/components/tasks"`), while simultaneously attempting to lazy-load constituent tabs or modal dialogs from that same barrel:
+  ```tsx
+  // ANTI-PATTERN: Pulls all dialogs and tabs into the main entry chunk!
+  import { StaffTasksFilterBar } from "@/components/tasks/staff";
+  const StaffTasksTable = React.lazy(() => import("@/components/tasks/staff").then(m => ({ default: m.StaffTasksTable })));
+  const StaffTaskFormDialog = React.lazy(() => import("@/components/tasks/staff").then(m => ({ default: m.StaffTaskFormDialog })));
+  ```
+  Rollup and Vite are unable to tree-shake or code-split the lazy imports because the static import forces the barrel index module (and every dialog/tab it re-exports) directly into the page bundle. Consequently, modal forms, review dialogs, task creation forms, and secondary tabs are parsed on initial load, inflating initial JavaScript by 15-25 kB.
+- **Implementation Standard**:
+  1. Completely decouple barrel imports by targeting direct constituent file paths for both static and lazy imports:
+     ```tsx
+     // Admin Staff Tasks: Direct file paths for static utilities and lazy dialogs
+     import { StaffTasksFilterBar } from "@/components/tasks/staff/StaffTasksFilterBar";
+     import { computeStaffTaskDateRanges, filterStaffTasks } from "@/components/tasks/staff/staff-task-utils";
+
+     const StaffTasksTable = React.lazy(() =>
+       import("@/components/tasks/staff/StaffTasksTable").then((m) => ({ default: m.StaffTasksTable }))
+     );
+     const StaffKpiStatsCards = React.lazy(() =>
+       import("@/components/tasks/staff/StaffKpiStatsCards").then((m) => ({ default: m.StaffKpiStatsCards }))
+     );
+     const StaffTaskFormDialog = React.lazy(() =>
+       import("@/components/tasks/staff/StaffTaskFormDialog").then((m) => ({ default: m.StaffTaskFormDialog }))
+     );
+     const TaskReviewModal = React.lazy(() =>
+       import("@/components/tasks/staff/TaskReviewModal").then((m) => ({ default: m.TaskReviewModal }))
+     );
+     const CreateTaskDefinitionDialog = React.lazy(() =>
+       import("@/components/tasks/staff/CreateTaskDefinitionDialog").then((m) => ({ default: m.CreateTaskDefinitionDialog }))
+     );
+     const TaskRejectDialog = React.lazy(() =>
+       import("@/components/tasks/staff/TaskRejectDialog").then((m) => ({ default: m.TaskRejectDialog }))
+     );
+     ```
+  2. Apply the identical direct-import isolation pattern to staff PWA task views (`TasksView.tsx` and `StaffTasksView.tsx`):
+     ```tsx
+     // Staff PWA Tasks: Direct file paths
+     import { WfhTaskTabs } from "@/components/tasks/WfhTaskTabs";
+     import type { MarketItem, TaskDefItem, UserTaskRecord } from "@/components/tasks/WfhTaskTypes";
+
+     const MarketTaskList = React.lazy(() =>
+       import("@/components/tasks/MarketTaskList").then((m) => ({ default: m.MarketTaskList }))
+     );
+     const GeneralTaskList = React.lazy(() =>
+       import("@/components/tasks/GeneralTaskList").then((m) => ({ default: m.GeneralTaskList }))
+     );
+     const UserTaskHistoryList = React.lazy(() =>
+       import("@/components/tasks/UserTaskHistoryList").then((m) => ({ default: m.UserTaskHistoryList }))
+     );
+     const WfhTaskSubmitModal = React.lazy(() =>
+       import("@/components/tasks/WfhTaskSubmitModal").then((m) => ({ default: m.WfhTaskSubmitModal }))
+     );
+     ```
+  3. Configure Vitest test runner resilience for large test suites (`fileParallelism: false`, `testTimeout: 20000`) to avoid JSDOM concurrency thrashing while preserving 100% test pass fidelity.
+  - Successfully isolates 10+ heavyweight dialogs and tabs into discrete on-demand chunks (2 kB - 11 kB each), eliminating task parsing delays and guaranteeing instant mobile tab responsiveness.
+
+### 9.29. Next.js 16 RSC `<Suspense>` `div[hidden]#S:0` & React 19 Fizz `$RV` 2.3s Paint-Holding Trap
+In Next.js 15/16 App Router pages with React 19 Server Components:
+- **Problem**: When a Server Component (`app/page.tsx`) has **already awaited** its data (`await getOverviewPayload()`) or `await props.searchParams`, wrapping the returned view inside `<Suspense fallback={<TabSkeleton />}>` or calling `useSearchParams()` inside a top-level Client Component (`HomeTabs`) triggers a CSR bailout inside that boundary (`<!--$?--><template id="B:0"></template>`).
+  - Next.js streams the fallback skeleton in the visible document and places the **entire real SSR page inside `<div hidden id="S:0">`** at the bottom of the HTML.
+  - Worse, React 19's Fizz streaming runtime schedules `setTimeout($RV, 2300)` before revealing suspended boundaries if client chunks are still downloading. On Slow 4G mobile connections, this hides the already-rendered SSR HTML for 2.3+ seconds, turning an instant `1.0s` FCP into a **`3.5s–4.2s` LCP** with `elementRenderDelay > 2,600ms`.
+- **Implementation Standard**:
+  1. Never wrap already-awaited synchronous Server Component children in `<Suspense>`.
+  2. Read `const searchParams = await props?.searchParams` in the Server Component (`app/page.tsx`) and pass `initialTab={searchParams?.tab || 'overview'}` as a plain prop to the Client Component shell (`<HomeTabs initialTab={tabParam}>`), syncing back/forward navigation with `window.addEventListener('popstate', ...)` instead of `useSearchParams()`.
+  3. Delay non-critical client widgets (`WebVitalsWrapper`) until first user interaction (`pointerdown`, `keydown`, `scroll`, `touchstart`, `wheel`) rather than mounting them inside a root `<Suspense>` boundary.
+  4. **Verification Command**:
+     ```bash
+     curl -s https://your-domain.com | grep -c 'id="S:0"'
+     # Must output 0
+     ```
+
+### 9.30. Next.js 16 Turbopack Server-to-Client Manifest Merging (`entryJSFiles` Pollution)
+In multi-tab Next.js 16 (Turbopack) dashboards where `app/page.tsx` branches by query parameter (`?tab=gold`, `?tab=usdt`, `?tab=salary`):
+- **Problem**: Turbopack computes `entryJSFiles['[project]/apps/web/app/page']` in `page_client-reference-manifest.js` by merging the client dependencies of **all** modules statically or dynamically imported by `app/page.tsx`. Even if secondary tabs are behind `if (tabParam === 'gold') { const { default: GoldTab } = await import('../components/tabs/GoldTab'); }` on the server, if `GoldTab` directly imports `'use client'` components (`GoldTabClient`), Turbopack injects `<script async>` tags into `<head>` on `/` for **every secondary tab's client libraries** (`recharts` 354 KB, `lightweight-charts` 172 KB, `@radix-ui` 84 KB — totaling 760+ KB across 10 chunks).
+- **Implementation Standard**:
+  1. Keep the default landing tab (`OverviewTab`) as a pure Server Component:
+     - Replace `recharts` mini-sparklines on summary cards with a lightweight pure `<svg><polyline>` Server Component.
+     - Render initial news digests and static cards as Server Components inside `OverviewTab` rather than importing `'use client'` card wrappers.
+     - Use native `<a href="/?tab=usdt" data-tab-link="usdt">` links with event delegation on `<main onClick={handleMainClick}>` in `HomeTabs` instead of importing `next/link` into `OverviewTab`.
+  2. Quarantine all secondary tab `'use client'` subtrees behind a dedicated `'use client'` dynamic loader (`LazyTabContent.tsx`) that uses `next/dynamic(() => import('./UsdtTabClient'))`, and load `LazyTabContent` via `await import('../components/tabs/LazyTabContent')` only inside non-default branches of `app/page.tsx`.
+  3. **Verification Command**:
+     ```bash
+     node -e '
+     const fs = require("fs"), path = require("path");
+     globalThis.__RSC_MANIFEST = {};
+     eval(fs.readFileSync(".next/server/app/page_client-reference-manifest.js", "utf8"));
+     const files = globalThis.__RSC_MANIFEST["/page"].entryJSFiles["[project]/apps/web/app/page"];
+     files.forEach(f => console.log(f, (fs.statSync(path.join(".next", f)).size / 1024).toFixed(1) + " KB"));
+     '
+     ```
+  - Slashes `/page` initial `entryJSFiles` by **94.6%** (from `760 KB` / 10 chunks down to **`41.1 KB` / 2 chunks**).
+
+### 9.31. RSC Flight Payload (`self.__next_f.push`) Diet & Pre-Computed SSR Summaries
+In data-intensive Next.js App Router dashboards:
+- **Problem**: Passing large raw datasets (such as 365-day historical OHLC/ROI series = `36.5 KB` or 15 news articles with duplicated AI summaries = `18 KB`) as props from a Server Component into a `'use client'` component forces Next.js to serialize the entire JSON structure into `<script>self.__next_f.push([1, ...])</script>` inside the initial HTML response — even when the initial viewport only displays 5 summary numbers and defers the interactive chart until user scroll/interaction.
+- **Implementation Standard**:
+  1. Pre-compute compact summary maps on the server (`summaries: { '7d': ..., '30d': ..., '90d': ..., '180d': ..., '365d': ... }` = `~350 bytes`) and pass only `summaries` to the `'use client'` component for immediate SSR + hydration.
+  2. Fetch the full 365-day time series (`/api/market/matrix?days=365`) on the client strictly when `showChart` flips to `true` (on first user scroll, touch, pointerdown, or period click).
+  3. Keep read-only article/news lists inside Server Components so their content is emitted once as HTML and never duplicated in `self.__next_f.push`.
+  - Cuts RSC Flight JSON payload by **>60 KB**, accelerating HTML streaming and hydration on Slow 4G.
+
+### 9.32. Unused `next/font/google` Preload & `display: 'swap'` LCP Reset Trap
+In Next.js applications using Tailwind CSS:
+- **Problem**: Declaring a `next/font/google` font with `display: 'swap'` in `app/layout.tsx` triggers `<link rel="preload" as="font" type="font/woff2" crossorigin>` for 40–60 KB of WOFF2 files in `<head>`. On Slow 4G mobile connections, these font preloads compete with critical HTML/JS bandwidth, arrive around `2,200ms–2,500ms`, and trigger a font-swap repaint on hero headings (`<h1>`/`<h2>`) — **resetting Chrome's LCP timestamp from `1.0s` (FCP) to `2.5s` (`elementRenderDelay = 1,505ms`)**! Worse, if `tailwind.config.cjs` uses a system `font-sans` stack without referencing the font CSS variable, the preloaded WOFF2 files are 100% wasted bandwidth.
+- **Implementation Standard**:
+  1. Audit `app/layout.tsx` and `tailwind.config.cjs`: if the UI uses system fonts (`font-sans`), remove `next/font/google` imports completely so zero WOFF2 preloads compete with critical path resources.
+  2. When custom web fonts are required on above-the-fold hero headings, use `display: 'optional'` so late-arriving fonts on Slow 4G never trigger a post-FCP repaint that resets the LCP timer.
+
+### 9.33. Unlocking `bf-cache` on Dynamic Next.js Routes (`send-payload.js` `Cache-Control` Override)
+In Next.js App Router applications using `export const dynamic = 'force-dynamic'` or `export const revalidate = 0`:
+- **Problem**: Next.js (`next/dist/server/send-payload.js`) automatically sets `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate` on dynamic routes. The `no-store` directive explicitly disables Chrome's Back/Forward Cache (`bf-cache: score = 0`, `MainResourceHasCacheControlNoStore`). Additionally, `public/` files like `/manifest.json` default to `Cache-Control: public, max-age=0`, adding a 250ms–800ms origin round-trip to Lighthouse's `network-dependency-tree-insight`.
+- **Implementation Standard**:
+  - In `next/dist/server/send-payload.js`, Next.js checks `if (cacheControl && !res.getHeader('Cache-Control'))` — meaning any `Cache-Control` header configured in `next.config.mjs` `async headers()` is preserved and **not overwritten** by `revalidate = 0`.
+  - Configure `async headers()` in `next.config.mjs` to replace `no-store` with `public, max-age=0, s-maxage=30, stale-while-revalidate=3600` on dynamic pages and long-lived caching on static metadata/icons:
+    ```javascript
+    async headers() {
+      return [
+        {
+          source:
+            '/(manifest\\.json|icon\\.png|apple-icon\\.png|pwa-192x192\\.png|pwa-512x512\\.png|logo\\.png|llms\\.txt)',
+          headers: [
+            {
+              key: 'Cache-Control',
+              value: 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
+            },
+          ],
+        },
+        {
+          source: '/',
+          headers: [
+            {
+              key: 'Cache-Control',
+              value: 'public, max-age=0, s-maxage=30, stale-while-revalidate=3600',
+            },
+          ],
+        },
+      ];
+    },
+    ```
+  - Unlocks **100% Back/Forward Cache (`bf-cache: score = 1`)**, enables 30s Cloudflare edge micro-caching with instant browser revalidation (`max-age=0`), and eliminates `/manifest.json` from the critical network dependency tree.
+
