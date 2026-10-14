@@ -178,3 +178,13 @@ module.exports = {
 ```
 
 Reference: https://nextjs.org/docs/app/building-your-application/upgrading/from-webpack-to-turbopack
+
+## Turbopack Server-to-Client `entryJSFiles` Quarantine
+
+In Next.js 16 (Turbopack), `page_client-reference-manifest.js` merges the client dependencies of **every** module imported by `app/page.tsx` into `entryJSFiles['[project]/app/page']` — even when secondary tabs are conditionally loaded via `if (tab === 'gold') { const { default: GoldTab } = await import('./GoldTab') }` on the server!
+
+To prevent secondary tabs' client libraries (`recharts`, `lightweight-charts`, `@radix-ui`) from polluting the root page's initial `<script async>` tags:
+1. Keep the default landing view (`OverviewTab`) as a pure Server Component.
+2. Place all secondary tab `'use client'` trees behind a `'use client'` wrapper (`LazyTabContent.tsx`) that uses `next/dynamic(() => import('./GoldTabClient'))`.
+3. Dynamically `await import('./LazyTabContent')` only inside the non-default branches of `app/page.tsx`.
+
