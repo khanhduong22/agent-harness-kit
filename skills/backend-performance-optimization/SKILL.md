@@ -978,3 +978,69 @@ In piece-rate employee tracking, gig operations, and asynchronous managerial app
      }
      ```
   - Eliminates in-memory sorting on user task histories and provides index-only scans for manager checklist status checks.
+
+### 8.24. Dual-Network Blue-Green Container Attachment & Multi-Field Relational Filtering
+In multi-tier docker deployments, reverse proxies, and relational workflow pipelines:
+- **Problem A (Dual-Network Isolation in Blue-Green Candidate Rollout)**:
+  When running Blue-Green zero-downtime swaps on containerized REST APIs (e.g. `limart-api`), backing services (PostgreSQL `limart-db` and Valkey `limart-valkey`) typically reside on an isolated internal network (`<project>-infra`), while reverse proxies (Caddy/Nginx) live on a DMZ network (`ops_bridge`). If the candidate container (`limart-api_next`) is launched only with `--network ops_bridge`, it cannot resolve or connect to the internal database or cache. If the health probe only tests for `grep -q '"status":'`, a degraded response (`{"status":"degraded","db":"disconnected"}`) falsely passes the check, swapping a disconnected candidate into production!
+- **Implementation Standard**:
+  1. Immediately connect the candidate container to the internal backing network prior to migration checks or health probing:
+     ```bash
+     docker run -d --name "${CANDIDATE_API_CONTAINER}" --network "${NETWORK_NAME}" ...
+     if docker network inspect limart-infra >/dev/null 2>&1; then
+         docker network connect limart-infra "${CANDIDATE_API_CONTAINER}" 2>/dev/null || true
+         log_info "Connected candidate container to internal network 'limart-infra'."
+     fi
+     ```
+  2. Enforce strict health assertion checking for `"status":"ok"`:
+     ```bash
+     if docker exec "${CANDIDATE_API_CONTAINER}" wget -q -O - http://127.0.0.1:4000/health 2>/dev/null | grep -q '"status":"ok"'; then
+         CANDIDATE_HEALTHY=true
+     ```
+  - Guarantees candidate instances possess full access to backing stores and zero degraded instances are ever promoted to active.
+
+- **Problem B (Staff Home Invalidation on Request Workflow Transitions)**:
+  Staff request submissions (`POST /api/requests`) and admin review actions (`POST /requests/:id/action`, `approve`, `reject`) alter pending request counts. Failing to flush `staff:home:*` in the mutation batch forces staff dashboards to display stale pending counters until cache TTL expiry.
+- **Implementation Standard**:
+  3. Include `staff:home:*` in the invalidation batch on all request actions:
+     ```ts
+     await Promise.all([
+       invalidatePayrollCache(),
+       invalidateShiftDutyCache(),
+       invalidateCachePattern("user:requests:*"),
+       invalidateCachePattern("admin:requests:*"),
+       invalidateCachePattern("admin:dashboard*"),
+       invalidateCachePattern("staff:home:*"),
+     ]).catch(() => {});
+     ```
+
+- **Problem C (Multi-Field Relational Filtering & Expiration Pruning Indexes)**:
+  - User requests filter simultaneously by employee, request type, approval status, and chronological date (`WHERE userId = ? AND type = ? AND status = ? ORDER BY date DESC`).
+  - Task items filter by task definition template and active state (`WHERE taskDefId = ? AND status = ?`).
+  - Active session cleanup and lookups filter on session expiration (`WHERE expires < NOW()` or `WHERE userId = ? AND expires > NOW()`).
+  - Manager checklists sort active daily tasks by user-defined order (`WHERE assigneeId = ? AND active = ? ORDER BY "order" ASC`).
+- **Implementation Standard**:
+  4. Define composite indexes matching multi-field equality and sort keys:
+     ```prisma
+     model Request {
+       // ...
+       @@index([userId, type, status, date])
+     }
+
+     model TaskItem {
+       // ...
+       @@index([taskDefId, status])
+     }
+
+     model Session {
+       // ...
+       @@index([expires])
+       @@index([userId, expires])
+     }
+
+     model ManagerChecklistTask {
+       // ...
+       @@index([assigneeId, active, order])
+     }
+     ```
+  - Enables single-pass B-tree index scans for complex user requests, task templates, session validations, and ordered checklist views.
