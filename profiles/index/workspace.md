@@ -34,6 +34,15 @@ CATEGORY A: MONOREPO TOPOLOGY & CROSS-SERVICE ARCHITECTURE
       2. Pull latest `develop` branch of `index-web` (`git pull origin develop`).
       3. Start `index-web` locally (`next dev` / `bun run dev` on port 3000) connected to backend services.
       4. Execute Playwright browser E2E test runs against `index-web` to record verification videos (`--video=on`) demonstrating backend API fixes on the live web UI, upload recordings to Google Drive, and embed active links in PR handovers and Slack.
+- **Production & Dev/Staging Container Topology**:
+  - **`app_pro` (`38.146.27.88` — GitHub Runner `[app_pro]`)**: Hosts Nginx reverse proxy (`index.vn`, `indexcms.com`), shared static volumes (`/www/wwwroot/sitemaps`), and application containers:
+    - `index-admin-cms` (`gb_cms`): Blue-Green Strapi v5 containers `gb_cms-cms-blue-1` (`:1337`), `gb_cms-cms-green-1` (`:1338`), and `gb_cms-redis-1`.
+    - `index-web` (`gb_web_production`): `gb_web_production-app-1` (`:3006 -> :3000`) and `gb_web_production-redis-1`.
+    - `index-api` (`green_bull_api`): `green_bull_api-app-1` (`:3005`).
+  - **`data_pro` (`38.146.27.87` — GitHub Runner `[data_pro]`)**: Hosts database and data ingestion workloads:
+    - `index-admin-cms` DB: `gb_cms-db-1` (PostgreSQL `:5432`, accessed by `app_pro` via `DATABASE_HOST=38.146.27.87`, backed up via pgBackRest to Backblaze B2).
+    - `index-data` crawlers and pipelines.
+  - **Dev & Staging (`index-dev-api` — GitHub Runner `[self-hosted-stg]`)**: Co-locates Dev (`gb_cms_dev-app-1`, `gb_cms_dev-db-1`, `gb_web_dev-app-1`) and Staging (`gb_cms_stg-app-1`, `gb_cms_stg-db-1`, `gb_web_stg-app-1`) containers alongside Nginx (`dev.greenbull.dev`, `stg.greenbull.dev`).
 
 ## 3. Platform Boundaries & Constraints
 - **Database Safety**: Never run `prisma migrate reset` or drop databases. Database backups (`scripts/dump-db.sh`) must be taken before major schema operations.
