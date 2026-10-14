@@ -19,6 +19,13 @@ This skill standardizes the **Cold/Hot Incremental Generation + Nginx Zero-Copy 
 
 ## Architectural Principles
 
+> [!IMPORTANT]
+> **Service Placement Rule (CMS/Backend-Driven, Zero-FE Overhead)**:
+> Always place the sitemap generator engine, database queries, and `.sitemap-manifest.json` state inside the **CMS / Backend service** that owns the database and content lifecycles (e.g., `index-admin-cms`), **never** inside the Frontend SSR app (`index-web`):
+> 1. **Event-Driven Auto-Sync**: Hook debounced incremental regeneration (`scheduleIncrementalSitemapSync`) directly into CMS publish/update/delete lifecycles (`lifecycles.ts`) right before CDN cache purge.
+> 2. **Trigger & Status API**: Expose `POST /api/articles/sitemap/trigger` and `GET /api/articles/sitemap/status` on the CMS so Frontend or Ops only makes a single lightweight HTTP call if a manual trigger is needed.
+> 3. **Zero Frontend Loops**: Remove multi-query `lastmod` probes and unbounded `Promise.all` pagination loops from Frontend SSR routes to prevent socket pool exhaustion and Cloudflare 524 timeouts.
+
 ```mermaid
 flowchart TD
     subgraph Serving["1. Edge / Nginx Request Path"]
