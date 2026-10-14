@@ -396,10 +396,11 @@ When read endpoints cache domain or aggregate state (dashboards, monthly reports
        invalidateCachePattern("admin:dashboard*"),
      ]).catch(() => {});
      ```
-  2. Share global meta cache keys (`meta:lucky-wheel:prizes`, `meta:holidays:all`) across staff and admin routers so a single admin mutation immediately updates all consumer views.
+  2. Share global meta cache keys (`meta:lucky-wheel:prizes`, `meta:holidays:all`, `meta:documents:all`, `meta:task-definitions:*`) across staff, admin, and AI/RAG fallback routers (e.g. `POST /api/documents/chat` keyword fallback) so a single admin mutation or cached catalog serves all consumer views without uncached table scans.
+  3. Synchronize bi-directional task marketplace caches (`tasks:items:*`, `staff:tasks:*`, `admin:tasks:*`, `user:tasks:my:*`) across both admin definition/item mutations and staff task-claim actions (`POST /api/staff/tasks/claim`).
 
 ### 8.7. Composite B-Tree Index Synthesis: Equality First, Range/Sort Second & FK Cascades
-In PostgreSQL, single-column indexes on high-cardinality operational tables (`CheckIn`, `WorkShift`, `UserTask`, `StaffTask`, `SessionAuditLog`, `Payslip`, `Request`) force the planner into Bitmap Index Scans followed by expensive heap rechecks or in-memory/disk `Sort Key` operations. Furthermore, PostgreSQL does **not** automatically index child Foreign Key columns, causing sequential table scans during `onDelete: Cascade`.
+In PostgreSQL, single-column indexes on high-cardinality operational tables (`CheckIn`, `WorkShift`, `UserTask`, `TaskDefinition`, `StaffTask`, `SessionAuditLog`, `Payslip`, `Request`) force the planner into Bitmap Index Scans followed by expensive heap rechecks or in-memory/disk `Sort Key` operations. Furthermore, PostgreSQL does **not** automatically index child Foreign Key columns, causing sequential table scans during `onDelete: Cascade`.
 - **Implementation Standard**:
   1. **Equality First, Range/Sort Second**: Always order composite B-Tree index columns with exact equality predicates (`=`) first, followed by range (`BETWEEN`, `>=`, `<=`) or sort (`ORDER BY ... DESC`) columns:
      ```prisma
@@ -413,9 +414,16 @@ In PostgreSQL, single-column indexes on high-cardinality operational tables (`Ch
        @@index([userId, status, start, end])
      }
 
+     model TaskDefinition {
+       // WHERE unit = $1 AND active = true ORDER BY baseReward ASC
+       @@index([unit, active, baseReward])
+       @@index([active, name])
+     }
+
      model UserTask {
        // WHERE status = $1 AND taskDefId = $2 ORDER BY submittedAt DESC
        @@index([status, taskDefId, submittedAt])
+       @@index([userId, taskDefId, createdAt])
        @@index([userId, status, submittedAt])
      }
 
