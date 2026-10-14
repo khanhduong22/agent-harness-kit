@@ -1675,3 +1675,33 @@ In Next.js App Router applications using `export const dynamic = 'force-dynamic'
     ```
   - Unlocks **100% Back/Forward Cache (`bf-cache: score = 1`)**, enables 30s Cloudflare edge micro-caching with instant browser revalidation (`max-age=0`), and eliminates `/manifest.json` from the critical network dependency tree.
 
+### 9.34. Lazy-Only Barrel Co-Bundling Elimination & Operational Tab List Extraction
+In multi-tab management portals and piece-rate operational views:
+- **Problem A (Lazy-Only Barrel Co-Bundling in Multi-Tab Pages)**:
+  Even when a page (such as `ManagerTasksPage.tsx`) contains **zero static imports** from a directory barrel (`@/components/tasks/manager`), pointing multiple `React.lazy(() => import("@/components/tasks/manager").then(...))` calls to the same barrel index forces Vite/Rollup to emit a single monolithic shared chunk containing every re-exported tab and modal dialog (`DailyChecklistTab`, `TemplatesTab`, `HistoryTab`, `CreateChecklistDialog`, `EditChecklistDialog`). Opening the default tab downloads and parses all secondary tabs and dialogs simultaneously.
+- **Implementation Standard**:
+  1. Point every `React.lazy()` call directly to its constituent module file rather than the folder barrel:
+     ```tsx
+     const DailyChecklistTab = React.lazy(() =>
+       import("@/components/tasks/manager/DailyChecklistTab").then((m) => ({ default: m.DailyChecklistTab }))
+     );
+     const TemplatesTab = React.lazy(() =>
+       import("@/components/tasks/manager/TemplatesTab").then((m) => ({ default: m.TemplatesTab }))
+     );
+     const HistoryTab = React.lazy(() =>
+       import("@/components/tasks/manager/HistoryTab").then((m) => ({ default: m.HistoryTab }))
+     );
+     const CreateChecklistDialog = React.lazy(() =>
+       import("@/components/tasks/manager/CreateChecklistDialog").then((m) => ({ default: m.CreateChecklistDialog }))
+     );
+     const EditChecklistDialog = React.lazy(() =>
+       import("@/components/tasks/manager/EditChecklistDialog").then((m) => ({ default: m.EditChecklistDialog }))
+     );
+     ```
+  - Splits the monolithic barrel into 5 independent on-demand chunks (`DailyChecklistTab` 19.0 kB, `HistoryTab` 8.3 kB, `TemplatesTab` 5.4 kB, `EditChecklistDialog` 2.9 kB, `CreateChecklistDialog` 2.8 kB).
+
+- **Problem B (Inlined Primary Tab Conversion Tables in Multi-Tab Worker Views)**:
+  In mobile worker views (`CarryingView.tsx`), even after extracting Tab 2 (`CarryingHistoryList`) and the submission modal (`CarryingSubmitModal`), keeping Tab 1's conversion card grid ("Bảng quy đổi điểm") inlined in the parent route shell forces the view chunk to bundle card mapping, point badges, and action triggers before the header and summary tiles render.
+- **Implementation Standard**:
+  2. Extract the Tab 1 conversion grid into a dedicated component (`CarryingConversionList.tsx`) and lazy-load it via `React.lazy()` wrapped in `<Suspense>` with a fixed-height skeleton fallback (`h-64`).
+  - Drops `CarryingView` route shell size by another **16%** (from 5.66 kB to 4.76 kB) while isolating the conversion list into a 1.41 kB chunk.
