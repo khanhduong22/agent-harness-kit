@@ -1053,3 +1053,64 @@ In multi-route Next.js App Router applications where a shared Client Coordinator
   1. Use `window.history.replaceState({ tab: target }, '', targetRoute)` alongside `setCurrentTab(target)` for initial smart routing so the URL updates in **0ms** in memory with zero network round-trips.
   2. Set `prefetch={false}` on `<Link>` elements in tab bars whose `onClick` handlers switch tabs in memory via `e.preventDefault()`.
 
+### 9.16. React 19 Hydration Error `#418` DOM-Wipe Trap (Synchronous `localStorage` Reads in Initial Store State)
+In Next.js App Router / SSR applications using Zustand, Redux, or custom `AuthProvider` contexts:
+- **Problem**: Reading `localStorage` synchronously inside store initializers (`create(() => getInitialCachedState())` or `useState(() => readStorage())`) causes the client's first render pass (Frame 0) to output Logged-In DOM while the server-rendered HTML contains Guest/Skeleton DOM.
+  - React 19 throws `Minified React error #418`, **aborts hydration**, destroys the existing server-rendered DOM nodes (including fixed navigation bars like `<BottomNav>`), and rebuilds the entire component tree from scratch (`1,500ms–2,500ms` under 4x mobile CPU throttling).
+  - Any tap on `<BottomNav>` or interactive cards during this window hits a detached DOM node (`navReplaced === true`), causing clicks to be silently lost and making the app feel frozen for ~3 seconds on startup.
+- **Implementation Standard**:
+  1. Always initialize client stores (`useStore`) and `AuthProvider` with deterministic, SSR-identical defaults on Frame 0 (`uid: null`, `loading: true`) so `hydrateRoot` completes in `<30ms` with **0 hydration errors** and **0 DOM replacements** (`navReplaced === false`).
+  2. Restore cached `localStorage` state inside a post-mount `useEffect` wrapped in `React.startTransition`:
+     ```tsx
+     useEffect(() => {
+       React.startTransition(() => {
+         rehydrateFromLocalStorage();
+         setIsMounted(true);
+       });
+     }, [rehydrateFromLocalStorage]);
+     ```
+
+### 9.17. Next.js 16 Turbopack Dual-Chunk `next/dynamic` Pitfall & Synchronous Preload Cache (`createPreloadableTab`)
+In multi-tab Next.js 16 (Turbopack) applications with lazy-loaded tabs and interactive modals:
+- **Problem A (Turbopack Dual-Chunk Mismatch)**: Declaring `const Tab = dynamic(() => import('./Tab'))` while separately calling `import('./Tab')` in a preloader causes Turbopack's `next/dynamic` compiler transform to generate separate module loader wrappers, resulting in duplicate chunk evaluation or brief skeleton flashes on first switch.
+- **Problem B (`80ms–200ms` Preload Timers Polluting Lighthouse TBT)**: Firing `setTimeout(() => import(...), 80)` right after mount downloads and evaluates 150–300 KB of secondary tab/modal chunks right inside Lighthouse's FCP $\to$ TTI window (`0.9s–3.5s`), spiking Mobile TBT from `0ms` to `390ms–670ms`.
+- **Problem C (Full-Screen `loading` Backdrop Ambush)**: Passing a `fixed inset-0 z-[100]` loading backdrop to `next/dynamic` for an auto-triggered modal (e.g. streak/medal celebration on initial profile load) blocks the entire viewport while the modal chunk downloads on Slow 4G.
+- **Implementation Standard**:
+  1. **Single-Importer Synchronous Cache**: Use a single `loader` function that caches the resolved React component in memory so preloaded tabs/modals render synchronously on Frame 0 without waiting for an async boundary:
+     ```tsx
+     function createPreloadableTab<P extends object>(
+       loader: () => Promise<{ default?: React.ComponentType<P> }>,
+       Fallback: React.ComponentType
+     ) {
+       let Resolved: React.ComponentType<P> | null = null;
+       let promise: Promise<React.ComponentType<P>> | null = null;
+       const preload = () => {
+         if (!promise) {
+           promise = loader().then((m) => {
+             Resolved = (m.default || m) as React.ComponentType<P>;
+             return Resolved;
+           });
+         }
+         return promise;
+       };
+       const DynamicComp = dynamic(preload, { loading: () => <Fallback />, ssr: true });
+       const Wrapper: React.FC<P> = (props) => (Resolved ? <Resolved {...props} /> : <DynamicComp {...props} />);
+       return { Component: Wrapper, preload };
+     }
+     ```
+  2. **Gesture + Post-TTI Idle Preloading**: Trigger `preload()` immediately on `<BottomNav>` `onPointerEnter` / `onTouchStart` / `onPointerDown` and on the first window interaction (`pointerdown`, `touchstart`, `keydown`, `scroll`), with a `requestIdleCallback` fallback scheduled at `≥ 3,600ms` (strictly outside Lighthouse's TBT window).
+  3. **Seed Historical Milestones Silently on Mount**: Never auto-open celebration or "What's New" modals on initial hydration or first profile sync after PWA reinstall; only trigger celebration modals when XP transitions from `< 100` to `>= 100` during an active user action.
+
+### 9.18. Hidden Root Bundle Leaks (`app/global-error.tsx` Static `@sentry/nextjs` & Transitive Auth SDK Imports)
+When auditing initial `<script>` chunks in Next.js App Router applications:
+- **Problem**:
+  1. **`app/global-error.tsx`**: Next.js bundles `app/global-error.tsx` into the root client router tree on every page load. A top-level `import * as Sentry from "@sentry/nextjs"` inside `global-error.tsx` forces `@sentry/core` (`~51 KB`) into the initial page load even when Sentry client initialization is deferred in `app/layout.tsx`.
+  2. **Transitive Auth SDK Imports in Service Helpers**: If a secondary tab (`Profile`) imports an API helper (`notificationApi.ts`) that contains a top-level `import { auth } from '@/lib/firebase/firebaseConfig'`, preloading that tab immediately downloads and evaluates `firebase/auth` (`152 KB`), penalizing TBT and Unused JS (`>84%`).
+- **Implementation Standard**:
+  1. In `app/global-error.tsx`, remove top-level `@sentry/nextjs` imports and dynamically load Sentry inside `useEffect`:
+     ```tsx
+     useEffect(() => {
+       import("@sentry/nextjs").then((Sentry) => Sentry.captureException(error)).catch(() => {});
+     }, [error]);
+     ```
+  2. In API service modules, check fast `localStorage` session tokens (`winter_arc_session_token`) first and dynamically `await import('@/lib/firebase/firebaseConfig')` only inside the fallback path when the session token is absent.
