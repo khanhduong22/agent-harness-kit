@@ -1,6 +1,6 @@
 ---
 name: code-simplification
-description: Simplifies code for clarity. Use when refactoring code for clarity without changing behavior. Use when code works but is harder to read, maintain, or extend than it should be. Use when reviewing code that has accumulated unnecessary complexity.
+description: Simplifies code for clarity and enforces modular file-size ceilings. Use when refactoring code for clarity without changing behavior, decomposing God-files (>400 lines) into cohesive domain slices, or consolidating scattered cross-cutting logic into a single source of truth.
 ---
 
 # Code Simplification
@@ -294,6 +294,99 @@ function UserBadge({ user }: Props) {
 // This is a judgment call — flag it, don't auto-refactor.
 ```
 
+## God-File Decomposition & Modular Architecture Standards (The 400-Line Ceiling)
+
+Every `/op-goal` and refactoring pass must enforce strict file-size ceilings to eliminate monolithic "God-files" (1,000+ line stores, services, or components).
+
+### 1. Hard Line-Count Thresholds
+
+| Module Type | Hard Ceiling | Mandatory Extraction Strategy |
+| :--- | :--- | :--- |
+| **UI Components** (`.tsx`) | **`<= 350 lines`** | Extract sub-components, dynamic modals/drawers (`next/dynamic` / `React.lazy`), pure formatting helpers, and custom state/effect hooks (`use<Feature>.ts`). |
+| **State Stores** (Zustand / Redux) | **`<= 300 lines`** (root file) | Extract `types.ts`, pure `calculations.ts`, `storage.ts` adapters, and cohesive domain action creators (`actions/profileActions.ts`, `actions/missionActions.ts`, etc.). |
+| **Backend Services** (NestJS / Express) | **`<= 400 lines`** | Extract domain repositories/query builders, pure DTO mappers, and specialized domain sub-services while keeping the facade service lean. |
+
+### 2. Canonical Zustand / Service Slice Decomposition Pattern
+
+When decomposing a 1,500+ line God-store or service, split domain responsibilities into pure modules and typed action slices that accept `(set, get)` while **preserving 100% of public exports** via barrel re-exports in the root module so zero callers break:
+
+```typescript
+// 1. store/types.ts — Domain interfaces & state contract
+export interface UserProfile { id: string; xp: number; streak: number; }
+export interface AppState {
+  profile: UserProfile | null;
+  addXp: (amount: number) => void;
+  resetStreak: () => void;
+}
+export type StoreSetter = (
+  partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)
+) => void;
+export type StoreGetter = () => AppState;
+
+// 2. store/calculations.ts — Pure, deterministic domain math (0 side effects, 100% unit-testable)
+export function computeNextXp(currentXp: number, delta: number): number {
+  return Math.max(0, currentXp + delta);
+}
+
+// 3. store/actions/profileActions.ts — Cohesive domain action slice receiving (set, get)
+import { computeNextXp } from '../calculations';
+import type { StoreGetter, StoreSetter } from '../types';
+
+export function createProfileActions(set: StoreSetter, get: StoreGetter) {
+  return {
+    addXp: (amount: number) =>
+      set((state) => ({
+        profile: state.profile
+          ? { ...state.profile, xp: computeNextXp(state.profile.xp, amount) }
+          : null,
+      })),
+    resetStreak: () => {
+      if (!get().profile) return;
+      set((state) => ({
+        profile: state.profile ? { ...state.profile, streak: 0 } : null,
+      }));
+    },
+  };
+}
+
+// 4. store/useAppStore.ts — Lean root store (< 300 lines) + backward-compatible re-exports
+import { create } from 'zustand';
+import { createProfileActions } from './actions/profileActions';
+import type { AppState } from './types';
+
+export type { AppState, UserProfile } from './types';
+export { computeNextXp } from './calculations';
+
+export const useAppStore = create<AppState>()((set, get) => ({
+  profile: null,
+  ...createProfileActions(set, get),
+}));
+```
+
+### 3. Single-Source-of-Truth Action Consolidation Pattern
+
+Cross-cutting workflows (Authentication Login/Logout, Cloud State Sync, Payment Checkout, Analytics Telemetry) must never be copy-pasted across headers, sidebars, drawers, or pages. Audit every entry point and route them through **one canonical hook or action handler**:
+
+```tsx
+// BAD: Scattered auth/sync logic duplicated across Header.tsx, MobileDrawer.tsx, and SettingsPage.tsx
+<button onClick={async () => {
+  await signInWithPopup(auth, provider);
+  localStorage.setItem('synced', '1');
+  await fetch('/api/sync');
+}}>Login</button>
+
+// GOOD: Single canonical hook (`useAuthActions.ts`) consumed by all UI entry points
+export function useAuthActions() {
+  const syncProfile = useAppStore((s) => s.syncProfile);
+  const login = useCallback(async () => {
+    const session = await signInWithProvider();
+    await syncProfile(session.user);
+  }, [syncProfile]);
+
+  return { login, logout };
+}
+```
+
 ## Common Rationalizations
 
 | Rationalization | Reality |
@@ -323,6 +416,9 @@ After completing a simplification pass:
 - [ ] All existing tests pass without modification
 - [ ] Build succeeds with no new warnings
 - [ ] Linter/formatter passes (no style regressions)
+- [ ] No God-files remain in the target scope (UI components `<= 350 lines`, root stores `<= 300 lines`, backend services `<= 400 lines`)
+- [ ] Public barrel re-exports remain 100% backward-compatible with existing callers
+- [ ] Cross-cutting flows (auth, sync, telemetry) route through a single canonical hook/service
 - [ ] Each simplification is a reviewable, incremental change
 - [ ] The diff is clean — no unrelated changes mixed in
 - [ ] Simplified code follows project conventions (checked against CLAUDE.md or equivalent)
