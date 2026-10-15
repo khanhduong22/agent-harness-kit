@@ -1027,9 +1027,10 @@ In Next.js App Router applications using `export const dynamic = 'force-dynamic'
     ```
   - Unlocks **100% Back/Forward Cache (`bf-cache: score = 1`)** across both `/` and `/?tab=*`, prevents CDN query-key collisions, and eliminates `/manifest.json` from the critical network dependency tree.
 
-### 9.14. PWA Service Worker (`sw.js`) RSC Bypass & `text/html` Content-Type Guard
+### 9.14. PWA Service Worker (`sw.js`) Instant HTML `Stale-While-Revalidate (SWR)`, RSC Bypass, `text/html` Guard & 404 Chunk Self-Healing
 In Next.js App Router PWAs using a custom Service Worker (`public/sw.js`):
-- **Problem**: If a Service Worker's navigation strategy (`request.mode === 'navigate'`) caches any `networkResponse.status === 200` without verifying `content-type`, a temporary CDN misconfiguration that serves `text/x-component` (RSC Flight payload) with HTTP `200` will be **permanently cached inside the user's phone `CacheStorage`**, leaving the PWA stuck on a black screen even after the CDN is fixed.
+- **Problem A (RSC Flight Cache Poisoning)**: If a Service Worker's navigation strategy (`request.mode === 'navigate'`) caches any `networkResponse.status === 200` without verifying `content-type`, a temporary CDN misconfiguration that serves `text/x-component` (RSC Flight payload) with HTTP `200` will be **permanently cached inside the user's phone `CacheStorage`**, leaving the PWA stuck on a black screen even after the CDN is fixed.
+- **Problem B (`800ms+` Evening Peak TTFB on Cloudflare Free Tier with `Network-First` HTML)**: During evening peak hours (19:30–22:30 in Vietnam), local ISPs often route Cloudflare Free tier traffic away from regional PoPs (`HAN`/`SGN`/`SIN`) to US West Coast (`SJC`). Even when `cf-cache-status: HIT`, the trans-Pacific `TCP + TLS + HTTP` handshake takes **`800ms–1,100ms`** (`P75 TTFB` red on Sentry Web Vitals). If `sw.js` uses `Network-First` for HTML navigation (`request.mode === 'navigate'`), returning users (97%+ of daily traffic) are forced to wait `~830ms` on every cold app launch.
 - **Implementation Standard**:
   1. **Bypass all RSC & Router Prefetch Requests in `sw.js`**:
      ```javascript
@@ -1052,10 +1053,13 @@ In Next.js App Router PWAs using a custom Service Worker (`public/sw.js`):
        const contentType = response.headers.get('content-type') || '';
        return contentType.includes('text/html');
      }
-     // Only cache preloadResponse / networkResponse when isHtmlResponse(res) is true,
-     // and only return cachedResponse on offline fallback if isHtmlResponse(cachedResponse) is true.
      ```
-  3. **Bump `CACHE_NAME` Version (`vN` -> `vN+1`)** whenever recovering from any edge caching incident so `activate` automatically purges stale client `CacheStorage` without touching `localStorage` or auth cookies.
+  3. **Canonical HTML Cache Key + Instant `Stale-While-Revalidate (SWR)` (`<10ms` TTFB)**:
+     - Strip tracking query parameters (`?fbclid=`, `?zarsrc=`, `?utm_*`) when matching app-shell HTML routes (`const canonicalUrl = `${url.origin}${url.pathname}``).
+     - When `cache.match(canonicalUrl)` hits a valid `isHtmlResponse(cached)` entry, **return `cached` immediately from device flash storage (`TTFB < 10ms`)** and trigger `event.waitUntil(revalidateFromNetwork())` in the background to refresh the cached shell for the next launch.
+  4. **Self-Healing 404 Chunk Guard (Zero-Loop Deployment Transition)**:
+     - In the static asset handler, if any `/_next/static/chunks/*.js` request returns `HTTP 404` (because a newly deployed release deleted old hashed chunks while the client served a stale SWR HTML shell), automatically evict all cached HTML navigation entries in `CACHE_NAME` so `ChunkLoadError` / `useAppVersionGuard` recovery fetches a fresh HTML shell on reload without looping.
+  5. **Bump `CACHE_NAME` Version (`vN` -> `vN+1`)** whenever changing caching topology or recovering from an edge caching incident so `activate` automatically purges stale client `CacheStorage` without touching `localStorage` or auth cookies.
 
 ### 9.15. In-Memory Multi-Route Coordinator Shell Navigation (`history.replaceState` over `router.replace`)
 In multi-route Next.js App Router applications where a shared Client Coordinator Shell (`WinterArcShell`, `AppShell`) is mounted across static sub-routes (`/app`, `/app/today`, `/app/goals`) and already manages tab switching in memory:

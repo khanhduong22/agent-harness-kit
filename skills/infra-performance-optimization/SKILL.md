@@ -38,6 +38,7 @@ curl -s -w "URL=%{url_effective} Connect=%{time_connect}s TLS=%{time_appconnect}
 curl -sI https://your-domain.com/ | grep -iE "^(http/|cache-control|cdn-cache-control|cf-cache-status|cf-ray|vary|alt-svc)"
 ```
 - Check the 3-letter IATA airport code at the end of `cf-ray` (e.g. `-SIN` Singapore, `-HKG` Hong Kong, `-HAN` Hanoi, `-SGN` Ho Chi Minh City vs. `-DFW` Dallas when a local VPN is active).
+- **Cloudflare Free Tier Evening Peering Reroute (`-SJC` / `800ms+` TTFB on `HIT`)**: During evening peak hours in Vietnam (19:30–22:30), local ISPs often route Cloudflare Free tier traffic to US West Coast (`-SJC` / `-LAX`), causing `TCP + TLS + HTTP` handshakes to take `800ms–1,100ms` even when `cf-cache-status: HIT`. To achieve `<10ms` TTFB for returning users regardless of ISP routing, pair edge caching with **Service Worker Instant HTML `Stale-While-Revalidate (SWR)` + 404 Chunk Self-Healing** (see `frontend-performance-lighthouse` §9.14).
 - If `cf-cache-status: DYNAMIC` appears despite `s-maxage=30`, Cloudflare is bypassing edge cache because HTML caching is disabled by default unless an explicit Cache Rule is active.
 
 ---
