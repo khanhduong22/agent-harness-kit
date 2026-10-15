@@ -965,12 +965,23 @@ In data-intensive Next.js App Router dashboards:
   3. Keep read-only article/news lists inside Server Components so their content is emitted once as HTML and never duplicated in `self.__next_f.push`.
   - Cuts RSC Flight JSON payload by **>60 KB**, accelerating HTML streaming and hydration on Slow 4G.
 
-### 9.12. Unused `next/font/google` Preload & `display: 'swap'` LCP Reset Trap
-In Next.js applications using Tailwind CSS:
-- **Problem**: Declaring a `next/font/google` font with `display: 'swap'` in `app/layout.tsx` triggers `<link rel="preload" as="font" type="font/woff2" crossorigin>` for 40–60 KB of WOFF2 files in `<head>`. On Slow 4G mobile connections, these font preloads compete with critical HTML/JS bandwidth, arrive around `2,200ms–2,500ms`, and trigger a font-swap repaint on hero headings (`<h1>`/`<h2>`) — **resetting Chrome's LCP timestamp from `1.0s` (FCP) to `2.5s` (`elementRenderDelay = 1,505ms`)**! Worse, if `tailwind.config.cjs` uses a system `font-sans` stack without referencing the font CSS variable, the preloaded WOFF2 files are 100% wasted bandwidth.
+### 9.12. `next/font/google` `latin-ext` (`84.37 KiB`) vs `vietnamese` (`10.8 KiB`) Cascade Overlap Trap, `Element render delay` Fix & Non-Composited `transition-all` Guard
+In Next.js applications using `next/font/google` and Tailwind CSS:
+- **Problem A (Unused `next/font/google` Preloads)**: Declaring `next/font/google` in `app/layout.tsx` when `tailwind.config.cjs` uses a system `font-sans` stack wastes 40–60 KB of critical Slow 4G bandwidth on unused WOFF2 preloads.
+- **Problem B (The `latin-ext` `84.37 KiB` vs `vietnamese` `10.8 KiB` CSS Cascade Overlap & `Element render delay` Trap)**:
+  - **Symptom**: Lighthouse Critical Request Chain shows an unexpected **`84.37 KiB`** `.woff2` font file (`1bffadaabf893a1e-s.7cd81963.woff2`) + an un-preloaded **`48.39 KiB`** `.woff2` (`83afe278b6a6bb3c-s.3a6ba036.woff2`) at depth 3 (`HTML -> CSS -> .woff2` at `~1,514 ms`), AND `LCP breakdown` reports **`Element render delay: 1,540 ms`** on an above-the-fold text `<p>` or `<h1>` block.
+  - **Root Cause**:
+    1. `next/font/google` emits a single CSS file containing all 7 Google Fonts `@font-face` blocks (`cyrillic-ext`, `cyrillic`, `greek-ext`, `greek`, `vietnamese`, `latin-ext`, `latin`) in that exact order.
+    2. Because `latin-ext` (`U+0100-02BA, U+1EF2-1EFF`, **84.37 KiB**, covering 100+ Eastern European/African languages) is declared **AFTER** `vietnamese` (`10.8 KiB`) and its `unicode-range` overlaps with core Vietnamese characters (`Ă, ă, Đ, đ, Ĩ, ĩ, Ũ, ũ, Ơ, ơ, Ư, ư, Ỳ-Ỹ`), CSS `@font-face` cascade rules give the later rule priority — forcing Chrome to download the **entire `84.37 KiB` `latin-ext` font file** just to render `đ, ă, ơ, ư` that are ALREADY inside the `10.8 KiB` `vietnamese` subset!
+    3. When `font-display: swap` swaps at `~1,514 ms` after that 3-hop waterfall finishes, Chrome re-measures the LCP text block and resets the LCP timestamp (`Element render delay = 1,540 ms`).
+- **Problem C (Non-Composited Animations from `transition-all`)**: Using `transition-all` on initial above-the-fold buttons (`<button className="... transition-all">`) causes browser initial style settling to trigger main-thread non-composited transitions on `border-left-color` / `border-left-width`, flagging Lighthouse's `Avoid non-composited animations` diagnostic.
 - **Implementation Standard**:
-  1. Audit `app/layout.tsx` and `tailwind.config.cjs`: if the UI uses system fonts (`font-sans`), remove `next/font/google` imports completely so zero WOFF2 preloads compete with critical path resources.
-  2. When custom web fonts are required on above-the-fold hero headings, use `display: 'optional'` so late-arriving fonts on Slow 4G never trigger a post-FCP repaint that resets the LCP timer.
+  1. **System Font Stack**: If the UI uses system fonts, remove `next/font/google` imports completely.
+  2. **Self-Hosted Bilingual Subsets (`latin` + `vietnamese` Only)**:
+     - Extract and self-host ONLY the 2 required subsets in `public/fonts/`: `inter-latin.woff2` (`~48 KB`) and `inter-vietnamese.woff2` (`~10.8 KB`) — eliminating the `84.37 KiB` `latin-ext` download completely.
+     - Preload both directly in `<head>` (`<link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />` and `inter-vietnamese.woff2`) so they start at **depth 1** alongside HTML instead of waiting at depth 3 behind CSS parsing.
+     - Inline ONLY the 2 `@font-face` rules (`vietnamese` + `latin`) + `Inter Fallback` (`size-adjust: 107.12%`), completely removing `latin-ext`, `cyrillic`, and `greek`, or use `font-display: optional` so late fonts on Slow 4G never reset the LCP timestamp.
+  3. **Explicit GPU-Composited Transitions**: Replace `transition-all` on above-the-fold interactive controls with explicit `transition-transform` or `transition-colors`.
 
 ### 9.13. Unlocking `bf-cache` on Dynamic Next.js Routes (`send-payload.js` `Cache-Control` Override & Query Scoping)
 In Next.js App Router applications using `export const dynamic = 'force-dynamic'` or `export const revalidate = 0`:
