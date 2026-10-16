@@ -39,32 +39,40 @@ Before calling `invoke_subagent`, the Master Agent must strictly partition the t
 
 ---
 
-## 3. Single-Batch Dispatch Pattern
-Always invoke all subagents concurrently in a single `invoke_subagent` call:
+## 3. Single-Batch Dispatch Pattern & Model Tiering
+- **Master Agent**: Runs on **Argon 4 High** (`pro` High).
+- **Standard Execution Subagents (`Model: "flash"` — Flash 3.8 High)**: Default for Frontend UI, scoped Backend routes, DevOps/CI monitoring, QA/E2E tests, and docs. Do **NOT** leave `Model` as `"inherit"` (Argon 4) for standard subagents.
+- **Complex Architecture Subagents (`Model: "pro"` — Argon 4 High)**: Reserved only for deep system design, reusable core packages (`packages/*`), or intricate concurrency/distributed algorithms.
+
+Always invoke all subagents concurrently in a single `invoke_subagent` call with explicit `Model` routing:
 
 ```json
 {
   "Subagents": [
     {
       "TypeName": "self",
+      "Model": "flash",
       "Role": "[YYYY-MM-DD HH:mm | #fe] Frontend UI Specialist",
       "Prompt": "Task: Build client UI in apps/web...",
       "Workspace": "inherit"
     },
     {
       "TypeName": "self",
-      "Role": "[YYYY-MM-DD HH:mm | #spec] OpenSpec Architect",
-      "Prompt": "Task: Author formal SRS in docs/...",
+      "Model": "pro",
+      "Role": "[YYYY-MM-DD HH:mm | #spec] Core Architecture Specialist",
+      "Prompt": "Task: Design distributed concurrency package in packages/...",
       "Workspace": "inherit"
     },
     {
       "TypeName": "self",
+      "Model": "flash",
       "Role": "[YYYY-MM-DD HH:mm | #devops] DevOps Specialist",
-      "Prompt": "Task: Create Dockerfiles and compose...",
+      "Prompt": "Task: Create Dockerfiles and monitor CI/CD...",
       "Workspace": "inherit"
     },
     {
       "TypeName": "self",
+      "Model": "flash",
       "Role": "[YYYY-MM-DD HH:mm | #qa] E2E Simulation Specialist",
       "Prompt": "Task: Write automated E2E journey tests...",
       "Workspace": "inherit"
