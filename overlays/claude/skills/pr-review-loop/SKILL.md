@@ -57,7 +57,7 @@ Everything below is **one agent's job**, start to finish. There is no second, fu
 
 ## Auto-commenting defaults off
 
-This kit deploys into shared repos (`idx-vn/*`) with other team members. `comment=true` by default would mean unattended comments, from the operator's own GitHub identity, on teammates' PRs, on every future ship, forever, starting the moment this skill exists. That is a materially different authorization than the operator's own Slack channel. Flipping it on is a one-line change at the call site (`ship`'s spawn step). Flipping it back off *after* comments have already landed on someone else's PR is not a code change at all — it's an apology. Default stays `false` until the operator explicitly asks for `true`.
+This kit deploys into shared organization repos with other team members. `comment=true` by default would mean unattended comments, from the operator's own GitHub identity, on teammates' PRs, on every future ship, forever, starting the moment this skill exists. That is a materially different authorization than the operator's own Slack channel. Flipping it on is a one-line change at the call site (`ship`'s spawn step). Flipping it back off *after* comments have already landed on someone else's PR is not a code change at all — it's an apology. Default stays `false` until the operator explicitly asks for `true`.
 
 ## What "working" looks like
 
