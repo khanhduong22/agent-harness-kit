@@ -92,7 +92,7 @@ flowchart TD
 
 ### Structure
 - **`workspace.md`**: Multi-repo architecture (Index platform: API, CMS, Web, AI, Data), platform-level conventions, authentication boundary, shared docker services.
-- **`api.md`**: NestJS + Prisma service (`green_bull_api`), runtime `bun`, tests via `vitest run` and `bun postman/run-newman.ts`, lint via `eslint --fix`, strict DTO and BaseRepository enforcement. Unknown fields marked as `[TBD: Need User Input]`.
+- **`api.md`**: NestJS + Prisma service (`index-api`), runtime `bun`, tests via `vitest run` and `bun postman/run-newman.ts`, lint via `eslint --fix`, strict DTO and BaseRepository enforcement. Unknown fields marked as `[TBD: Need User Input]`.
 - **`cms.md`**: Strapi v5 service (`index-admin-cms`), Jest tests, custom permissions and scripts (`seed.js`, `dump-db.sh`). Unknown fields marked as `[TBD: Need User Input]`.
 
 ## 4. Installer & Rollback Specification

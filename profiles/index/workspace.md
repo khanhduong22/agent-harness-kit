@@ -24,9 +24,9 @@ CATEGORY A: MONOREPO TOPOLOGY & CROSS-SERVICE ARCHITECTURE
 - **`index-web` (Client Web Application)**: Next.js App Router, public community feeds, and user-facing web experiences. (See `index-web/CLAUDE.md` for conventions).
 - **`index-signoz` (Observability & Telemetry)**: Customized SigNoz deployment (OpenTelemetry Collector, ClickHouse) providing distributed tracing, metrics, and centralized log auditing across monorepo services. (See `index-signoz/.agents/AGENTS.md` for collector/ClickHouse operational rules).
 - **Cross-Service Data Contracts**: API response envelopes (`{ data, meta }`) and data schemas MUST remain strictly synchronized across services. When changing response structures in `index-api`, verify and update parsers (`parseApiResponseEnvelope`) in `index-admin-cms`, `index-data`, and `index-web`.
-- **Developer Service Ownership & Policy (Khánh Dương / khanhduong22)**:
+- **Developer Service Ownership & Policy (Backend & CMS Maintainer)**:
   - **Owned & Active Codebases (Full Modification Rights)**: Strictly `index-api`, `index-admin-cms`, and `index-data`.
-  - **Issue-Repo vs. True Service Owner Principle**: Even if a GitHub issue is filed under `idx-vn/index-web`, any task involving direct database queries, bulk content aggregation, or lifecycle-driven static generation (e.g. incremental sitemaps, feeds, cache warming) MUST be implemented in the owning backend service (`index-admin-cms` or `index-api`). Never place direct PostgreSQL (`pg` / `Bun.sql`) scripts or heavy multi-page aggregation loops inside `index-web`; `index-web` may only invoke a lightweight HTTP trigger endpoint exposed by the backend/CMS.
+  - **Issue-Repo vs. True Service Owner Principle**: Even if a GitHub issue is filed under `<org>/index-web`, any task involving direct database queries, bulk content aggregation, or lifecycle-driven static generation (e.g. incremental sitemaps, feeds, cache warming) MUST be implemented in the owning backend service (`index-admin-cms` or `index-api`). Never place direct PostgreSQL (`pg` / `Bun.sql`) scripts or heavy multi-page aggregation loops inside `index-web`; `index-web` may only invoke a lightweight HTTP trigger endpoint exposed by the backend/CMS.
   - **`index-web` Service Policy (Read-Only Analysis & E2E Video Verification Gate)**:
     - `index-web` source code belongs to other frontend team members. **STRICTLY DO NOT MODIFY, EDIT, OR COMMIT CODE IN `index-web`**.
     - **Authorized & Encouraged Actions**: Agents are fully authorized to:
@@ -35,14 +35,14 @@ CATEGORY A: MONOREPO TOPOLOGY & CROSS-SERVICE ARCHITECTURE
       3. Start `index-web` locally (`next dev` / `bun run dev` on port 3000) connected to backend services.
       4. Execute Playwright browser E2E test runs against `index-web` to record verification videos (`--video=on`) demonstrating backend API fixes on the live web UI, upload recordings to Google Drive, and embed active links in PR handovers and Slack.
 - **Production & Dev/Staging Container Topology**:
-  - **`app_pro` (`38.146.27.88` — GitHub Runner `[app_pro]`)**: Hosts Nginx reverse proxy (`index.vn`, `indexcms.com`), shared static volumes (`/www/wwwroot/sitemaps`), and application containers:
-    - `index-admin-cms` (`gb_cms`): Blue-Green Strapi v5 containers `gb_cms-cms-blue-1` (`:1337`), `gb_cms-cms-green-1` (`:1338`), and `gb_cms-redis-1`.
-    - `index-web` (`gb_web_production`): `gb_web_production-app-1` (`:3006 -> :3000`) and `gb_web_production-redis-1`.
-    - `index-api` (`green_bull_api`): `green_bull_api-app-1` (`:3005`).
-  - **`data_pro` (`38.146.27.87` — GitHub Runner `[data_pro]`)**: Hosts database and data ingestion workloads:
-    - `index-admin-cms` DB: `gb_cms-db-1` (PostgreSQL `:5432`, accessed by `app_pro` via `DATABASE_HOST=38.146.27.87`, backed up via pgBackRest to Backblaze B2).
+  - **`app_pro` (`<APP_PRO_IP>` — GitHub Runner `[app_pro]`)**: Hosts Nginx reverse proxy (`<PUBLIC_DOMAIN>`, `<CMS_DOMAIN>`), shared static volumes (`/www/wwwroot/sitemaps`), and application containers:
+    - `index-admin-cms`: Blue-Green Strapi v5 containers `<cms-blue-container>` (`:1337`), `<cms-green-container>` (`:1338`), and `<cms-redis-container>`.
+    - `index-web`: `<web-app-container>` (`:3006 -> :3000`) and `<web-redis-container>`.
+    - `index-api`: `<api-app-container>` (`:3005`).
+  - **`data_pro` (`<DATA_PRO_IP>` — GitHub Runner `[data_pro]`)**: Hosts database and data ingestion workloads:
+    - `index-admin-cms` DB: `<cms-db-container>` (PostgreSQL `:5432`, accessed by `app_pro` via `DATABASE_HOST=<DATA_PRO_IP>`, backed up via pgBackRest to Backblaze B2).
     - `index-data` crawlers and pipelines.
-  - **Dev & Staging (`index-dev-api` — GitHub Runner `[self-hosted-stg]`)**: Co-locates Dev (`gb_cms_dev-app-1`, `gb_cms_dev-db-1`, `gb_web_dev-app-1`) and Staging (`gb_cms_stg-app-1`, `gb_cms_stg-db-1`, `gb_web_stg-app-1`) containers alongside Nginx (`dev.greenbull.dev`, `stg.greenbull.dev`).
+  - **Dev & Staging (`index-dev-api` — GitHub Runner `[self-hosted-stg]`)**: Co-locates Dev and Staging containers alongside Nginx (`<DEV_DOMAIN>`, `<STG_DOMAIN>`).
 
 ## 3. Platform Boundaries & Constraints
 - **Database Safety**: Never run `prisma migrate reset` or drop databases. Database backups (`scripts/dump-db.sh`) must be taken before major schema operations.
@@ -107,10 +107,10 @@ CATEGORY C: WORKSPACE QUALITY GATES & PR PROTOCOL
 
 ## 9. Mandatory Slack Handover Notification with Direct PR Link
 - **Mandatory PR Link in Slack**: Whenever completing a task/PR and notifying the user via the configured Slack webhook, the notification MUST include:
-  1. Direct clickable GitHub PR link (e.g. `• 🔗 PR: <https://github.com/idx-vn/<repo>/pull/<id>>`).
+  1. Direct clickable GitHub PR link (e.g. `• 🔗 PR: <https://github.com/<org>/<repo>/pull/<id>>`).
   2. Summary of verification status (unit test pass count, TypeScript 0 errors).
   3. Touched files scope.
-- **Strict Personal Webhook Source (`notify-slack.sh` ONLY)**: Always send handover notifications via `.agents/scripts/notify-slack.sh` (which loads `SLACK_WEBHOOK_URL` exclusively from `~/.config/agent-harness/secrets.env`). **STRICTLY PROHIBITED**: Never grep, extract, or curl `SLACK_WEBHOOK_URL` from `.github/workflows/*.yml`, repository `.env` files, or CI scripts — those webhooks post to shared company channels (e.g. `Tech Pulse Notifications`).
+- **Strict Personal Webhook Source (`notify-slack.sh` ONLY)**: Always send handover notifications via `.agents/scripts/notify-slack.sh` (which loads `SLACK_WEBHOOK_URL` exclusively from `~/.config/agent-harness/secrets.env`). **STRICTLY PROHIBITED**: Never grep, extract, or curl `SLACK_WEBHOOK_URL` from `.github/workflows/*.yml`, repository `.env` files, or CI scripts — those webhooks post to shared company channels.
 
 ## 10. Cross-Service UI E2E Video Recording & Closed-Loop Verification Gate
 - **CMS Admin Gate (`index-admin-cms`)**: Playwright E2E testing with video recording is mandatory for every CMS feature or bugfix before PR completion.

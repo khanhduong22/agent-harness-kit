@@ -101,8 +101,8 @@ Verified with `./scripts/verify.sh`, `./scripts/test.sh`, `./tests/test_harness.
 
 ### Changed
 
-- **Four skills moved out of the kit to the service repo that owns them**: `github-pr-ship`, `postman-api-testing`, `prisma-safe-migration` and `use-constants`. All six duplicated skills had drifted, and in every case the service copy was the richer one — but richer because it hardcodes that service's paths, containers and commands (`prisma-safe-migration` carries `gb_api-db-1`, `greenbull`, `api_shadow`, `prisma/api/...`). Promoting those to the kit would have repeated the 0.1.4 leak one layer down, shipping one service's internals to every project on every machine.
-- **`fix-sonarqube` absorbed the richer service copy (23 → 56 lines)** and stays in the kit: its content is generic `sonarjs` rule/fix guidance, and the only repo-specific part — the SonarQube component key — is now `$SONAR_PROJECT_KEY` rather than a hardcoded project name. The duplicate is removed in idx-vn/index-api#442.
+- **Four skills moved out of the kit to the service repo that owns them**: `github-pr-ship`, `postman-api-testing`, `prisma-safe-migration` and `use-constants`. All six duplicated skills had drifted, and in every case the service copy was the richer one — but richer because it hardcodes that service's paths, containers and commands (`prisma-safe-migration` carries service-specific DB container names, shadow DB names, and `prisma/api/...`). Promoting those to the kit would have repeated the 0.1.4 leak one layer down, shipping one service's internals to every project on every machine.
+- **`fix-sonarqube` absorbed the richer service copy (23 → 56 lines)** and stays in the kit: its content is generic `sonarjs` rule/fix guidance, and the only repo-specific part — the SonarQube component key — is now `$SONAR_PROJECT_KEY` rather than a hardcoded project name. The duplicate is removed in the service repository.
 
 ## [0.1.5] - 2026-09-16
 
