@@ -1,0 +1,176 @@
+Style ID,Palette,Role,Fill,Stroke,Accent,On Color,Dark Fill,Dark Stroke,Dark Accent,Dark On Color,Contrast Note
+hand-drawn-sketch,house,client,#dbeafe,#1d4ed8,#3b82f6,#1e3a8a,#1e40af,#93c5fd,#60a5fa,#eff6ff,#1e3a8a on #dbeafe = 8.5:1; dark #eff6ff on #1e40af = 8.0:1
+hand-drawn-sketch,house,service,#ffedd5,#c2410c,#f97316,#7c2d12,#9a3412,#fdba74,#fb923c,#fff7ed,#7c2d12 on #ffedd5 = 8.2:1; dark #fff7ed on #9a3412 = 6.9:1
+hand-drawn-sketch,house,data,#dcfce7,#15803d,#22c55e,#14532d,#166534,#86efac,#4ade80,#f0fdf4,#14532d on #dcfce7 = 8.3:1; dark #f0fdf4 on #166534 = 6.8:1
+hand-drawn-sketch,house,async,#f3e8ff,#7e22ce,#a855f7,#581c87,#6b21a8,#d8b4fe,#c084fc,#faf5ff,#581c87 on #f3e8ff = 9.2:1; dark #faf5ff on #6b21a8 = 8.1:1
+hand-drawn-sketch,house,external,#f3f4f6,#374151,#6b7280,#111827,#374151,#d1d5db,#9ca3af,#f9fafb,#111827 on #f3f4f6 = 16.1:1; dark #f9fafb on #374151 = 9.9:1
+hand-drawn-sketch,house,error,#fee2e2,#b91c1c,#ef4444,#7f1d1d,#991b1b,#fca5a5,#f87171,#fef2f2,#7f1d1d on #fee2e2 = 8.2:1; dark #fef2f2 on #991b1b = 7.6:1
+hand-drawn-sketch,house,infra,#f1f5f9,#334155,#14b8a6,#0f172a,#1e293b,#cbd5e1,#2dd4bf,#f8fafc,#0f172a on #f1f5f9 = 16.3:1; dark #f8fafc on #1e293b = 14.0:1
+flat-minimal,house,client,#dbeafe,#2563eb,#3b82f6,#1e40af,#1e40af,#60a5fa,#60a5fa,#dbeafe,#1e40af on #dbeafe = 7.1:1; dark #dbeafe on #1e40af = 7.1:1
+flat-minimal,house,service,#ffedd5,#ea580c,#f97316,#9a3412,#9a3412,#fb923c,#fb923c,#ffedd5,#9a3412 on #ffedd5 = 6.4:1; dark #ffedd5 on #9a3412 = 6.4:1
+flat-minimal,house,data,#dcfce7,#16a34a,#22c55e,#166534,#166534,#4ade80,#4ade80,#dcfce7,#166534 on #dcfce7 = 6.5:1; dark #dcfce7 on #166534 = 6.5:1
+flat-minimal,house,async,#f3e8ff,#9333ea,#a855f7,#6b21a8,#6b21a8,#c084fc,#c084fc,#f3e8ff,#6b21a8 on #f3e8ff = 7.4:1; dark #f3e8ff on #6b21a8 = 7.4:1
+flat-minimal,house,external,#f3f4f6,#4b5563,#6b7280,#1f2937,#374151,#9ca3af,#9ca3af,#f3f4f6,#1f2937 on #f3f4f6 = 13.3:1; dark #f3f4f6 on #374151 = 9.4:1
+flat-minimal,house,error,#fee2e2,#dc2626,#ef4444,#991b1b,#991b1b,#f87171,#f87171,#fee2e2,#991b1b on #fee2e2 = 6.8:1; dark #fee2e2 on #991b1b = 6.8:1
+flat-minimal,house,infra,#f1f5f9,#475569,#14b8a6,#1e293b,#1e293b,#94a3b8,#2dd4bf,#f1f5f9,#1e293b on #f1f5f9 = 13.4:1; dark #f1f5f9 on #1e293b = 13.4:1
+blueprint,house,client,#eff6ff,#1d4ed8,#2563eb,#1e3a8a,#1e3a8a,#bfdbfe,#93c5fd,#eff6ff,#1e3a8a on #eff6ff = 9.5:1; dark #eff6ff on #1e3a8a = 9.5:1
+blueprint,house,service,#fff7ed,#c2410c,#ea580c,#7c2d12,#7c2d12,#fed7aa,#fdba74,#fff7ed,#7c2d12 on #fff7ed = 8.8:1; dark #fff7ed on #7c2d12 = 8.8:1
+blueprint,house,data,#f0fdf4,#15803d,#16a34a,#14532d,#14532d,#bbf7d0,#86efac,#f0fdf4,#14532d on #f0fdf4 = 8.7:1; dark #f0fdf4 on #14532d = 8.7:1
+blueprint,house,async,#faf5ff,#7e22ce,#9333ea,#581c87,#581c87,#e9d5ff,#d8b4fe,#faf5ff,#581c87 on #faf5ff = 10.1:1; dark #faf5ff on #581c87 = 10.1:1
+blueprint,house,external,#f9fafb,#374151,#4b5563,#111827,#111827,#e5e7eb,#d1d5db,#f9fafb,#111827 on #f9fafb = 17.0:1; dark #f9fafb on #111827 = 17.0:1
+blueprint,house,error,#fef2f2,#b91c1c,#dc2626,#7f1d1d,#7f1d1d,#fecaca,#fca5a5,#fef2f2,#7f1d1d on #fef2f2 = 9.2:1; dark #fef2f2 on #7f1d1d = 9.2:1
+blueprint,house,infra,#f8fafc,#334155,#0d9488,#0f172a,#0f172a,#e2e8f0,#5eead4,#f8fafc,#0f172a on #f8fafc = 17.1:1; dark #f8fafc on #0f172a = 17.1:1
+neon-dark,house,client,#1e3a8a,#60a5fa,#93c5fd,#eff6ff,#1e3a8a,#93c5fd,#bfdbfe,#eff6ff,#eff6ff on #1e3a8a = 9.5:1; dark #eff6ff on #1e3a8a = 9.5:1
+neon-dark,house,service,#7c2d12,#fb923c,#fdba74,#fff7ed,#7c2d12,#fdba74,#fed7aa,#fff7ed,#fff7ed on #7c2d12 = 8.8:1; dark #fff7ed on #7c2d12 = 8.8:1
+neon-dark,house,data,#14532d,#4ade80,#86efac,#f0fdf4,#14532d,#86efac,#bbf7d0,#f0fdf4,#f0fdf4 on #14532d = 8.7:1; dark #f0fdf4 on #14532d = 8.7:1
+neon-dark,house,async,#581c87,#c084fc,#d8b4fe,#faf5ff,#581c87,#d8b4fe,#e9d5ff,#faf5ff,#faf5ff on #581c87 = 10.1:1; dark #faf5ff on #581c87 = 10.1:1
+neon-dark,house,external,#111827,#9ca3af,#d1d5db,#f9fafb,#111827,#d1d5db,#e5e7eb,#f9fafb,#f9fafb on #111827 = 17.0:1; dark #f9fafb on #111827 = 17.0:1
+neon-dark,house,error,#7f1d1d,#f87171,#fca5a5,#fef2f2,#7f1d1d,#fca5a5,#fecaca,#fef2f2,#fef2f2 on #7f1d1d = 9.2:1; dark #fef2f2 on #7f1d1d = 9.2:1
+neon-dark,house,infra,#0f172a,#94a3b8,#5eead4,#f8fafc,#0f172a,#cbd5e1,#99f6e4,#f8fafc,#f8fafc on #0f172a = 17.1:1; dark #f8fafc on #0f172a = 17.1:1
+isometric-2.5d,house,client,#dbeafe,#2563eb,#3b82f6,#1e40af,#1d4ed8,#93c5fd,#93c5fd,#eff6ff,#1e40af on #dbeafe = 7.1:1; dark #eff6ff on #1d4ed8 = 6.2:1
+isometric-2.5d,house,service,#ffedd5,#ea580c,#f97316,#9a3412,#c2410c,#fdba74,#fdba74,#fff7ed,#9a3412 on #ffedd5 = 6.4:1; dark #fff7ed on #c2410c = 4.9:1
+isometric-2.5d,house,data,#dcfce7,#16a34a,#22c55e,#166534,#15803d,#86efac,#86efac,#f0fdf4,#166534 on #dcfce7 = 6.5:1; dark #f0fdf4 on #15803d = 4.8:1
+isometric-2.5d,house,async,#f3e8ff,#9333ea,#a855f7,#6b21a8,#7e22ce,#d8b4fe,#d8b4fe,#faf5ff,#6b21a8 on #f3e8ff = 7.4:1; dark #faf5ff on #7e22ce = 6.5:1
+isometric-2.5d,house,external,#f3f4f6,#4b5563,#6b7280,#1f2937,#374151,#d1d5db,#d1d5db,#f9fafb,#1f2937 on #f3f4f6 = 13.3:1; dark #f9fafb on #374151 = 9.9:1
+isometric-2.5d,house,error,#fee2e2,#dc2626,#ef4444,#991b1b,#b91c1c,#fca5a5,#fca5a5,#fef2f2,#991b1b on #fee2e2 = 6.8:1; dark #fef2f2 on #b91c1c = 5.9:1
+isometric-2.5d,house,infra,#f1f5f9,#475569,#14b8a6,#1e293b,#334155,#cbd5e1,#5eead4,#f8fafc,#1e293b on #f1f5f9 = 13.4:1; dark #f8fafc on #334155 = 9.9:1
+glassmorphic,house,client,#eff6ff,#3b82f6,#60a5fa,#1e40af,#1e40af,#60a5fa,#93c5fd,#dbeafe,#1e40af on #eff6ff = 8.0:1; dark #dbeafe on #1e40af = 7.1:1
+glassmorphic,house,service,#fff7ed,#ea580c,#fb923c,#9a3412,#9a3412,#fb923c,#fdba74,#ffedd5,#9a3412 on #fff7ed = 6.9:1; dark #ffedd5 on #9a3412 = 6.4:1
+glassmorphic,house,data,#f0fdf4,#16a34a,#4ade80,#166534,#166534,#4ade80,#86efac,#dcfce7,#166534 on #f0fdf4 = 6.8:1; dark #dcfce7 on #166534 = 6.5:1
+glassmorphic,house,async,#faf5ff,#a855f7,#c084fc,#6b21a8,#6b21a8,#c084fc,#d8b4fe,#f3e8ff,#6b21a8 on #faf5ff = 8.1:1; dark #f3e8ff on #6b21a8 = 7.4:1
+glassmorphic,house,external,#f9fafb,#6b7280,#9ca3af,#1f2937,#374151,#9ca3af,#d1d5db,#f3f4f6,#1f2937 on #f9fafb = 14.0:1; dark #f3f4f6 on #374151 = 9.4:1
+glassmorphic,house,error,#fef2f2,#ef4444,#f87171,#991b1b,#991b1b,#f87171,#fca5a5,#fee2e2,#991b1b on #fef2f2 = 7.6:1; dark #fee2e2 on #991b1b = 6.8:1
+glassmorphic,house,infra,#f8fafc,#64748b,#2dd4bf,#1e293b,#1e293b,#94a3b8,#5eead4,#f1f5f9,#1e293b on #f8fafc = 14.0:1; dark #f1f5f9 on #1e293b = 13.4:1
+ascii-terminal,house,client,#1e3a8a,#1e3a8a,#1e3a8a,#eff6ff,#1e3a8a,#93c5fd,#bfdbfe,#eff6ff,#eff6ff on #1e3a8a = 9.5:1; dark #eff6ff on #1e3a8a = 9.5:1
+ascii-terminal,house,service,#7c2d12,#7c2d12,#7c2d12,#fff7ed,#7c2d12,#fdba74,#fed7aa,#fff7ed,#fff7ed on #7c2d12 = 8.8:1; dark #fff7ed on #7c2d12 = 8.8:1
+ascii-terminal,house,data,#14532d,#14532d,#14532d,#f0fdf4,#14532d,#86efac,#bbf7d0,#f0fdf4,#f0fdf4 on #14532d = 8.7:1; dark #f0fdf4 on #14532d = 8.7:1
+ascii-terminal,house,async,#581c87,#581c87,#581c87,#faf5ff,#581c87,#d8b4fe,#e9d5ff,#faf5ff,#faf5ff on #581c87 = 10.1:1; dark #faf5ff on #581c87 = 10.1:1
+ascii-terminal,house,external,#111827,#111827,#111827,#f9fafb,#374151,#d1d5db,#e5e7eb,#f9fafb,#f9fafb on #111827 = 17.0:1; dark #f9fafb on #374151 = 9.9:1
+ascii-terminal,house,error,#7f1d1d,#7f1d1d,#7f1d1d,#fef2f2,#7f1d1d,#fca5a5,#fecaca,#fef2f2,#fef2f2 on #7f1d1d = 9.2:1; dark #fef2f2 on #7f1d1d = 9.2:1
+ascii-terminal,house,infra,#0f172a,#0f172a,#0f172a,#f8fafc,#0f172a,#cbd5e1,#99f6e4,#f8fafc,#f8fafc on #0f172a = 17.1:1; dark #f8fafc on #0f172a = 17.1:1
+pixel-retro,house,client,#bfdbfe,#1d4ed8,#3b82f6,#1e3a8a,#1e40af,#60a5fa,#60a5fa,#dbeafe,#1e3a8a on #bfdbfe = 7.3:1; dark #dbeafe on #1e40af = 7.1:1
+pixel-retro,house,service,#fed7aa,#c2410c,#f97316,#7c2d12,#9a3412,#fb923c,#fb923c,#ffedd5,#7c2d12 on #fed7aa = 6.9:1; dark #ffedd5 on #9a3412 = 6.4:1
+pixel-retro,house,data,#bbf7d0,#15803d,#22c55e,#14532d,#166534,#4ade80,#4ade80,#dcfce7,#14532d on #bbf7d0 = 7.5:1; dark #dcfce7 on #166534 = 6.5:1
+pixel-retro,house,async,#e9d5ff,#7e22ce,#a855f7,#581c87,#6b21a8,#c084fc,#c084fc,#f3e8ff,#581c87 on #e9d5ff = 8.0:1; dark #f3e8ff on #6b21a8 = 7.4:1
+pixel-retro,house,external,#e5e7eb,#374151,#6b7280,#111827,#374151,#9ca3af,#9ca3af,#f3f4f6,#111827 on #e5e7eb = 14.3:1; dark #f3f4f6 on #374151 = 9.4:1
+pixel-retro,house,error,#fecaca,#b91c1c,#ef4444,#7f1d1d,#991b1b,#f87171,#f87171,#fee2e2,#7f1d1d on #fecaca = 6.9:1; dark #fee2e2 on #991b1b = 6.8:1
+pixel-retro,house,infra,#e2e8f0,#334155,#14b8a6,#0f172a,#1e293b,#94a3b8,#2dd4bf,#f1f5f9,#0f172a on #e2e8f0 = 14.5:1; dark #f1f5f9 on #1e293b = 13.4:1
+metro-map,house,client,#eff6ff,#2563eb,#3b82f6,#1e3a8a,#1e40af,#93c5fd,#93c5fd,#eff6ff,#1e3a8a on #eff6ff = 9.5:1; dark #eff6ff on #1e40af = 8.0:1
+metro-map,house,service,#fff7ed,#ea580c,#f97316,#7c2d12,#9a3412,#fdba74,#fdba74,#fff7ed,#7c2d12 on #fff7ed = 8.8:1; dark #fff7ed on #9a3412 = 6.9:1
+metro-map,house,data,#f0fdf4,#16a34a,#22c55e,#14532d,#166534,#86efac,#86efac,#f0fdf4,#14532d on #f0fdf4 = 8.7:1; dark #f0fdf4 on #166534 = 6.8:1
+metro-map,house,async,#faf5ff,#9333ea,#a855f7,#581c87,#6b21a8,#d8b4fe,#d8b4fe,#faf5ff,#581c87 on #faf5ff = 10.1:1; dark #faf5ff on #6b21a8 = 8.1:1
+metro-map,house,external,#f9fafb,#4b5563,#6b7280,#111827,#1f2937,#d1d5db,#d1d5db,#f9fafb,#111827 on #f9fafb = 17.0:1; dark #f9fafb on #1f2937 = 14.0:1
+metro-map,house,error,#fef2f2,#dc2626,#ef4444,#7f1d1d,#991b1b,#fca5a5,#fca5a5,#fef2f2,#7f1d1d on #fef2f2 = 9.2:1; dark #fef2f2 on #991b1b = 7.6:1
+metro-map,house,infra,#f8fafc,#475569,#14b8a6,#0f172a,#1e293b,#cbd5e1,#5eead4,#f8fafc,#0f172a on #f8fafc = 17.1:1; dark #f8fafc on #1e293b = 14.0:1
+comic-storytelling,house,client,#dbeafe,#1d4ed8,#3b82f6,#1e3a8a,#dbeafe,#1d4ed8,#3b82f6,#1e3a8a,#1e3a8a on #dbeafe = 8.5:1; dark #1e3a8a on #dbeafe = 8.5:1
+comic-storytelling,house,service,#ffedd5,#c2410c,#f97316,#7c2d12,#ffedd5,#c2410c,#f97316,#7c2d12,#7c2d12 on #ffedd5 = 8.2:1; dark #7c2d12 on #ffedd5 = 8.2:1
+comic-storytelling,house,data,#dcfce7,#15803d,#22c55e,#14532d,#dcfce7,#15803d,#22c55e,#14532d,#14532d on #dcfce7 = 8.3:1; dark #14532d on #dcfce7 = 8.3:1
+comic-storytelling,house,async,#f3e8ff,#7e22ce,#a855f7,#581c87,#f3e8ff,#7e22ce,#a855f7,#581c87,#581c87 on #f3e8ff = 9.2:1; dark #581c87 on #f3e8ff = 9.2:1
+comic-storytelling,house,external,#f3f4f6,#374151,#6b7280,#111827,#f3f4f6,#374151,#6b7280,#111827,#111827 on #f3f4f6 = 16.1:1; dark #111827 on #f3f4f6 = 16.1:1
+comic-storytelling,house,error,#fee2e2,#b91c1c,#ef4444,#7f1d1d,#fee2e2,#b91c1c,#ef4444,#7f1d1d,#7f1d1d on #fee2e2 = 8.2:1; dark #7f1d1d on #fee2e2 = 8.2:1
+comic-storytelling,house,infra,#f1f5f9,#334155,#14b8a6,#0f172a,#f1f5f9,#334155,#14b8a6,#0f172a,#0f172a on #f1f5f9 = 16.3:1; dark #0f172a on #f1f5f9 = 16.3:1
+hud-monochrome,house,client,#13202e,#67e8f9,#22d3ee,#e0f2fe,#13202e,#67e8f9,#22d3ee,#e0f2fe,#e0f2fe on #13202e = 14.4:1; dark #e0f2fe on #13202e = 14.4:1
+hud-monochrome,house,service,#13202e,#67e8f9,#22d3ee,#e0f2fe,#13202e,#67e8f9,#22d3ee,#e0f2fe,#e0f2fe on #13202e = 14.4:1; dark #e0f2fe on #13202e = 14.4:1
+hud-monochrome,house,data,#13202e,#67e8f9,#22d3ee,#e0f2fe,#13202e,#67e8f9,#22d3ee,#e0f2fe,#e0f2fe on #13202e = 14.4:1; dark #e0f2fe on #13202e = 14.4:1
+hud-monochrome,house,async,#13202e,#67e8f9,#22d3ee,#e0f2fe,#13202e,#67e8f9,#22d3ee,#e0f2fe,#e0f2fe on #13202e = 14.4:1; dark #e0f2fe on #13202e = 14.4:1
+hud-monochrome,house,external,#13202e,#67e8f9,#22d3ee,#e0f2fe,#13202e,#67e8f9,#22d3ee,#e0f2fe,#e0f2fe on #13202e = 14.4:1; dark #e0f2fe on #13202e = 14.4:1
+hud-monochrome,house,error,#13202e,#fbbf24,#f59e0b,#fef3c7,#13202e,#fbbf24,#f59e0b,#fef3c7,#fef3c7 on #13202e = 14.8:1; dark #fef3c7 on #13202e = 14.8:1
+hud-monochrome,house,infra,#13202e,#67e8f9,#22d3ee,#e0f2fe,#13202e,#67e8f9,#22d3ee,#e0f2fe,#e0f2fe on #13202e = 14.4:1; dark #e0f2fe on #13202e = 14.4:1
+neubrutalism,house,client,#a5d8ff,#000000,#1971c2,#000000,#1971c2,#ffffff,#a5d8ff,#ffffff,#000000 on #a5d8ff = 13.9:1; dark #ffffff on #1971c2 = 5.0:1
+neubrutalism,house,service,#ffd43b,#000000,#e8590c,#000000,#a16207,#ffffff,#ffd43b,#ffffff,#000000 on #ffd43b = 14.7:1; dark #ffffff on #a16207 = 4.9:1
+neubrutalism,house,data,#b2f2bb,#000000,#2f9e44,#000000,#166534,#ffffff,#b2f2bb,#ffffff,#000000 on #b2f2bb = 16.3:1; dark #ffffff on #166534 = 7.1:1
+neubrutalism,house,async,#ffc9c9,#000000,#e03131,#000000,#9f1239,#ffffff,#ffc9c9,#ffffff,#000000 on #ffc9c9 = 14.5:1; dark #ffffff on #9f1239 = 8.0:1
+neubrutalism,house,external,#e9ecef,#000000,#495057,#000000,#374151,#ffffff,#e9ecef,#ffffff,#000000 on #e9ecef = 17.7:1; dark #ffffff on #374151 = 10.3:1
+neubrutalism,house,error,#ff6b6b,#000000,#c92a2a,#000000,#991b1b,#ffffff,#ff6b6b,#ffffff,#000000 on #ff6b6b = 7.6:1; dark #ffffff on #991b1b = 8.3:1
+neubrutalism,house,infra,#dee2e6,#000000,#343a40,#000000,#262626,#ffffff,#dee2e6,#ffffff,#000000 on #dee2e6 = 16.1:1; dark #ffffff on #262626 = 15.1:1
+e-ink-paper,house,client,#ffffff,#1a1a1a,#4a4a4a,#1a1a1a,#2e2e2e,#f2efe9,#b8b8b8,#f2efe9,#1a1a1a on #ffffff = 17.4:1; dark #f2efe9 on #2e2e2e = 11.8:1
+e-ink-paper,house,service,#efece6,#1a1a1a,#4a4a4a,#1a1a1a,#3a3a3a,#f2efe9,#b8b8b8,#f2efe9,#1a1a1a on #efece6 = 14.8:1; dark #f2efe9 on #3a3a3a = 9.9:1
+e-ink-paper,house,data,#e4e0d8,#1a1a1a,#3a3a3a,#1a1a1a,#454545,#f2efe9,#c9c9c9,#f2efe9,#1a1a1a on #e4e0d8 = 13.2:1; dark #f2efe9 on #454545 = 8.4:1
+e-ink-paper,house,async,#f5f2ec,#1a1a1a,#5a5a5a,#1a1a1a,#333333,#e8e5df,#b0b0b0,#e8e5df,#1a1a1a on #f5f2ec = 15.6:1; dark #e8e5df on #333333 = 10.1:1
+e-ink-paper,house,external,#d9d5cc,#1a1a1a,#2e2e2e,#1a1a1a,#4f4f4f,#f2efe9,#d0d0d0,#f2efe9,#1a1a1a on #d9d5cc = 11.9:1; dark #f2efe9 on #4f4f4f = 7.1:1
+e-ink-paper,house,error,#1a1a1a,#1a1a1a,#fdfbf7,#fdfbf7,#f2efe9,#f2efe9,#1a1a1a,#1a1a1a,#fdfbf7 on #1a1a1a = 16.8:1; dark #1a1a1a on #f2efe9 = 15.2:1
+e-ink-paper,house,infra,#ebe8e1,#1a1a1a,#4a4a4a,#1a1a1a,#383838,#f2efe9,#bcbcbc,#f2efe9,#1a1a1a on #ebe8e1 = 14.2:1; dark #f2efe9 on #383838 = 10.2:1
+bauhaus,house,client,#1040c0,#121212,#f0c020,#ffffff,#1040c0,#f5f2eb,#f0c020,#ffffff,#ffffff on #1040c0 = 8.3:1; dark #ffffff on #1040c0 = 8.3:1
+bauhaus,house,service,#d02020,#121212,#f0c020,#ffffff,#d02020,#f5f2eb,#f0c020,#ffffff,#ffffff on #d02020 = 5.4:1; dark #ffffff on #d02020 = 5.4:1
+bauhaus,house,data,#f0c020,#121212,#1040c0,#121212,#f0c020,#f5f2eb,#1040c0,#121212,#121212 on #f0c020 = 10.9:1; dark #121212 on #f0c020 = 10.9:1
+bauhaus,house,async,#ffffff,#121212,#d02020,#121212,#2a2a2a,#f5f2eb,#f0c020,#f5f2eb,#121212 on #ffffff = 18.7:1; dark #f5f2eb on #2a2a2a = 12.8:1
+bauhaus,house,external,#e2ded4,#121212,#1040c0,#121212,#333333,#f5f2eb,#bdbdbd,#f5f2eb,#121212 on #e2ded4 = 13.9:1; dark #f5f2eb on #333333 = 11.3:1
+bauhaus,house,error,#121212,#121212,#d02020,#f5f2eb,#d02020,#f5f2eb,#f0c020,#ffffff,#f5f2eb on #121212 = 16.8:1; dark #ffffff on #d02020 = 5.4:1
+bauhaus,house,infra,#cfcabd,#121212,#121212,#121212,#3d3d3d,#f5f2eb,#cfcabd,#f5f2eb,#121212 on #cfcabd = 11.5:1; dark #f5f2eb on #3d3d3d = 9.7:1
+claymorphism,house,client,#cfe0ff,#2f5fc4,#5b8def,#17356b,#33406b,#8fb3ff,#b7ceff,#e6eeff,#17356b on #cfe0ff = 9.0:1; dark #e6eeff on #33406b = 8.6:1
+claymorphism,house,service,#e2d5ff,#6d3fd4,#8b5cf6,#3b1d75,#3b3164,#c4b5fd,#ddd2ff,#f0eaff,#3b1d75 on #e2d5ff = 9.4:1; dark #f0eaff on #3b3164 = 9.9:1
+claymorphism,house,data,#cdf3e4,#128a68,#34c79a,#0d4c39,#24493f,#7ee0c0,#a9ecd8,#e4fbf3,#0d4c39 on #cdf3e4 = 8.3:1; dark #e4fbf3 on #24493f = 9.2:1
+claymorphism,house,async,#ffe8c7,#a56a0c,#f59e0b,#6b3d05,#4d3a1e,#fbd38d,#fde3b4,#fff4e2,#6b3d05 on #ffe8c7 = 7.7:1; dark #fff4e2 on #4d3a1e = 9.9:1
+claymorphism,house,external,#e6e3f0,#5f5a7c,#8b86a8,#33304a,#33314a,#b6b1d4,#d2cfe6,#efedf7,#33304a on #e6e3f0 = 10.0:1; dark #efedf7 on #33314a = 10.8:1
+claymorphism,house,error,#ffd6dd,#c02745,#f43f5e,#6b0f22,#4f2130,#ffa8b8,#ffc8d2,#ffe8ed,#6b0f22 on #ffd6dd = 9.3:1; dark #ffe8ed on #4f2130 = 11.3:1
+claymorphism,house,infra,#e4e1ee,#57537a,#8480a0,#2f2c45,#2f2c45,#b3afcd,#cdcae0,#eceaf5,#2f2c45 on #e4e1ee = 10.4:1; dark #eceaf5 on #2f2c45 = 11.3:1
+flat-minimal,showcase,client,#eff6ff,#1d4ed8,#3b82f6,#0f172a,#1e40af,#60a5fa,#60a5fa,#dbeafe,"showcase: fork tokens (light) #0f172a on #eff6ff = 16.4:1, stroke vs canvas 6.4:1; dark mode inherits house"
+flat-minimal,showcase,service,#eef2ff,#4338ca,#6366f1,#0f172a,#9a3412,#fb923c,#fb923c,#ffedd5,"showcase: fork tokens (light) #0f172a on #eef2ff = 16.0:1, stroke vs canvas 7.6:1; dark mode inherits house"
+flat-minimal,showcase,data,#ecfdf5,#047857,#10b981,#0f172a,#166534,#4ade80,#4ade80,#dcfce7,"showcase: fork tokens (light) #0f172a on #ecfdf5 = 16.9:1, stroke vs canvas 5.2:1; dark mode inherits house"
+flat-minimal,showcase,async,#fefce8,#a16207,#eab308,#0f172a,#6b21a8,#c084fc,#c084fc,#f3e8ff,"showcase: fork tokens (light) #0f172a on #fefce8 = 17.3:1, stroke vs canvas 4.7:1; dark mode inherits house"
+flat-minimal,showcase,external,#f1f5f9,#334155,#64748b,#0f172a,#374151,#9ca3af,#9ca3af,#f3f4f6,"showcase: fork tokens (light) #0f172a on #f1f5f9 = 16.3:1, stroke vs canvas 9.9:1; dark mode inherits house"
+flat-minimal,showcase,error,#fef2f2,#b91c1c,#ef4444,#0f172a,#991b1b,#f87171,#f87171,#fee2e2,"showcase: fork tokens (light) #0f172a on #fef2f2 = 16.3:1, stroke vs canvas 6.2:1; dark mode inherits house"
+flat-minimal,showcase,infra,#f8fafc,#475569,#94a3b8,#0f172a,#1e293b,#94a3b8,#2dd4bf,#f1f5f9,"showcase: fork tokens (light) #0f172a on #f8fafc = 17.1:1, stroke vs canvas 7.2:1; dark mode inherits house"
+neon-dark,showcase,client,#1e3a8a,#60a5fa,#93c5fd,#eff6ff,#0d1418,#22d3ee,#67e8f9,#e6faff,"showcase: fork tokens (dark) #e6faff on #0d1418 = 17.2:1, stroke vs canvas 10.9:1; light mode inherits house"
+neon-dark,showcase,service,#7c2d12,#fb923c,#fdba74,#fff7ed,#150d18,#f472b6,#f9a8d4,#ffe9f5,"showcase: fork tokens (dark) #ffe9f5 on #150d18 = 16.5:1, stroke vs canvas 7.5:1; light mode inherits house"
+neon-dark,showcase,data,#14532d,#4ade80,#86efac,#f0fdf4,#101505,#a3e635,#bef264,#f2ffe0,"showcase: fork tokens (dark) #f2ffe0 on #101505 = 17.8:1, stroke vs canvas 13.1:1; light mode inherits house"
+neon-dark,showcase,async,#581c87,#c084fc,#d8b4fe,#faf5ff,#110d1c,#a78bfa,#c4b5fd,#f0eaff,"showcase: fork tokens (dark) #f0eaff on #110d1c = 16.3:1, stroke vs canvas 7.3:1; light mode inherits house"
+neon-dark,showcase,external,#111827,#9ca3af,#d1d5db,#f9fafb,#0a1118,#38bdf8,#7dd3fc,#e4f5ff,"showcase: fork tokens (dark) #e4f5ff on #0a1118 = 17.0:1, stroke vs canvas 9.2:1; light mode inherits house"
+neon-dark,showcase,error,#7f1d1d,#f87171,#fca5a5,#fef2f2,#170a0e,#fb7185,#fda4af,#ffe6ea,"showcase: fork tokens (dark) #ffe6ea on #170a0e = 16.3:1, stroke vs canvas 7.3:1; light mode inherits house"
+neon-dark,showcase,infra,#0f172a,#94a3b8,#5eead4,#f8fafc,#0d1016,#64748b,#94a3b8,#dbe4ee,"showcase: fork tokens (dark) #dbe4ee on #0d1016 = 14.8:1, stroke vs canvas 4.2:1; light mode inherits house"
+blueprint,showcase,client,#eff6ff,#1d4ed8,#2563eb,#1e3a8a,#0d2138,#e2f3ff,#7dd3fc,#e2f3ff,"showcase: fork tokens (dark) #e2f3ff on #0d2138 = 14.3:1, stroke vs canvas 15.4:1; light mode inherits house"
+blueprint,showcase,service,#fff7ed,#c2410c,#ea580c,#7c2d12,#0d2138,#e2f3ff,#7dd3fc,#e2f3ff,"showcase: fork tokens (dark) #e2f3ff on #0d2138 = 14.3:1, stroke vs canvas 15.4:1; light mode inherits house"
+blueprint,showcase,data,#f0fdf4,#15803d,#16a34a,#14532d,#0d2138,#7dd3fc,#bae6fd,#e2f3ff,"showcase: fork tokens (dark) #e2f3ff on #0d2138 = 14.3:1, stroke vs canvas 10.5:1; light mode inherits house"
+blueprint,showcase,async,#faf5ff,#7e22ce,#9333ea,#581c87,#0d2138,#7dd3fc,#bae6fd,#e2f3ff,"showcase: fork tokens (dark) #e2f3ff on #0d2138 = 14.3:1, stroke vs canvas 10.5:1; light mode inherits house"
+blueprint,showcase,external,#f9fafb,#374151,#4b5563,#111827,#0d2138,#8fb6cf,#7dd3fc,#cfe6f5,"showcase: fork tokens (dark) #cfe6f5 on #0d2138 = 12.6:1, stroke vs canvas 8.1:1; light mode inherits house"
+blueprint,showcase,error,#fef2f2,#b91c1c,#dc2626,#7f1d1d,#0d2138,#fbbf24,#f59e0b,#fef3c7,"showcase: fork tokens (dark) #fef3c7 on #0d2138 = 14.6:1, stroke vs canvas 10.5:1; light mode inherits house"
+blueprint,showcase,infra,#f8fafc,#334155,#0d9488,#0f172a,#0d2138,#8fb6cf,#7dd3fc,#cfe6f5,"showcase: fork tokens (dark) #cfe6f5 on #0d2138 = 12.6:1, stroke vs canvas 8.1:1; light mode inherits house"
+hand-drawn-sketch,showcase,client,#dbeafe,#1d4ed8,#3b82f6,#1e293b,#1e40af,#93c5fd,#60a5fa,#eff6ff,"showcase: fork tokens (light) #1e293b on #dbeafe = 12.0:1, stroke vs canvas 6.4:1; dark mode inherits house"
+hand-drawn-sketch,showcase,service,#fef3c7,#b45309,#f59e0b,#1e293b,#9a3412,#fdba74,#fb923c,#fff7ed,"showcase: fork tokens (light) #1e293b on #fef3c7 = 13.1:1, stroke vs canvas 4.8:1; dark mode inherits house"
+hand-drawn-sketch,showcase,data,#dcfce7,#15803d,#22c55e,#1e293b,#166534,#86efac,#4ade80,#f0fdf4,"showcase: fork tokens (light) #1e293b on #dcfce7 = 13.3:1, stroke vs canvas 4.8:1; dark mode inherits house"
+hand-drawn-sketch,showcase,async,#ede9fe,#6d28d9,#8b5cf6,#1e293b,#6b21a8,#d8b4fe,#c084fc,#faf5ff,"showcase: fork tokens (light) #1e293b on #ede9fe = 12.3:1, stroke vs canvas 6.8:1; dark mode inherits house"
+hand-drawn-sketch,showcase,external,#f3f4f6,#374151,#6b7280,#1e293b,#374151,#d1d5db,#9ca3af,#f9fafb,"showcase: fork tokens (light) #1e293b on #f3f4f6 = 13.3:1, stroke vs canvas 9.9:1; dark mode inherits house"
+hand-drawn-sketch,showcase,error,#fee2e2,#b91c1c,#ef4444,#1e293b,#991b1b,#fca5a5,#f87171,#fef2f2,"showcase: fork tokens (light) #1e293b on #fee2e2 = 12.0:1, stroke vs canvas 6.2:1; dark mode inherits house"
+hand-drawn-sketch,showcase,infra,#f5f5f4,#57534e,#a8a29e,#1e293b,#1e293b,#cbd5e1,#2dd4bf,#f8fafc,"showcase: fork tokens (light) #1e293b on #f5f5f4 = 13.4:1, stroke vs canvas 7.3:1; dark mode inherits house"
+glassmorphic,showcase,client,#eff6ff,#3b82f6,#60a5fa,#1e40af,#262a38,#93c5fd,#60a5fa,#f8fafc,"showcase: fork tokens (dark) #f8fafc on #262a38 = 13.6:1, stroke vs canvas 8.1:1; light mode inherits house"
+glassmorphic,showcase,service,#fff7ed,#ea580c,#fb923c,#9a3412,#262a38,#c4b5fd,#a78bfa,#f8fafc,"showcase: fork tokens (dark) #f8fafc on #262a38 = 13.6:1, stroke vs canvas 7.9:1; light mode inherits house"
+glassmorphic,showcase,data,#f0fdf4,#16a34a,#4ade80,#166534,#262a38,#5eead4,#2dd4bf,#f8fafc,"showcase: fork tokens (dark) #f8fafc on #262a38 = 13.6:1, stroke vs canvas 9.9:1; light mode inherits house"
+glassmorphic,showcase,async,#faf5ff,#a855f7,#c084fc,#6b21a8,#262a38,#fcd34d,#fbbf24,#f8fafc,"showcase: fork tokens (dark) #f8fafc on #262a38 = 13.6:1, stroke vs canvas 10.1:1; light mode inherits house"
+glassmorphic,showcase,external,#f9fafb,#6b7280,#9ca3af,#1f2937,#262a38,#cbd5e1,#94a3b8,#f1f5f9,"showcase: fork tokens (dark) #f1f5f9 on #262a38 = 13.0:1, stroke vs canvas 9.9:1; light mode inherits house"
+glassmorphic,showcase,error,#fef2f2,#ef4444,#f87171,#991b1b,#262a38,#fda4af,#fb7185,#fff1f2,"showcase: fork tokens (dark) #fff1f2 on #262a38 = 13.0:1, stroke vs canvas 7.7:1; light mode inherits house"
+glassmorphic,showcase,infra,#f8fafc,#64748b,#2dd4bf,#1e293b,#262a38,#b4bcda,#8b95bd,#f1f5f9,"showcase: fork tokens (dark) #f1f5f9 on #262a38 = 13.0:1, stroke vs canvas 7.8:1; light mode inherits house"
+pixel-retro,showcase,client,#bfdbfe,#1d4ed8,#3b82f6,#1e3a8a,#1f2b52,#00e5ff,#67e8f9,#e8fbff,"showcase: fork tokens (dark) #e8fbff on #1f2b52 = 12.9:1, stroke vs canvas 9.5:1; light mode inherits house"
+pixel-retro,showcase,service,#fed7aa,#c2410c,#f97316,#7c2d12,#3a1740,#ff2e88,#ff85c0,#ffe6f3,"showcase: fork tokens (dark) #ffe6f3 on #3a1740 = 13.0:1, stroke vs canvas 4.2:1; light mode inherits house"
+pixel-retro,showcase,data,#bbf7d0,#15803d,#22c55e,#14532d,#16321c,#7cff6b,#b6ffab,#ecffe8,"showcase: fork tokens (dark) #ecffe8 on #16321c = 13.3:1, stroke vs canvas 11.4:1; light mode inherits house"
+pixel-retro,showcase,async,#e9d5ff,#7e22ce,#a855f7,#581c87,#3a3218,#ffe66d,#fff3a8,#fffbe0,"showcase: fork tokens (dark) #fffbe0 on #3a3218 = 12.2:1, stroke vs canvas 11.7:1; light mode inherits house"
+pixel-retro,showcase,external,#e5e7eb,#374151,#6b7280,#111827,#22213f,#a0a0c0,#c9c9e0,#eeeefa,"showcase: fork tokens (dark) #eeeefa on #22213f = 13.4:1, stroke vs canvas 5.8:1; light mode inherits house"
+pixel-retro,showcase,error,#fecaca,#b91c1c,#ef4444,#7f1d1d,#3d1520,#ff5555,#ff9a9a,#ffe8e8,"showcase: fork tokens (dark) #ffe8e8 on #3d1520 = 13.5:1, stroke vs canvas 4.7:1; light mode inherits house"
+pixel-retro,showcase,infra,#e2e8f0,#334155,#14b8a6,#0f172a,#22213f,#6d6d9e,#9a9ac4,#e6e6f5,"showcase: fork tokens (dark) #e6e6f5 on #22213f = 12.5:1, stroke vs canvas 3.0:1; light mode inherits house; stroke tuned from #6b6b9e (stroke vs canvas 2.94:1)"
+metro-map,showcase,client,#ffffff,#0072ce,#0072ce,#111827,#1e40af,#93c5fd,#93c5fd,#eff6ff,"showcase: fork tokens (light) #111827 on #ffffff = 17.7:1, stroke vs canvas 4.7:1; dark mode inherits house"
+metro-map,showcase,service,#ffffff,#e2231a,#e2231a,#111827,#9a3412,#fdba74,#fdba74,#fff7ed,"showcase: fork tokens (light) #111827 on #ffffff = 17.7:1, stroke vs canvas 4.5:1; dark mode inherits house"
+metro-map,showcase,data,#ffffff,#009639,#009639,#111827,#166534,#86efac,#86efac,#f0fdf4,"showcase: fork tokens (light) #111827 on #ffffff = 17.7:1, stroke vs canvas 3.7:1; dark mode inherits house"
+metro-map,showcase,async,#ffffff,#e96e00,#e96e00,#111827,#6b21a8,#d8b4fe,#d8b4fe,#faf5ff,"showcase: fork tokens (light) #111827 on #ffffff = 17.7:1, stroke vs canvas 3.0:1; dark mode inherits house; stroke tuned from #ff8200 (stroke vs canvas 2.38:1); accent tuned from #ff8200 (kept equal to the tuned stroke)"
+metro-map,showcase,external,#ffffff,#6b4c9a,#6b4c9a,#111827,#1f2937,#d1d5db,#d1d5db,#f9fafb,"showcase: fork tokens (light) #111827 on #ffffff = 17.7:1, stroke vs canvas 6.4:1; dark mode inherits house"
+metro-map,showcase,error,#ffffff,#d50032,#d50032,#111827,#991b1b,#fca5a5,#fca5a5,#fef2f2,"showcase: fork tokens (light) #111827 on #ffffff = 17.7:1, stroke vs canvas 5.2:1; dark mode inherits house"
+metro-map,showcase,infra,#ffffff,#6b7280,#6b7280,#111827,#1e293b,#cbd5e1,#5eead4,#f8fafc,"showcase: fork tokens (light) #111827 on #ffffff = 17.7:1, stroke vs canvas 4.6:1; dark mode inherits house"
+ascii-terminal,showcase,client,#1e3a8a,#1e3a8a,#1e3a8a,#eff6ff,#0c0c0c,#8fbf8f,#b6e3b6,#d6e2d6,"showcase: fork tokens (dark) #d6e2d6 on #0c0c0c = 14.6:1, stroke vs canvas 8.5:1; light mode inherits house"
+ascii-terminal,showcase,service,#7c2d12,#7c2d12,#7c2d12,#fff7ed,#0c0c0c,#8fbf8f,#b6e3b6,#d6e2d6,"showcase: fork tokens (dark) #d6e2d6 on #0c0c0c = 14.6:1, stroke vs canvas 8.5:1; light mode inherits house"
+ascii-terminal,showcase,data,#14532d,#14532d,#14532d,#f0fdf4,#0c0c0c,#8fbf8f,#b6e3b6,#d6e2d6,"showcase: fork tokens (dark) #d6e2d6 on #0c0c0c = 14.6:1, stroke vs canvas 8.5:1; light mode inherits house"
+ascii-terminal,showcase,async,#581c87,#581c87,#581c87,#faf5ff,#0c0c0c,#8fbf8f,#b6e3b6,#d6e2d6,"showcase: fork tokens (dark) #d6e2d6 on #0c0c0c = 14.6:1, stroke vs canvas 8.5:1; light mode inherits house"
+ascii-terminal,showcase,external,#111827,#111827,#111827,#f9fafb,#0c0c0c,#6f8a6f,#8fbf8f,#b9c7b9,"showcase: fork tokens (dark) #b9c7b9 on #0c0c0c = 11.1:1, stroke vs canvas 4.7:1; light mode inherits house"
+ascii-terminal,showcase,error,#7f1d1d,#7f1d1d,#7f1d1d,#fef2f2,#0c0c0c,#d7a35a,#e8c48c,#f0dcb8,"showcase: fork tokens (dark) #f0dcb8 on #0c0c0c = 14.6:1, stroke vs canvas 7.9:1; light mode inherits house"
+ascii-terminal,showcase,infra,#0f172a,#0f172a,#0f172a,#f8fafc,#0c0c0c,#6f8a6f,#8fbf8f,#b9c7b9,"showcase: fork tokens (dark) #b9c7b9 on #0c0c0c = 11.1:1, stroke vs canvas 4.7:1; light mode inherits house"
+isometric-2.5d,showcase,client,#bfd8f5,#1d4ed8,#3b82f6,#0f172a,#1d4ed8,#93c5fd,#93c5fd,#eff6ff,"showcase: fork tokens (light) #0f172a on #bfd8f5 = 12.2:1, stroke vs canvas 6.1:1; dark mode inherits house"
+isometric-2.5d,showcase,service,#c9d2f7,#4338ca,#6366f1,#0f172a,#c2410c,#fdba74,#fdba74,#fff7ed,"showcase: fork tokens (light) #0f172a on #c9d2f7 = 11.9:1, stroke vs canvas 7.2:1; dark mode inherits house"
+isometric-2.5d,showcase,data,#bfe8dc,#0f766e,#14b8a6,#0f172a,#15803d,#86efac,#86efac,#f0fdf4,"showcase: fork tokens (light) #0f172a on #bfe8dc = 13.4:1, stroke vs canvas 5.0:1; dark mode inherits house"
+isometric-2.5d,showcase,async,#f8e2b8,#a16207,#eab308,#0f172a,#7e22ce,#d8b4fe,#d8b4fe,#faf5ff,"showcase: fork tokens (light) #0f172a on #f8e2b8 = 14.1:1, stroke vs canvas 4.5:1; dark mode inherits house"
+isometric-2.5d,showcase,external,#dbe2ea,#334155,#64748b,#0f172a,#374151,#d1d5db,#d1d5db,#f9fafb,"showcase: fork tokens (light) #0f172a on #dbe2ea = 13.7:1, stroke vs canvas 9.5:1; dark mode inherits house"
+isometric-2.5d,showcase,error,#f8ccc9,#b91c1c,#ef4444,#0f172a,#b91c1c,#fca5a5,#fca5a5,#fef2f2,"showcase: fork tokens (light) #0f172a on #f8ccc9 = 12.3:1, stroke vs canvas 5.9:1; dark mode inherits house"
+isometric-2.5d,showcase,infra,#dfe5ec,#475569,#94a3b8,#0f172a,#334155,#cbd5e1,#5eead4,#f8fafc,"showcase: fork tokens (light) #0f172a on #dfe5ec = 14.1:1, stroke vs canvas 6.9:1; dark mode inherits house"
+comic-storytelling,showcase,client,#8ecae6,#141414,#219ebc,#141414,#dbeafe,#1d4ed8,#3b82f6,#1e3a8a,"showcase: fork tokens (light) #141414 on #8ecae6 = 10.3:1, stroke vs canvas 18.4:1; dark mode inherits house"
+comic-storytelling,showcase,service,#ffb703,#141414,#fb8500,#141414,#ffedd5,#c2410c,#f97316,#7c2d12,"showcase: fork tokens (light) #141414 on #ffb703 = 10.6:1, stroke vs canvas 18.4:1; dark mode inherits house"
+comic-storytelling,showcase,data,#a7e8a0,#141414,#2a9d3f,#141414,#dcfce7,#15803d,#22c55e,#14532d,"showcase: fork tokens (light) #141414 on #a7e8a0 = 12.9:1, stroke vs canvas 18.4:1; dark mode inherits house"
+comic-storytelling,showcase,async,#ffd6e0,#141414,#e5397e,#141414,#f3e8ff,#7e22ce,#a855f7,#581c87,"showcase: fork tokens (light) #141414 on #ffd6e0 = 14.0:1, stroke vs canvas 18.4:1; dark mode inherits house"
+comic-storytelling,showcase,external,#e8e4d8,#141414,#6b6b6b,#141414,#f3f4f6,#374151,#6b7280,#111827,"showcase: fork tokens (light) #141414 on #e8e4d8 = 14.5:1, stroke vs canvas 18.4:1; dark mode inherits house"
+comic-storytelling,showcase,error,#ff5c5c,#141414,#c1121f,#141414,#fee2e2,#b91c1c,#ef4444,#7f1d1d,"showcase: fork tokens (light) #141414 on #ff5c5c = 6.1:1, stroke vs canvas 18.4:1; dark mode inherits house"
+comic-storytelling,showcase,infra,#ded9cb,#141414,#4a4a4a,#141414,#f1f5f9,#334155,#14b8a6,#0f172a,"showcase: fork tokens (light) #141414 on #ded9cb = 13.1:1, stroke vs canvas 18.4:1; dark mode inherits house"

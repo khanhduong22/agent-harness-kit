@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kubernetes deployment topology — blueprint</title>
+
+<!-- =====================================================================
+     Scenario 3 acceptance example — diagram-director skill.
+     Prompt (verbatim): "kubernetes deployment topology for a 3-service app"
+     Target: local. Style pinned explicitly with --style blueprint (see
+     note below on why the auto-picked style was overridden).
+
+     Produced by: python3 scripts/search.py "<prompt>" --blueprint
+     --style blueprint --target local -f markdown, then copying
+     templates/base/blueprint.html and substituting content between its
+     markers per the blueprint spec (type=deployment-topology,
+     layout=clustered-domains, style=blueprint, motion=replication-sync).
+
+     ROUTER NOTE (logged, not silently worked around): run WITHOUT
+     --style, the auto-picker chose style=isometric-2.5d over blueprint,
+     even though both are listed in deployment-topology's Best Styles and
+     the target is --local (no artifact-safety filtering applies).
+     isometric-2.5d has Template Status=planned, so the composer then had
+     to substitute the blueprint template anyway and emit a warning. Since
+     an equally-endorsed, fully shipped alternative (blueprint) existed,
+     this is an avoidable churn in blueprint_composer.py's style
+     auto-selection (it ranks by raw BM25 score only, with no preference
+     for Template Status=shipped over planned when scores are close).
+     That file is scripts/** and out of this pass's edit scope, so the fix
+     here is the documented, sanctioned workaround: pin --style blueprint
+     explicitly, exactly as SKILL.md's own Example Workflow does for
+     scenario 1.
+
+     DESIGN NOTE ON "region" / "availability-zone" NODE KINDS: the
+     clustered-domains layout's Grouping Rule calls for a labeled
+     rounded-rectangle boundary per domain cluster. "region" and the
+     primary "availability-zone" (zone A, which hosts real workloads) are
+     rendered AS that labeled boundary rather than as a second, separate
+     <g class="node"> shape layered on top of it -- drawing both would
+     just duplicate the same label twice. The secondary zone (zone B,
+     standby/failover, no workloads to group) has no children to bound,
+     so it IS rendered as a literal container-box node instead. All 5
+     Node Kinds from the blueprint therefore appear at least once, using
+     whichever concrete form (group boundary vs. node shape) fits whether
+     that instance is grouping other nodes or standing alone. This is a
+     judgment call the dataset/layout docs don't spell out explicitly --
+     worth a follow-up clarification in layouts.csv or style-guides.md,
+     flagged in the acceptance report rather than guessed at silently.
+
+     MOTION NOTE: deployment-topology's Recommended Motion intersected
+     with blueprint's Motion Affinity to a single motion, replication-sync
+     (needs-js, fine for --target local). Its semantics ("data written to
+     the primary is copied to replica nodes") map cleanly onto the three
+     autoscaling-group nodes fading in, in deployment order, from the
+     kubernetes-cluster that schedules them -- N=3 replicas for the
+     N=3-service app the prompt asked for. Per motion-recipes.md this is
+     a one-shot boot-sequence animation (CSS "forwards", not "infinite"):
+     it plays once on load and holds at fully-visible, it does not loop.
+
+     EDGE-ANCHOR AUDIT (scripts/verify_edge_anchors.py) -- geometry unchanged.
+     The active-zone connector ends on the AZ boundary's top edge (y=348)
+     because, per the DESIGN NOTE above, that zone IS a .group__box boundary
+     and not a <g class="node">; re-pointing it at one of the three
+     autoscaling groups would have changed what the connector says (the
+     cluster schedules into the ZONE, not into one service). The checker
+     learned to anchor on a cluster boundary LINE -- never its interior, which
+     would let an endpoint dropped anywhere inside a 744x144 box pass.
+     -->
+
+<!-- Typography per data/styles.csv (blueprint): JetBrains Mono / IBM Plex Mono. The Google Fonts
+     <link> ships active, as it does in templates/base/blueprint.html: Google Fonts is allowed for
+     --target local and is also the one external host a Claude Artifact permits. The fallback stack
+     below still renders a clean system monospace if the request is blocked. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+:root{
+  /* ---- surface ------------------------------------------------------ */
+  --bg:#f8fafc;
+  --surface:#f8fafc;
+  --grid:color-mix(in srgb, #334155 14%, transparent);
+  --ink:#0f172a;
+  --muted:#334155;
+  --stroke:#334155;
+  --stroke-w:1px;
+  --radius:0px;
+
+  /* ---- typography --------------------------------------------------- */
+  --font-title:"JetBrains Mono","IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --font-label:"JetBrains Mono","IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --fs-title:1.25rem;
+  --fs-label:14px;
+  --fs-sub:11px;
+  --fs-edge:12px;
+
+  /* ---- roles: fill / stroke / accent / on-colour -------------------- */
+  /* values verbatim from data/color-semantics.csv (Style ID blueprint) */
+  --role-service:#fff7ed;  --ink-service:#c2410c;  --accent-service:#ea580c;  --on-service:#7c2d12;
+  --role-infra:#f8fafc;    --ink-infra:#334155;    --accent-infra:#0d9488;    --on-infra:#0f172a;
+
+  /* ---- motion (values from data/motion.csv, blueprint motion set: replication-sync only) */
+  --dur-sync:600ms; --ease-sync:ease-out; --sync-stagger:125ms;
+}
+
+/* Classic blueprint: cyan hairlines on dark navy (#0a1a2f per styles.csv). */
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0a1a2f;
+    --surface:#0a1a2f;
+    --grid:color-mix(in srgb, #93c5fd 16%, transparent);
+    --ink:#f8fafc;
+    --muted:#93c5fd;
+    --stroke:#93c5fd;
+    --role-service:#7c2d12;  --ink-service:#fed7aa;  --accent-service:#fdba74;  --on-service:#fff7ed;
+    --role-infra:#0f172a;    --ink-infra:#e2e8f0;    --accent-infra:#5eead4;    --on-infra:#f8fafc;
+  }
+}
+
+/* ===== page ========================================================== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-label);
+     -webkit-text-size-adjust:100%}
+.diagram{max-width:1440px;margin:0 auto;padding:24px 16px 40px}
+.diagram__title{font-family:var(--font-title);font-size:var(--fs-title);font-weight:600;
+                letter-spacing:.02em;text-transform:uppercase;margin:0 0 4px}
+.diagram__subtitle{margin:0 0 18px;color:var(--muted);font-size:.8125rem;line-height:1.55}
+.diagram__canvas{display:block;width:100%;height:auto;background-color:var(--surface);
+                 background-image:repeating-linear-gradient(to right,var(--grid) 0 1px,transparent 1px 20px),
+                                  repeating-linear-gradient(to bottom,var(--grid) 0 1px,transparent 1px 20px);
+                 border:1px solid var(--grid);border-radius:var(--radius)}
+.diagram__note{margin:16px 0 0;color:var(--muted);font-size:.8125rem;line-height:1.6;max-width:72ch}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+         clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ===== role mapping (the ONLY place a role becomes a colour) ========= */
+[data-role]{--fill:var(--role-infra);--line:var(--ink-infra);--accent:var(--accent-infra);--on:var(--on-infra)}
+[data-role="service"]{--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="infra"]  {--fill:var(--role-infra);    --line:var(--ink-infra);    --accent:var(--accent-infra);    --on:var(--on-infra)}
+
+/* ===== nodes ========================================================= */
+.node{color:var(--line)}
+.node__body{transform-box:fill-box;transform-origin:center}
+.node__shape{fill:var(--fill);stroke:var(--line);stroke-width:var(--stroke-w);
+             stroke-linejoin:miter;stroke-linecap:butt}
+.node__detail{fill:none;stroke:var(--line);stroke-width:1;opacity:.7;stroke-linecap:butt}
+/* hatched fill accent — the schematic tell (styles.csv: CSS Techniques) */
+.node__detail--dashed{fill:url(#hatch);stroke-dasharray:4 3}
+.node__label{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-label);
+             font-weight:600;letter-spacing:.04em;text-transform:uppercase;text-anchor:middle}
+.node__sub{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-sub);
+           text-anchor:middle;opacity:.85}
+.node--primary .node__shape{stroke-width:calc(var(--stroke-w) * 2)}
+
+/* ===== groups ======================================================== */
+.group__box{fill:none;stroke:var(--line);stroke-width:1;stroke-dasharray:2 4;opacity:.7}
+.group__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+              letter-spacing:.1em;text-transform:uppercase;text-anchor:start}
+
+/* ===== edges ========================================================= */
+.edge{fill:none;stroke:var(--stroke);stroke-width:var(--stroke-w);
+      stroke-linecap:butt;stroke-linejoin:miter}
+.edge--standby{stroke:var(--ink-infra);stroke-dasharray:10 6}  /* dash = failover/standby, not colour alone */
+.edge__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-edge);
+             letter-spacing:.02em;text-anchor:middle}
+.marker{fill:none;stroke:var(--stroke);stroke-width:1.4;stroke-linecap:butt}  /* open arrowhead */
+#hatch path{stroke:var(--ink-infra);stroke-width:1;opacity:.35}
+
+/* ===== motion: replication-sync only, applied to the three autoscaling-
+   group nodes (see motion-recipes.md#replication-sync). One-shot boot
+   sequence -- plays once on load, holds at opacity 1, does not loop. ==== */
+.replica{opacity:.3;animation:sync var(--dur-sync) var(--ease-sync) forwards paused}
+.replica.play{animation-play-state:running}
+@keyframes sync{to{opacity:1}}
+
+/* ===== reduced motion: render the INFORMATIVE END STATE ============== */
+@media (prefers-reduced-motion: reduce){
+  .replica{animation:none !important;opacity:1 !important}
+}
+
+/* ===== small screens ================================================= */
+@media (max-width:640px){
+  :root{--fs-title:1.0625rem}
+  .diagram{padding:16px 12px 32px}
+  .legend{gap:8px 14px}
+}
+
+/* ===== legend ======================================================== */
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0 0;padding:0}
+.legend__item{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--muted);
+              min-height:24px}
+.legend__swatch{inline-size:16px;block-size:16px;border-radius:0;flex:none;
+                background:var(--fill);border:2px solid var(--line)}
+.legend__label{line-height:1.4}
+</style>
+</head>
+
+<body>
+<main class="diagram">
+  <h1 class="diagram__title">Kubernetes deployment topology</h1>
+  <p class="diagram__subtitle">blueprint style &middot; clustered domains &middot; orthogonal routing
+    only &middot; 3-service app &middot; rev A</p>
+
+  <svg class="diagram__canvas" viewBox="20 90 1268 454" role="img"
+       aria-labelledby="dgm-title dgm-desc">
+    <title id="dgm-title">Kubernetes deployment topology for a 3-service app</title>
+    <desc id="dgm-desc">A regional load balancer routes HTTPS traffic into a Kubernetes cluster. The
+      cluster's primary path, a solid connector, leads into availability zone us-east-1a, which hosts
+      three autoscaling groups: checkout, orders, and catalog, one per service. A dashed connector
+      shows the cluster's standby path to availability zone us-east-1b for failover. On load, the three
+      autoscaling groups fade in one after another to show the cluster bringing each service's replicas
+      into sync; with reduced motion all three render fully visible immediately instead.</desc>
+
+    <defs>
+      <!-- open arrowheads: schematic convention, no filled triangles -->
+      <marker id="arrow" class="marker" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10" fill="none" />
+      </marker>
+      <!-- cross-hatch fill accent for schematic symbols -->
+      <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <path d="M 0 0 V 8" />
+      </pattern>
+    </defs>
+
+    <g class="layer-groups">
+      <!-- Both boundaries hug their contents at exactly the clustered-domains cluster padding of
+           32px on all four sides, with the label 16px above the border (Spacing Rules).
+           REGION: outer labeled boundary (see header note). Contents span x 72..1236, y 170..492
+           -> box 40,138 .. 1268,524. -->
+      <g class="group" data-role="infra">
+        <rect class="group__box" x="40" y="138" width="1228" height="386" rx="0" ry="0" />
+        <text class="group__label" x="56" y="122">Region (us-east-1)</text>
+      </g>
+      <!-- AVAILABILITY ZONE A: inner labeled boundary that actually groups the three service
+           autoscaling groups. Contents span x 104..784, y 380..460 -> box 72,348 .. 816,492. -->
+      <g class="group" data-role="infra">
+        <rect class="group__box" x="72" y="348" width="744" height="144" rx="0" ry="0" />
+        <text class="group__label" x="88" y="332">AZ (us-east-1a) — active</text>
+      </g>
+    </g>
+
+    <g class="layer-edges">
+      <!-- load-balancer -> kubernetes-cluster: solid network path (100px intra-cluster node gap) -->
+      <g class="edge-group">
+        <path class="edge" d="M 232 210 L 332 210" marker-end="url(#arrow)">
+          <title>load-balancer routes traffic into the kubernetes-cluster over HTTPS</title></path>
+        <text class="edge__label" x="282" y="201">HTTPS &middot; 443</text>
+      </g>
+
+      <!-- kubernetes-cluster -> AZ us-east-1a: solid, primary/active zone; drops from the cluster's
+           bottom edge onto the zone boundary's top edge -->
+      <g class="edge-group">
+        <path class="edge" d="M 412 250 L 412 348" marker-end="url(#arrow)">
+          <title>kubernetes-cluster schedules workloads into availability zone us-east-1a, the active
+            zone</title></path>
+        <text class="edge__label" x="524" y="304">active &middot; primary zone</text>
+      </g>
+
+      <!-- kubernetes-cluster -> AZ us-east-1b: dashed, standby/failover path. The vertical leg sits
+           at x=946, clear of the zone-a boundary (ends at 816) and of the standby node (starts at
+           1076), so it crosses no other content. -->
+      <g class="edge-group">
+        <path class="edge edge--standby" d="M 492 210 L 946 210 L 946 420 L 1076 420"
+              marker-end="url(#arrow)">
+          <title>kubernetes-cluster fails over to availability zone us-east-1b if zone us-east-1a
+            becomes unavailable</title></path>
+        <text class="edge__label" x="719" y="201">standby &middot; failover</text>
+      </g>
+    </g>
+
+    <g class="layer-nodes">
+      <!-- every shape below is templates/snippets/node-shapes.html at its native 160x80, unmodified:
+           clustered-domains is specified against that same box, so nodes are only translate()d. -->
+
+      <!-- load-balancer (shape-hexagon, role service) -->
+      <g class="node" data-role="service" transform="translate(72,170)">
+        <title>load-balancer — regional entry point in front of the kubernetes-cluster</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+        </g>
+        <text class="node__label" x="80" y="42">Load Balancer</text>
+        <text class="node__sub" x="80" y="60">ALB</text>
+      </g>
+
+      <!-- kubernetes-cluster (shape-container-box, role infra, PRIMARY) -->
+      <g class="node node--primary" data-role="infra" transform="translate(332,170)">
+        <title>kubernetes-cluster — prod-eks, schedules all three services' pods across zones</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+          <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64"
+                rx="2" ry="2" />
+        </g>
+        <text class="node__label" x="80" y="42">K8s Cluster</text>
+        <text class="node__sub" x="80" y="60">prod-eks</text>
+      </g>
+
+      <!-- autoscaling-group x3, one per service (shape-container-box, role infra) --
+           class "replica" drives the one-shot replication-sync fade-in, staggered
+           via style="--i:N" below. -->
+      <g class="node replica" data-role="infra" style="--i:0" transform="translate(104,380)">
+        <title>autoscaling-group — checkout service, 3 running pods in zone us-east-1a</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+          <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64"
+                rx="2" ry="2" />
+        </g>
+        <text class="node__label" x="80" y="42">Checkout</text>
+        <text class="node__sub" x="80" y="60">ASG &middot; 3 pods</text>
+      </g>
+
+      <g class="node replica" data-role="infra" style="--i:1" transform="translate(364,380)">
+        <title>autoscaling-group — orders service, 4 running pods in zone us-east-1a</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+          <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64"
+                rx="2" ry="2" />
+        </g>
+        <text class="node__label" x="80" y="42">Orders</text>
+        <text class="node__sub" x="80" y="60">ASG &middot; 4 pods</text>
+      </g>
+
+      <g class="node replica" data-role="infra" style="--i:2" transform="translate(624,380)">
+        <title>autoscaling-group — catalog service, 2 running pods in zone us-east-1a</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+          <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64"
+                rx="2" ry="2" />
+        </g>
+        <text class="node__label" x="80" y="42">Catalog</text>
+        <text class="node__sub" x="80" y="60">ASG &middot; 2 pods</text>
+      </g>
+
+      <!-- availability-zone (shape-container-box, role infra) — zone B, standby, no
+           workloads to group, so rendered as a standalone node rather than a boundary.
+           Sits one 260px inter-cluster gap right of zone A's boundary. -->
+      <g class="node" data-role="infra" transform="translate(1076,380)">
+        <title>availability-zone — us-east-1b, standby failover target, currently idle</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+          <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64"
+                rx="2" ry="2" />
+        </g>
+        <text class="node__label" x="80" y="42">AZ (east-1b)</text>
+        <text class="node__sub" x="80" y="60">standby</text>
+      </g>
+    </g>
+  </svg>
+
+  <!-- only the two roles actually present in this diagram -->
+  <ul class="legend">
+    <li class="legend__item"><span class="legend__swatch" data-role="service"></span>
+      <span class="legend__label">service — traffic-facing compute (load balancer)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="infra"></span>
+      <span class="legend__label">infra — cluster, zone, and autoscaling placement</span></li>
+  </ul>
+
+  <p class="diagram__note">Reading the motion: on load, the three autoscaling groups fade in one after
+    another — checkout, then orders, then catalog — showing the cluster bringing each service's
+    replicas into sync; once visible they stay visible, this does not loop. Solid connectors are active
+    network paths; the dashed connector into availability zone us-east-1b is a standby/failover path,
+    not live traffic. With <em>reduced motion</em> enabled all three autoscaling groups render fully
+    visible immediately — nothing here depends on animation to be understood.</p>
+</main>
+
+<!-- The ONLY script in this file: fires the replication-sync boot sequence once on load, per
+     motion-recipes.md#replication-sync. needs-js is acceptable here because target=local. -->
+<script>
+(function () {
+  document.querySelectorAll('.replica').forEach(function (el, i) {
+    setTimeout(function () { el.classList.add('play'); }, i * 125);
+  });
+})();
+</script>
+</body>
+</html>

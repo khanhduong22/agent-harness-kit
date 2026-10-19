@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkout request flow — comic-storytelling</title>
+
+<!-- =====================================================================
+     STYLE: comic-storytelling  (data/styles.csv#comic-storytelling)
+     Derived from templates/base/flat-minimal.html. Every class name and
+     custom-property name from that reference file is still declared here;
+     only :root token VALUES, the <defs>, and the rules flagged "COMIC:"
+     differ — plus the panel/bubble vocabulary listed below.
+
+     >>> THIS TEMPLATE IS LIGHT-ONLY, ON PURPOSE. <<<
+     styles.csv#comic-storytelling Dark Mode = not-recommended, and that is
+     not laziness: the whole style rests on paper-white gutters and black
+     ink. Inverted, the gutters become the loudest thing on the page and the
+     ink outlines disappear. So there is NO @media (prefers-color-scheme:
+     dark) block here, `color-scheme: light` is declared so the UA does not
+     flip anything underneath us, and every colour — including the page
+     background — is painted explicitly instead of inherited. If you need a
+     dark diagram, choose a different style; do not bolt a dark twin onto
+     this file. It is the one deliberate hole in the ten-style set.
+
+     COMIC: CLASS NAMES ADDED (and why each one has to exist)
+       .panel / .panel__frame / .panel__tone / .panel__num / .panel__caption
+       /.panel__caption-text
+                       a panel is a first-class object in this style, the
+                       way a route is in metro-map. The frame is the inked
+                       border, the tone is the halftone screen over the
+                       panel interior, the num is the beat number, and the
+                       caption is the narrator's box. Panels are positioned
+                       with transform="translate()" and everything inside
+                       them is authored in PANEL-LOCAL coordinates.
+       .bubble__body / .bubble__text
+                       the speech bubble. .bubble__body is ONE <path>:
+                       rounded-rect outline with the tail cut into the
+                       bottom edge, so a single unbroken ink stroke goes
+                       all the way round including the tail.
+       .node__shade    the cel-shading: a copy of the node's silhouette
+                       filled with the halftone <pattern> and clipped to a
+                       band across the bottom by ONE shared <clipPath>.
+                       Because that clipPath is userSpaceOnUse, its
+                       coordinates resolve inside each node's own local
+                       space, so the same clip works for every node at
+                       every position. Copy the shape's `d` into the shade
+                       when you add a node, and keep the two in sync.
+       .edge__flourish the comic motion lines trailing an arrow.
+       .halftone__dot  the dot inside the <pattern>. It exists because
+                       var() in a PRESENTATION attribute (fill="var(--x)")
+                       is not reliably supported — the dots would silently
+                       fall back to black. A class rule always works.
+     COMIC: ONLY TWO NAMES ARE DROPPED — .packet--e1 / .packet--e3, the two
+     offset-path rules, because this example has no travelling packet to
+     hang one on. `.packet` itself is still declared, so adding one is a
+     two-line job. .queue__*, .group__*, .node__icon-glyph and the rest are
+     all still declared even where this example does not use them.
+
+     COMIC: DEVIATIONS FROM THE SHARED ARCHITECTURE, AND WHY
+     1. clip-path is spent on the CEL SHADING, not on the bubble tail.
+        styles.csv names "clip-path for speech-bubble tail shape". A rect
+        clipped to a triangle cannot carry a stroke on its hypotenuse —
+        you get an inked rectangle with one raw cut edge, which in a style
+        whose entire identity is a bold unbroken ink outline is a bug, not
+        a shortcut. So the tail is real geometry inside .bubble__body's
+        path, and clip-path does the job it is actually good at here:
+        banding the halftone shade. Same technique, better target.
+     2. .node__shape strokes var(--stroke) — BLACK INK — not var(--line).
+        Comic panels outline everything in ink and let flat colour do the
+        identifying. The role still reads: it is the fill, the label, the
+        <title> and the legend row. Ink on every role fill measures 8:1 or
+        better (data/color-semantics.csv), so this costs no contrast.
+     3. --bg is the paper (gutters, page, bubble interiors) and --surface is
+        the PANEL interior — the reverse of the other templates, because
+        here the gutter is the background and the panel is the object
+        sitting on it.
+     4. The panel reveal uses .anim-node-boot-sequence, an ordered
+        opacity stagger driven by --i. styles.csv's Motion Affinity column
+        for this style predates the template and does not list it; it
+        should (see the report). Nothing else in motion-blocks.css does an
+        ordered reveal without also touching stroke-dasharray, which would
+        leak into every stroked child of a panel.
+     5. orders-service appears TWICE, in panels 3 and 4. That is comic
+        grammar — the same character in successive beats — not a duplicate
+        node. Six components, seven appearances; the <desc> says so.
+
+     HOW TO ADAPT THIS FILE
+     1. TOKENS — edit only the :root block. Colours come from
+        data/color-semantics.csv (Style ID comic-storytelling); never
+        invent a hex. There is no dark twin to keep in sync.
+     2. PANELS — the grid is 2 x 2: panel 656 x 300, gutter 28. Add a beat
+        by adding a <g class="panel" transform="translate(x,y)"> and
+        bumping --i. Reading order is DOM order, which is also the numbered
+        order, which is also the reveal order — keep all three aligned.
+     3. NODES — the nominal box is still 160x80 and geometry still comes
+        from templates/snippets/node-shapes.html unchanged. Positions are
+        PANEL-LOCAL.
+     4. BUBBLES — one .bubble__body path per bubble. The tail is cut into
+        the bottom edge between two x positions and must point AT the
+        acting node without touching it (aim ~8 units off its edge).
+     5. MOTION classes available here (templates/snippets/motion-blocks.css):
+          .anim-node-boot-sequence   ordered panel reveal (on .panel!)
+          .anim-connection-draw-in   a bold arrow being drawn
+          .anim-state-transition-arrow  one outcome arrow, in --active
+          .anim-fanout-broadcast     one event reaching several targets
+          .anim-pulse-glow (.anim-pulse)  the acting node in this beat
+          .anim-dash-flow / .anim-packet-travel / .anim-queue-fill /
+          .anim-heartbeat            declared, unused in this example
+     6. ARTIFACT vs LOCAL — css-only, zero <script>. The Google Fonts <link>
+        is the ONE external host a Claude Artifact permits; both --font-*
+        stacks have real fallbacks, and if Bangers is blocked the bubbles
+        fall back to a heavy condensed sans and still read.
+     7. Motion is non-interactive by design — no hover, click, or playback
+        controls. Do not add any.
+     ===================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@400;500;600;700&display=swap">
+
+<style>
+:root{
+  color-scheme:light;      /* COMIC: light only. See the header note. */
+
+  /* ---- surface: --bg is the PAPER, --surface is the PANEL ----------- */
+  --bg:#ffffff;
+  --surface:#f1f5f9;
+  --grid:color-mix(in srgb, #111827 10%, transparent);
+  --ink:#111827;
+  --muted:#374151;
+  --stroke:#111827;        /* black ink — the outline colour of everything */
+  --stroke-w:4px;          /* bold 3-4px inking */
+  --radius:6px;
+
+  /* ---- typography: lettering for bubbles, sans for the technical text */
+  --font-title:"Bangers","Impact","Haettenschweiler","Arial Narrow Bold",sans-serif;
+  --font-label:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --fs-title:2rem;
+  --fs-label:16px;
+  --fs-sub:13px;
+
+  /* ---- roles: fill / stroke / accent / on-colour -------------------- */
+  /* values verbatim from data/color-semantics.csv (Style ID comic-storytelling) */
+  --role-client:#dbeafe;   --ink-client:#1d4ed8;   --accent-client:#3b82f6;   --on-client:#1e3a8a;
+  --role-service:#ffedd5;  --ink-service:#c2410c;  --accent-service:#f97316;  --on-service:#7c2d12;
+  --role-data:#dcfce7;     --ink-data:#15803d;     --accent-data:#22c55e;     --on-data:#14532d;
+  --role-async:#f3e8ff;    --ink-async:#7e22ce;    --accent-async:#a855f7;    --on-async:#581c87;
+  --role-external:#f3f4f6; --ink-external:#374151; --accent-external:#6b7280; --on-external:#111827;
+  --role-error:#fee2e2;    --ink-error:#b91c1c;    --accent-error:#ef4444;    --on-error:#7f1d1d;
+  --role-infra:#f1f5f9;    --ink-infra:#334155;    --accent-infra:#14b8a6;    --on-infra:#0f172a;
+
+  /* ---- motion (values from data/motion.csv) ------------------------- */
+  --dur-flow:1200ms;  --dur-pulse:1600ms; --dur-fill:2000ms;
+  --dur-beat:1000ms;  --dur-draw:700ms;
+  --dur-boot:520ms;                 /* COMIC: one beat = one panel */
+  --dur-transition:600ms; --dur-branch:600ms;
+  --ease-flow:ease-in-out; --ease-pulse:ease-in-out;
+  --stagger:200ms; --stagger-branch:220ms;
+  --dash:8; --dash-gap:6; --dash-cycle:56;
+  --empty:22%;
+  --glow:10px;
+}
+
+/* ===== page ========================================================== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-label);
+     -webkit-text-size-adjust:100%}
+.diagram{max-width:1440px;margin:0 auto;padding:24px 16px 40px}
+.diagram__title{font-family:var(--font-title);font-size:var(--fs-title);font-weight:400;
+                letter-spacing:.02em;line-height:1.1;margin:0 0 6px}
+.diagram__subtitle{margin:0 0 18px;color:var(--muted);font-size:.875rem;line-height:1.55}
+/* COMIC: the canvas IS the paper. The gutters between panels are simply
+   this background showing through — there are no gutter elements. */
+.diagram__canvas{display:block;width:100%;height:auto;background-color:var(--bg);
+                 border-radius:var(--radius)}
+.diagram__note{margin:16px 0 0;color:var(--muted);font-size:.8125rem;line-height:1.6;max-width:72ch}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+         clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ===== role mapping (the ONLY place a role becomes a colour) ========= */
+[data-role]{--fill:var(--role-external);--line:var(--ink-external);
+            --accent:var(--accent-external);--on:var(--on-external)}
+[data-role="client"]  {--fill:var(--role-client);  --line:var(--ink-client);  --accent:var(--accent-client);  --on:var(--on-client)}
+[data-role="service"] {--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="data"]    {--fill:var(--role-data);    --line:var(--ink-data);    --accent:var(--accent-data);    --on:var(--on-data)}
+[data-role="async"]   {--fill:var(--role-async);   --line:var(--ink-async);   --accent:var(--accent-async);   --on:var(--on-async)}
+[data-role="external"]{--fill:var(--role-external);--line:var(--ink-external);--accent:var(--accent-external);--on:var(--on-external)}
+[data-role="error"]   {--fill:var(--role-error);   --line:var(--ink-error);   --accent:var(--accent-error);   --on:var(--on-error)}
+[data-role="infra"]   {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* ===== panels ======================================================== */
+.panel__frame{fill:var(--surface);stroke:var(--stroke);stroke-width:var(--stroke-w);
+              stroke-linejoin:round}
+.halftone__dot{fill:var(--stroke);stroke:none}   /* COMIC: a class, not a fill=
+   presentation attribute — var() in a presentation attribute is not
+   reliably supported and the dots would silently render black-by-default */
+.panel__tone{fill:url(#halftone);opacity:.2;stroke:none}
+.panel__num{fill:var(--stroke);stroke:none}
+/* COMIC: the ONE piece of text that is NOT in the lettering face. Bangers
+   renders 3 close enough to 5 at this size to break the reading order, and
+   reading order is the whole point of a panel grid. */
+.panel__num-text{fill:var(--bg);font-family:var(--font-label);font-size:20px;
+                 font-weight:700;text-anchor:middle}
+.panel__caption{fill:var(--bg);stroke:var(--stroke);stroke-width:3;stroke-linejoin:round}
+.panel__caption-text{fill:var(--ink);font-family:var(--font-label);font-size:15px;
+                     font-weight:600}
+
+/* ===== speech bubbles ================================================ */
+.bubble__body{fill:var(--bg);stroke:var(--stroke);stroke-width:var(--stroke-w);
+              stroke-linejoin:round}
+.bubble__text{fill:var(--ink);font-family:var(--font-title);font-size:34px;
+              letter-spacing:.03em;text-anchor:middle}
+
+/* ===== nodes ========================================================= */
+.node{color:var(--line)}                     /* currentColor drives the glow */
+.node__body{transform-box:fill-box;transform-origin:center}
+/* COMIC: black ink outline, role colour in the fill. See deviation 2. */
+.node__shape{fill:var(--fill);stroke:var(--stroke);stroke-width:var(--stroke-w);
+             stroke-linejoin:round;stroke-linecap:round}
+.node__shade{fill:url(#halftone);stroke:none;opacity:.45}
+.node__detail{fill:none;stroke:var(--stroke);stroke-width:2.5;opacity:.8;stroke-linecap:round}
+.node__detail--dashed{stroke-dasharray:5 4}
+.node__icon{fill:var(--stroke);stroke:none;opacity:.9}
+.node__icon .node__detail{opacity:.9}
+.node__icon-glyph{fill:var(--on);font-family:var(--font-label);font-size:17px;
+                  font-weight:700;text-anchor:middle}
+.node__label{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-label);
+             font-weight:700;text-anchor:middle}
+.node__sub{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-sub);
+           text-anchor:middle;opacity:.9}
+.node--primary .node__shape{stroke-width:calc(var(--stroke-w) * 1.25)}
+
+/* ===== queue (declared for portability; unused in this example) ====== */
+.queue__track{fill:var(--on);opacity:.16;stroke:none}
+.queue__fill{fill:var(--accent);stroke:none}
+.queue .node__detail{stroke:var(--fill);opacity:.9}
+
+/* ===== groups ======================================================== */
+.group__box{fill:none;stroke:var(--stroke);stroke-width:2.5;stroke-dasharray:8 6;opacity:.6}
+.group__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+              letter-spacing:.04em;text-anchor:middle}
+
+/* ===== edges ========================================================= */
+/* COMIC: arrows are inked and heavy — they are drawings, not hairlines. */
+.edge{fill:none;stroke:var(--stroke);stroke-width:calc(var(--stroke-w) + 2px);
+      stroke-linecap:round;stroke-linejoin:round}
+.edge--primary{stroke-width:calc(var(--stroke-w) + 4px)}
+.edge--async{stroke:var(--ink-async);stroke-dasharray:14 9}  /* dash = async, not colour alone */
+.edge--error{stroke:var(--ink-error);stroke-dasharray:18 6 5 6}
+.edge__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+             text-anchor:middle}
+.edge__flourish{fill:none;stroke:var(--stroke);stroke-width:3;stroke-linecap:round;opacity:.75}
+/* COMIC: the draw-in motions all drive stroke-dashoffset against a
+   stroke-dasharray of --draw-len, which would WIPE the async dash pattern
+   and leave colour as the only async signal once the animation finished.
+   Restoring the pattern here turns "draw in" into "march in" for async
+   edges — same reveal, and the end state is still a dashed line. */
+.edge--async.anim-fanout-broadcast,
+.edge--async.anim-connection-draw-in,
+.edge--async.anim-state-transition-arrow{stroke-dasharray:14 9}
+.marker{fill:var(--stroke);stroke:none}
+.marker--open{fill:none;stroke:var(--ink-async);stroke-width:1.6;stroke-linecap:round}
+
+/* ===== motion (source: templates/snippets/motion-blocks.css) ========= */
+/* COMIC: the panel reveal. Ordered opacity only — safe on a group that
+   carries its own positioning transform, and it cannot leak a dash
+   pattern into the inked children the way the edge motions would. */
+.anim-node-boot-sequence{
+  opacity:0;
+  animation:node-boot-sequence var(--dur-boot) ease-out forwards;
+  animation-delay:calc(var(--i,0) * var(--dur-boot));
+}
+@keyframes node-boot-sequence{to{opacity:1}}
+
+.anim-connection-draw-in{
+  stroke-dasharray:var(--draw-len,500);stroke-dashoffset:var(--draw-len,500);
+  animation:connection-draw-in var(--dur-draw) ease-out forwards;
+  animation-delay:calc(var(--i,0) * var(--dur-boot));   /* lands with its panel */
+}
+@keyframes connection-draw-in{to{stroke-dashoffset:0}}
+
+.anim-state-transition-arrow{
+  stroke:var(--active,var(--ink-data));
+  stroke-dasharray:var(--draw-len,500);stroke-dashoffset:var(--draw-len,500);
+  animation:state-transition-arrow var(--dur-transition) ease-out forwards;
+  animation-delay:calc(var(--i,0) * var(--dur-boot));
+}
+@keyframes state-transition-arrow{to{stroke-dashoffset:0}}
+
+.anim-fanout-broadcast{
+  opacity:0;
+  stroke-dasharray:var(--draw-len,500);stroke-dashoffset:var(--draw-len,500);
+  animation:fanout-broadcast var(--dur-branch) ease-out forwards;
+  animation-delay:calc(var(--i,0) * var(--stagger-branch));
+}
+@keyframes fanout-broadcast{to{opacity:1;stroke-dashoffset:0}}
+
+.anim-pulse-glow,.anim-pulse{
+  animation:pulse-glow var(--dur-pulse) var(--ease-pulse) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes pulse-glow{
+  0%,100%{opacity:1;filter:drop-shadow(0 0 2px currentColor)}
+  50%{opacity:.85;filter:drop-shadow(0 0 var(--glow) currentColor)}
+}
+
+/* declared for portability; unused in this example diagram */
+.anim-dash-flow,.anim-dash{
+  stroke-dasharray:var(--dash) var(--dash-gap);
+  stroke-dashoffset:var(--dash-cycle);
+  animation:dash-flow var(--dur-flow) linear infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes dash-flow{to{stroke-dashoffset:0}}
+
+.packet{fill:var(--line);stroke:var(--stroke);stroke-width:2;offset-distance:0%;offset-rotate:auto}
+.anim-packet-travel,.anim-travel{
+  animation:packet-travel var(--dur-flow) var(--ease-flow) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes packet-travel{to{offset-distance:100%}}
+
+.anim-queue-fill,.anim-fill{
+  clip-path:inset(0 100% 0 0);
+  animation:queue-fill var(--dur-fill) ease-out infinite alternate;
+}
+@keyframes queue-fill{
+  from{clip-path:inset(0 100% 0 0)}
+  to{clip-path:inset(0 var(--empty) 0 0)}
+}
+
+.anim-heartbeat{animation:heartbeat var(--dur-beat) var(--ease-pulse) infinite}
+@keyframes heartbeat{
+  0%,100%{transform:scale(1)}25%{transform:scale(1.06)}
+  40%{transform:scale(1)}55%{transform:scale(1.04)}
+}
+
+/* ===== reduced motion: render the INFORMATIVE END STATE ============== */
+@media (prefers-reduced-motion: reduce){
+  /* EVERY panel revealed — the whole story on the page at once. */
+  .anim-node-boot-sequence{animation:none !important;opacity:1 !important}
+  .anim-connection-draw-in,.anim-state-transition-arrow{
+    animation:none !important;stroke-dasharray:none !important;stroke-dashoffset:0 !important}
+  .anim-fanout-broadcast{
+    animation:none !important;opacity:1 !important;
+    stroke-dasharray:none !important;stroke-dashoffset:0 !important}
+  .anim-dash-flow,.anim-dash{
+    animation:none !important;stroke-dasharray:none !important;stroke-dashoffset:0 !important}
+  .edge--async{stroke-dasharray:14 9 !important}   /* async must stay dashed */
+  .edge--error{stroke-dasharray:18 6 5 6 !important}
+  .packet,.anim-packet-travel,.anim-travel{
+    animation:none !important;offset-distance:100% !important}
+  .anim-pulse-glow,.anim-pulse{
+    animation:none !important;opacity:1 !important;filter:drop-shadow(0 0 3px currentColor)}
+  .anim-queue-fill,.anim-fill{
+    animation:none !important;clip-path:inset(0 var(--empty) 0 0) !important}
+  .anim-heartbeat{animation:none !important;transform:none !important}
+}
+
+/* ===== small screens ================================================= */
+@media (max-width:640px){
+  :root{--fs-title:1.5rem}
+  .diagram{padding:16px 12px 32px}
+  .legend{gap:8px 14px}
+}
+
+/* ===== legend ======================================================== */
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0 0;padding:0}
+.legend__item{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);
+              min-height:24px}
+/* COMIC: swatches are inked too, so the key matches the artwork. */
+.legend__swatch{inline-size:16px;block-size:16px;border-radius:3px;flex:none;
+                background:var(--fill);border:3px solid var(--stroke)}
+.legend__label{line-height:1.4}
+</style>
+</head>
+
+<body>
+<main class="diagram">
+  <h1 class="diagram__title">Checkout request flow</h1>
+  <p class="diagram__subtitle">comic-storytelling style &middot; four panels, read left to right,
+    top to bottom &middot; six components</p>
+
+  <svg class="diagram__canvas" viewBox="0 0 1388 676" role="img"
+       aria-labelledby="dgm-title dgm-desc">
+    <title id="dgm-title">Checkout request flow, told in four panels</title>
+    <desc id="dgm-desc">Four comic panels, read left to right then top to bottom. Panel one: the
+      browser sends POST /checkout and the action leaves the frame to the right. Panel two: the
+      api-gateway authenticates the request and passes it on. Panel three: orders-service, drawn
+      glowing because it is the acting component, reads through redis-cache and gets a cache hit.
+      Panel four: orders-service — the same component appearing again, as characters do across
+      comic panels — writes the order to sql-database and publishes an order-placed event to
+      message-queue, one arrow to each. Six components appear in seven places. Panels fade in one
+      after another in reading order; with reduced motion every panel is shown at once.</desc>
+
+    <defs>
+      <!-- DEFS:START -->
+      <!-- COMIC: the halftone screen. One neutral ink dot grid, reused for
+           the panel tone and for every node's cel shading. -->
+      <pattern id="halftone" width="8" height="8" patternUnits="userSpaceOnUse">
+        <circle class="halftone__dot" cx="2" cy="2" r="1.7" />
+      </pattern>
+      <!-- COMIC: ONE clipPath shades every node. userSpaceOnUse means these
+           coordinates resolve in the referencing element's own local space,
+           i.e. inside each node's 160x80 box — so it works at any position
+           in any panel without a per-node clip. -->
+      <clipPath id="shade-band" clipPathUnits="userSpaceOnUse">
+        <rect x="-40" y="60" width="240" height="34" />
+      </clipPath>
+      <marker id="arrow" class="marker" viewBox="0 0 10 10" refX="7" refY="5"
+              markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse"
+              markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10 z" />
+      </marker>
+      <marker id="arrow-open" class="marker marker--open" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10" fill="none" />
+      </marker>
+      <!-- DEFS:END -->
+    </defs>
+
+    <!-- PANELS:START — DOM order is reading order is reveal order -->
+
+    <!-- ================= PANEL 1 ================= -->
+    <g class="panel anim-node-boot-sequence" transform="translate(24,24)" style="--i:0">
+      <rect class="panel__frame" x="0" y="0" width="656" height="300" />
+      <rect class="panel__tone" x="4" y="4" width="648" height="292" />
+
+      <rect class="panel__caption" x="60" y="12" width="580" height="34" rx="4" ry="4" />
+      <text class="panel__caption-text" x="76" y="35">The customer hits Pay in the checkout SPA</text>
+      <rect class="panel__num" x="16" y="12" width="34" height="34" rx="4" ry="4" />
+      <text class="panel__num-text" x="33" y="36">1</text>
+
+      <path class="bubble__body"
+            d="M 274 64 H 596 A 24 24 0 0 1 620 88 V 132 A 24 24 0 0 1 596 156
+               H 352 L 216 206 L 292 156 H 274 A 24 24 0 0 1 250 132 V 88
+               A 24 24 0 0 1 274 64 Z" />
+      <text class="bubble__text" x="435" y="122">POST /CHECKOUT!</text>
+
+      <g class="edge__flourish-group">
+        <path class="edge anim-connection-draw-in" style="--draw-len:360" d="M 222 220 H 560"
+              marker-end="url(#arrow)"><title>the request leaves for the api-gateway</title></path>
+        <path class="edge__flourish" d="M 244 198 H 300 M 244 242 H 288 M 320 198 H 356" />
+      </g>
+
+      <g class="node" data-role="client" transform="translate(48,180)">
+        <title>browser — customer web client</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+          <rect class="node__shade" clip-path="url(#shade-band)" x="0" y="0"
+                width="160" height="80" rx="8" ry="8" />
+          <path class="node__detail" d="M 0 20 H 160" />
+          <circle class="node__icon" cx="14" cy="10" r="3" />
+          <circle class="node__icon" cx="26" cy="10" r="3" />
+          <circle class="node__icon" cx="38" cy="10" r="3" />
+        </g>
+        <text class="node__label" x="80" y="38">browser</text>
+        <text class="node__sub" x="80" y="54">checkout SPA</text>
+      </g>
+    </g>
+
+    <!-- ================= PANEL 2 ================= -->
+    <g class="panel anim-node-boot-sequence" transform="translate(708,24)" style="--i:1">
+      <rect class="panel__frame" x="0" y="0" width="656" height="300" />
+      <rect class="panel__tone" x="4" y="4" width="648" height="292" />
+
+      <rect class="panel__caption" x="60" y="12" width="580" height="34" rx="4" ry="4" />
+      <text class="panel__caption-text" x="76" y="35">The gateway checks the badge and waves it through</text>
+      <rect class="panel__num" x="16" y="12" width="34" height="34" rx="4" ry="4" />
+      <text class="panel__num-text" x="33" y="36">2</text>
+
+      <path class="bubble__body"
+            d="M 60 64 H 382 A 24 24 0 0 1 406 88 V 132 A 24 24 0 0 1 382 156
+               H 360 L 470 172 L 300 156 H 60 A 24 24 0 0 1 36 132 V 88
+               A 24 24 0 0 1 60 64 Z" />
+      <text class="bubble__text" x="221" y="122">TLS OK &mdash; AUTHN OK!</text>
+
+      <g class="edge__flourish-group">
+        <path class="edge anim-connection-draw-in" style="--draw-len:400;--i:1" d="M 36 220 H 428"
+              marker-end="url(#arrow)"><title>the api-gateway forwards the request to
+          orders-service</title></path>
+        <path class="edge__flourish" d="M 60 198 H 116 M 60 242 H 104 M 136 198 H 172" />
+      </g>
+
+      <g class="node" data-role="service" transform="translate(440,180)">
+        <title>api-gateway — edge entry point, TLS termination and authentication</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+          <polygon class="node__shade" clip-path="url(#shade-band)"
+                   points="20,0 140,0 160,40 140,80 20,80 0,40" />
+        </g>
+        <text class="node__label" x="80" y="38">api-gateway</text>
+        <text class="node__sub" x="80" y="54">TLS &middot; authn</text>
+      </g>
+    </g>
+
+    <!-- ================= PANEL 3 ================= -->
+    <g class="panel anim-node-boot-sequence" transform="translate(24,352)" style="--i:2">
+      <rect class="panel__frame" x="0" y="0" width="656" height="300" />
+      <rect class="panel__tone" x="4" y="4" width="648" height="292" />
+
+      <rect class="panel__caption" x="60" y="12" width="580" height="34" rx="4" ry="4" />
+      <text class="panel__caption-text" x="76" y="35">Orders-service looks the basket up — and the cache has it</text>
+      <rect class="panel__num" x="16" y="12" width="34" height="34" rx="4" ry="4" />
+      <text class="panel__num-text" x="33" y="36">3</text>
+
+      <path class="bubble__body"
+            d="M 174 58 H 486 A 24 24 0 0 1 510 82 V 122 A 24 24 0 0 1 486 146
+               H 262 L 120 172 L 198 146 H 174 A 24 24 0 0 1 150 122 V 82
+               A 24 24 0 0 1 174 58 Z" />
+      <text class="bubble__text" x="330" y="114">CACHE HIT! &mdash; 60s TTL</text>
+
+      <path class="edge anim-state-transition-arrow" style="--draw-len:200;--i:2;--active:var(--ink-data)"
+            d="M 210 220 H 386" marker-end="url(#arrow)"><title>orders-service reads through
+        redis-cache and the lookup is a hit</title></path>
+      <text class="edge__label" x="298" y="204">read-through</text>
+
+      <g class="node node--primary anim-pulse-glow" data-role="service" transform="translate(40,180)">
+        <title>orders-service — the acting component in this beat, handling the checkout</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+          <rect class="node__shade" clip-path="url(#shade-band)" x="0" y="0"
+                width="160" height="80" rx="8" ry="8" />
+        </g>
+        <text class="node__label" x="80" y="38">orders-service</text>
+        <text class="node__sub" x="80" y="54">REST &middot; 2 replicas</text>
+      </g>
+
+      <g class="node" data-role="data" transform="translate(400,180)">
+        <title>redis-cache — read-through cache with a 60 second time to live</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+          <rect class="node__shade" clip-path="url(#shade-band)" x="0" y="0"
+                width="160" height="80" rx="8" ry="8" />
+          <polygon class="node__icon" points="140,8 128,26 136,26 130,42 146,22 138,22 144,8" />
+        </g>
+        <text class="node__label" x="76" y="38">redis-cache</text>
+        <text class="node__sub" x="76" y="54">TTL 60s</text>
+      </g>
+    </g>
+
+    <!-- ================= PANEL 4 ================= -->
+    <g class="panel anim-node-boot-sequence" transform="translate(708,352)" style="--i:3">
+      <rect class="panel__frame" x="0" y="0" width="656" height="300" />
+      <rect class="panel__tone" x="4" y="4" width="648" height="292" />
+
+      <rect class="panel__caption" x="60" y="12" width="580" height="34" rx="4" ry="4" />
+      <text class="panel__caption-text" x="76" y="35">Write it down, then tell everyone it happened</text>
+      <rect class="panel__num" x="16" y="12" width="34" height="34" rx="4" ry="4" />
+      <text class="panel__num-text" x="33" y="36">4</text>
+
+      <path class="bubble__body"
+            d="M 48 58 H 320 A 24 24 0 0 1 344 82 V 118 A 24 24 0 0 1 320 142
+               H 190 L 150 174 L 130 142 H 48 A 24 24 0 0 1 24 118 V 82
+               A 24 24 0 0 1 48 58 Z" />
+      <text class="bubble__text" x="184" y="112">ORDER PLACED!</text>
+
+      <!-- one event, two destinations: fanout, staggered by --i -->
+      <path class="edge anim-fanout-broadcast" style="--draw-len:240;--i:0" d="M 208 208 L 404 152"
+            marker-end="url(#arrow)"><title>orders-service writes the order to
+        sql-database</title></path>
+      <path class="edge edge--async anim-fanout-broadcast" style="--draw-len:240;--i:1"
+            d="M 208 236 L 404 252" marker-end="url(#arrow)"><title>orders-service publishes
+        order-placed to message-queue asynchronously</title></path>
+
+      <g class="node" data-role="service" transform="translate(40,180)">
+        <title>orders-service — the same component again, one beat later</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+          <rect class="node__shade" clip-path="url(#shade-band)" x="0" y="0"
+                width="160" height="80" rx="8" ry="8" />
+        </g>
+        <text class="node__label" x="80" y="38">orders-service</text>
+        <text class="node__sub" x="80" y="54">again, one beat on</text>
+      </g>
+
+      <g class="node" data-role="data" transform="translate(420,110)">
+        <title>sql-database — primary relational datastore</title>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z" />
+          <path class="node__shade" clip-path="url(#shade-band)"
+                d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z" />
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14" />
+        </g>
+        <text class="node__label" x="80" y="38">sql-database</text>
+        <text class="node__sub" x="80" y="54">primary</text>
+      </g>
+
+      <g class="node" data-role="async" transform="translate(420,210)">
+        <title>message-queue — durable buffer carrying the order-placed event</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6" />
+          <rect class="node__shade" clip-path="url(#shade-band)" x="0" y="0"
+                width="160" height="80" rx="6" ry="6" />
+          <path class="node__detail node__detail--dashed" d="M 12 22 H 148" />
+        </g>
+        <text class="node__label" x="80" y="38">message-queue</text>
+        <text class="node__sub" x="80" y="54">async &middot; order-placed</text>
+      </g>
+    </g>
+    <!-- PANELS:END -->
+  </svg>
+
+  <!-- LEGEND:START -->
+  <ul class="legend">
+    <li class="legend__item"><span class="legend__swatch" data-role="client"></span>
+      <span class="legend__label">client — browser, mobile, or device</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="service"></span>
+      <span class="legend__label">service — application code we own</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="data"></span>
+      <span class="legend__label">data — database, cache, object store</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="async"></span>
+      <span class="legend__label">async — queue or worker (dashed arrow)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="external"></span>
+      <span class="legend__label">external — third party we do not run</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="error"></span>
+      <span class="legend__label">error — failure path (long-short dash)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="infra"></span>
+      <span class="legend__label">infra — platform and observability</span></li>
+  </ul>
+  <!-- LEGEND:END -->
+
+  <p class="diagram__note">Reading the story: panels are numbered and read left to right, then top
+    to bottom, and they fade in one at a time in that order — the stagger IS the sequence. A speech
+    bubble's tail points at the component doing the talking, the glowing node is the one acting in
+    that beat, and the dashed arrow in panel four is the asynchronous publish. With
+    <em>reduced motion</em> enabled all four panels are shown at once, fully drawn, so the whole
+    story is on the page without waiting for anything.</p>
+</main>
+</body>
+</html>

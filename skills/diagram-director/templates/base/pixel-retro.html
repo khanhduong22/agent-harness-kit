@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkout request flow — pixel-retro</title>
+
+<!-- =====================================================================
+     STYLE: pixel-retro  (data/styles.csv#pixel-retro)
+     Derived from templates/base/flat-minimal.html. Every class name and
+     every custom-property name from that reference file is still declared
+     here; only :root token VALUES, the <defs>, and the handful of rules
+     flagged "PIXEL:" below differ.
+
+     HOW TO ADAPT THIS FILE
+     1. TOKENS — edit only the :root block and its dark-mode twin. Colours
+        come from data/color-semantics.csv (Style ID pixel-retro); never
+        invent a hex.
+     2. NODES — add/remove <g class="node"> blocks between NODES:START and
+        NODES:END. Nominal box is still 160x80, column gap 220, row gap 120
+        (data/layouts.csv#layered-lr). Colour is set by data-role only:
+        client service data async external error infra.
+     3. EDGES — add <path class="edge"> between EDGES:START and EDGES:END.
+        Stair-step routing only (see THE GRID below).
+     4. MOTION classes available here (templates/snippets/motion-blocks.css):
+          .anim-dash-flow  (.anim-dash)      traffic flowing on a connector
+          .anim-packet-travel (.anim-travel) one request in flight
+          .anim-pulse-glow (.anim-pulse)     node is alive and working
+          .anim-queue-fill (.anim-fill)      buffer depth growing
+          .anim-batch-tick                   scheduled batch conveyor
+                                             (declared, unused in this example)
+          .anim-heartbeat                    liveness ping (on .node__body!)
+          .anim-connection-draw-in           a new dependency appearing
+        A packet's offset-path `d` MUST be copied verbatim from its edge.
+     5. ARTIFACT vs LOCAL — css-only, zero <script>. The Google Fonts <link>
+        below is the ONE external host a Claude Artifact permits
+        (fonts.googleapis.com + fonts.gstatic.com), so it ships active and
+        this file is artifact-safe as-is. Both --font-* stacks have real
+        fallbacks, so the diagram survives the request being blocked.
+     6. Motion is non-interactive by design — no hover, click, or playback
+        controls. Do not add any.
+
+     THE GRID IS THE LAYOUT ENGINE
+     Every coordinate in this file is a multiple of 4 user units, and every
+     node/edge endpoint is a multiple of 20. That is what makes the sprites
+     line up and the stair connectors land on whole "pixels". If you add
+     geometry, snap it to 4 or the crisp edges start looking like mistakes.
+     NO DIAGONALS ANYWHERE. Slopes are stairs: alternate H and V runs
+     (see the async edge, which descends in six 20-unit drops). The stepped
+     shapes below are the stair-drawn equivalents of the arcs and diagonals
+     in templates/snippets/node-shapes.html — same 160x80 box, same anchors,
+     same <title>/<text> contract, only the silhouette is re-cut.
+     There is not one <circle> in this template; a circle cannot be pixel
+     art. Round detail becomes a square.
+
+     PIXEL: WHAT CHANGES vs flat-minimal, AND WHY
+     - shape-rendering:crispEdges on the SVG root is what ACTUALLY kills
+       anti-aliasing on vector geometry. `image-rendering:pixelated` is the
+       technique named in styles.csv#pixel-retro and is declared on the
+       canvas, where it governs raster/background scaling — but it does
+       NOTHING to SVG path edges. Both ship; only one of them is doing the
+       work. shape-rendering does not affect <text>, so the labels below
+       stay smooth and legible (see the font note).
+     - --radius:0 and every rx/ry is gone. Corners are cut as 8-unit steps
+       inside the path `d` instead.
+     - .node__shape / .edge use stroke-linejoin:miter and stroke-linecap:butt
+       (flat-minimal rounds both). A round cap is a curve.
+     - .node__icon-glyph is repurposed as the sprite's HUD ROLE TAG: the
+       all-caps role name in the pixel font, knocked out of a solid bar
+       (.node__icon). Text is var(--fill) on a var(--on) bar — the same
+       pair data/color-semantics.csv already verified, just inverted, so it
+       is AA in both schemes. This is also a second, text-based carrier of
+       the role that colour-blind readers and greyscale printers get free.
+     - pulse-glow uses a ZERO-BLUR drop-shadow ring instead of a soft bloom:
+       a gaussian blur is the one thing this style cannot contain. Four
+       hard 4-unit offsets make a chunky sprite halo. Opacity no longer
+       dips, so contrast is never traded for the effect.
+     - Timing functions are steps(): dash-flow steps(20) moves 4 units per
+       tick, packet-travel steps(11) hops 20 units per tick on a 220-unit
+       edge, pulse-glow steps(1) is a hard on/off blink, queue-fill steps(6)
+       fills one block at a time. If you change an edge LENGTH, change the
+       packet's step count with it or the hop stops landing on the grid.
+     - The packet is a 16x16 <rect>, not a <circle>. It needs
+       transform-box:fill-box so offset-anchor resolves to its own centre.
+     - Nothing is DROPPED. .packet--e1 / .packet--e3 keep their names.
+
+     PIXEL: THE FONT-SIZE TENSION, AND HOW IT IS RESOLVED
+     styles.csv#pixel-retro asks for a pixel bitmap font, and its own
+     Accessibility Notes column warns that small pixel fonts fail minimum
+     text size. Both are honoured by SPLITTING the type job:
+       --font-title  "Press Start 2P"  the page title, the group label and
+                     the 12px all-caps role tags — short, upper-case, wide
+                     letter-spacing, and every one of them is REDUNDANT
+                     (the role is also the fill colour, the shape and a
+                     legend row), so nothing is lost if it is hard to read.
+       --font-label  a normal sans at 16px/13px for every node name, sub-
+                     label and edge label — the text that actually carries
+                     information. This is the "larger label overlay" the
+                     accessibility note asks for.
+     Do not set the body labels in the pixel font to make it look more 8-bit.
+     Press Start 2P has no descender room and no lowercase worth the name;
+     at 16px a six-word label becomes unreadable and the diagram fails the
+     one job it has.
+     ===================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  /* ---- surface: light pixel checkerboard ---------------------------- */
+  --bg:#e2e8f0;
+  --surface:#e2e8f0;
+  --grid:color-mix(in srgb, #334155 8%, transparent);
+  --ink:#0f172a;
+  --muted:#334155;
+  --stroke:#334155;
+  --stroke-w:4px;        /* chunky 4-unit outline, per the style's 2-4px */
+  --radius:0px;          /* PIXEL: nothing is rounded, ever */
+
+  /* ---- typography: pixel font for tags, sans for information -------- */
+  --font-title:"Press Start 2P","Courier New",ui-monospace,monospace;
+  --font-label:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --fs-title:1rem;       /* Press Start 2P runs ~1.4x visually — 1rem is plenty */
+  --fs-label:16px;
+  --fs-sub:13px;
+
+  /* ---- roles: fill / stroke / accent / on-colour -------------------- */
+  /* values verbatim from data/color-semantics.csv (Style ID pixel-retro) */
+  --role-client:#bfdbfe;   --ink-client:#1d4ed8;   --accent-client:#3b82f6;   --on-client:#1e3a8a;
+  --role-service:#fed7aa;  --ink-service:#c2410c;  --accent-service:#f97316;  --on-service:#7c2d12;
+  --role-data:#bbf7d0;     --ink-data:#15803d;     --accent-data:#22c55e;     --on-data:#14532d;
+  --role-async:#e9d5ff;    --ink-async:#7e22ce;    --accent-async:#a855f7;    --on-async:#581c87;
+  --role-external:#e5e7eb; --ink-external:#374151; --accent-external:#6b7280; --on-external:#111827;
+  --role-error:#fecaca;    --ink-error:#b91c1c;    --accent-error:#ef4444;    --on-error:#7f1d1d;
+  --role-infra:#e2e8f0;    --ink-infra:#334155;    --accent-infra:#14b8a6;    --on-infra:#0f172a;
+
+  /* ---- motion (values from data/motion.csv) ------------------------- */
+  --dur-flow:1200ms;  --dur-pulse:1600ms; --dur-fill:2000ms;
+  --dur-beat:1000ms;  --dur-draw:800ms;   --dur-tick:3000ms;
+  --ease-flow:steps(11, end);      /* PIXEL: 220-unit edge / 11 = 20 per hop */
+  --ease-pulse:steps(1, end);      /* PIXEL: hard blink, no fade */
+  --stagger:200ms;
+  --dash:12; --dash-gap:8; --dash-cycle:80;   /* 20-unit cycle x 4 */
+  --empty:22%;
+  --glow:4px;                      /* PIXEL: offset distance, never a blur radius */
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#1e293b;
+    --surface:#1e293b;
+    --grid:color-mix(in srgb, #94a3b8 10%, transparent);
+    --ink:#f1f5f9;
+    --muted:#94a3b8;
+    --stroke:#94a3b8;
+    --role-client:#1e40af;   --ink-client:#60a5fa;   --accent-client:#60a5fa;   --on-client:#dbeafe;
+    --role-service:#9a3412;  --ink-service:#fb923c;  --accent-service:#fb923c;  --on-service:#ffedd5;
+    --role-data:#166534;     --ink-data:#4ade80;     --accent-data:#4ade80;     --on-data:#dcfce7;
+    --role-async:#6b21a8;    --ink-async:#c084fc;    --accent-async:#c084fc;    --on-async:#f3e8ff;
+    --role-external:#374151; --ink-external:#9ca3af; --accent-external:#9ca3af; --on-external:#f3f4f6;
+    --role-error:#991b1b;    --ink-error:#f87171;    --accent-error:#f87171;    --on-error:#fee2e2;
+    --role-infra:#1e293b;    --ink-infra:#94a3b8;    --accent-infra:#2dd4bf;    --on-infra:#f1f5f9;
+  }
+}
+
+/* ===== page ========================================================== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-label);
+     -webkit-text-size-adjust:100%}
+.diagram{max-width:1440px;margin:0 auto;padding:24px 16px 40px}
+.diagram__title{font-family:var(--font-title);font-size:var(--fs-title);font-weight:400;
+                letter-spacing:.04em;line-height:1.6;margin:0 0 10px}
+.diagram__subtitle{margin:0 0 18px;color:var(--muted);font-size:.875rem;line-height:1.55}
+/* PIXEL: the checkerboard is two 45deg gradients offset by half a tile —
+   the canonical 8-bit "transparent" backdrop. image-rendering:pixelated
+   governs raster scaling only (see header note); shape-rendering is what
+   hardens the vector edges. */
+.diagram__canvas{display:block;width:100%;height:auto;background-color:var(--surface);
+                 background-image:
+                   linear-gradient(45deg,var(--grid) 25%,transparent 25%,transparent 75%,var(--grid) 75%),
+                   linear-gradient(45deg,var(--grid) 25%,transparent 25%,transparent 75%,var(--grid) 75%);
+                 background-size:32px 32px;background-position:0 0,16px 16px;
+                 border-radius:var(--radius);
+                 image-rendering:pixelated;shape-rendering:crispEdges;
+                 border:4px solid var(--stroke)}
+.diagram__note{margin:16px 0 0;color:var(--muted);font-size:.8125rem;line-height:1.6;max-width:72ch}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+         clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ===== role mapping (the ONLY place a role becomes a colour) ========= */
+[data-role]{--fill:var(--role-external);--line:var(--ink-external);
+            --accent:var(--accent-external);--on:var(--on-external)}
+[data-role="client"]  {--fill:var(--role-client);  --line:var(--ink-client);  --accent:var(--accent-client);  --on:var(--on-client)}
+[data-role="service"] {--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="data"]    {--fill:var(--role-data);    --line:var(--ink-data);    --accent:var(--accent-data);    --on:var(--on-data)}
+[data-role="async"]   {--fill:var(--role-async);   --line:var(--ink-async);   --accent:var(--accent-async);   --on:var(--on-async)}
+[data-role="external"]{--fill:var(--role-external);--line:var(--ink-external);--accent:var(--accent-external);--on:var(--on-external)}
+[data-role="error"]   {--fill:var(--role-error);   --line:var(--ink-error);   --accent:var(--accent-error);   --on:var(--on-error)}
+[data-role="infra"]   {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* ===== nodes ========================================================= */
+.node{color:var(--line)}                     /* currentColor drives the halo */
+.node__body{transform-box:fill-box;transform-origin:center}
+.node__shape{fill:var(--fill);stroke:var(--line);stroke-width:var(--stroke-w);
+             stroke-linejoin:miter;stroke-linecap:butt}   /* PIXEL: no round joins */
+.node__detail{fill:none;stroke:var(--line);stroke-width:4;opacity:.75;stroke-linecap:butt}
+.node__detail--dashed{stroke-dasharray:8 8}
+/* PIXEL: the HUD tag bar. Painted var(--on), NOT var(--line), so the tag
+   text sitting on it is the exact On-Color/Fill pair data/color-semantics.csv
+   already verified at AA (6.9:1 to 14.5:1 light, 6.4:1+ dark). Fill-on-Stroke
+   would have looked identical and measured as low as 3.0:1. */
+.node__icon{fill:var(--on);stroke:none;opacity:1}
+.node__icon .node__detail{opacity:.9}
+/* PIXEL: repurposed as the all-caps ROLE TAG. Pixel font, 12px, knocked out
+   of the tag bar — short and redundant on purpose. See the font note up top. */
+.node__icon-glyph{fill:var(--fill);font-family:var(--font-title);font-size:12px;
+                  font-weight:400;letter-spacing:.06em;text-anchor:middle}
+.node__label{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-label);
+             font-weight:600;text-anchor:middle}
+.node__sub{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-sub);
+           text-anchor:middle;opacity:.9}
+.node--primary .node__shape{stroke-width:calc(var(--stroke-w) * 1.5)}
+
+/* ===== queue ========================================================= */
+.queue__track{fill:var(--on);opacity:.18;stroke:none}
+.queue__fill{fill:var(--accent);stroke:none}
+.queue .node__detail{stroke:var(--fill);opacity:1}
+
+/* ===== groups ======================================================== */
+.group__box{fill:none;stroke:var(--line);stroke-width:4;stroke-dasharray:8 8;opacity:.5}
+.group__label{fill:var(--muted);font-family:var(--font-title);font-size:10px;
+              letter-spacing:.06em;text-anchor:middle}
+.group__box,.group__label{shape-rendering:crispEdges}
+
+/* ===== edges ========================================================= */
+.edge{fill:none;stroke:var(--stroke);stroke-width:var(--stroke-w);
+      stroke-linecap:butt;stroke-linejoin:miter}          /* PIXEL: hard corners */
+.edge--primary{stroke-width:calc(var(--stroke-w) * 1.5)}
+.edge--async{stroke:var(--ink-async);stroke-dasharray:12 8}  /* dash = async, not colour alone */
+.edge--error{stroke:var(--ink-error);stroke-dasharray:20 8 8 8}
+.edge__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+             text-anchor:middle}
+.marker{fill:var(--stroke);stroke:none}
+/* PIXEL: hollow, not open. flat-minimal draws the async head as an unfilled
+   V; at this stroke weight a stepped V collapses into a squiggle, so the
+   async head is the same blocky triangle knocked out in the surface colour —
+   still visibly a different arrowhead, still legible at 20 units. */
+.marker--open{fill:var(--surface);stroke:var(--ink-async);stroke-width:1.5;
+              stroke-linejoin:miter;stroke-linecap:butt}
+
+/* ===== motion (source: templates/snippets/motion-blocks.css) ========= */
+/* PIXEL: every timing function below is stepped. Nothing in this style
+   may move a fractional pixel. */
+.anim-dash-flow,.anim-dash{
+  stroke-dasharray:var(--dash) var(--dash-gap);
+  stroke-dashoffset:var(--dash-cycle);
+  animation:dash-flow var(--dur-flow) steps(20, end) infinite;   /* 4 units/tick */
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes dash-flow{to{stroke-dashoffset:0}}
+
+/* PIXEL: a 16x16 sprite, not a dot. fill-box makes offset-anchor resolve
+   to the rect's own centre so it rides ON the line, not beside it. */
+.packet{fill:var(--line);stroke:var(--surface);stroke-width:4;
+        transform-box:fill-box;transform-origin:center;
+        offset-distance:0%;offset-rotate:0deg}
+.anim-packet-travel,.anim-travel{
+  animation:packet-travel var(--dur-flow) var(--ease-flow) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes packet-travel{to{offset-distance:100%}}
+/* !! COPY THESE `d` STRINGS VERBATIM FROM THE MATCHING EDGE PATH !!
+   If they drift, the packet travels a route that does not exist.        */
+.packet--e1{offset-path:path("M 220 180 L 440 180")}
+.packet--e3{offset-path:path("M 980 180 L 1200 180")}
+
+/* PIXEL: zero-blur halo. Four hard 4-unit offsets, not one soft bloom.
+   Opacity stays at 1 — dimming a sprite costs contrast for nothing. */
+.anim-pulse-glow,.anim-pulse{
+  animation:pulse-glow var(--dur-pulse) var(--ease-pulse) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes pulse-glow{
+  0%,100%{filter:none}
+  50%{filter:drop-shadow(var(--glow) 0 0 currentColor)
+             drop-shadow(calc(-1 * var(--glow)) 0 0 currentColor)
+             drop-shadow(0 var(--glow) 0 currentColor)
+             drop-shadow(0 calc(-1 * var(--glow)) 0 currentColor)}
+}
+
+.anim-queue-fill,.anim-fill{
+  clip-path:inset(0 100% 0 0);
+  animation:queue-fill var(--dur-fill) steps(6, end) infinite alternate;  /* one block per tick */
+}
+@keyframes queue-fill{
+  from{clip-path:inset(0 100% 0 0)}
+  to{clip-path:inset(0 var(--empty) 0 0)}
+}
+
+.anim-heartbeat{animation:heartbeat var(--dur-beat) steps(1, end) infinite}
+@keyframes heartbeat{
+  0%,100%{transform:scale(1)}25%{transform:scale(1.08)}
+  40%{transform:scale(1)}55%{transform:scale(1.04)}
+}
+
+.anim-connection-draw-in{
+  stroke-dasharray:var(--draw-len,400);stroke-dashoffset:var(--draw-len,400);
+  animation:connection-draw-in var(--dur-draw) steps(20, end) forwards;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes connection-draw-in{to{stroke-dashoffset:0}}
+
+/* declared for portability; unused in this example diagram. steps(5,end)
+   must match the slot count in your markup. */
+.anim-batch-tick{transform-box:fill-box;
+                 animation:batch-tick var(--dur-tick) steps(5, end) infinite}
+@keyframes batch-tick{to{transform:translateX(-100%)}}
+
+/* ===== reduced motion: render the INFORMATIVE END STATE ============== */
+@media (prefers-reduced-motion: reduce){
+  .anim-dash-flow,.anim-dash,.anim-connection-draw-in{
+    animation:none !important;stroke-dasharray:none !important;stroke-dashoffset:0 !important}
+  .edge--async{stroke-dasharray:12 8 !important}   /* async must stay dashed */
+  .edge--error{stroke-dasharray:20 8 8 8 !important}
+  .packet,.anim-packet-travel,.anim-travel{
+    animation:none !important;offset-distance:100% !important}   /* parked at destination */
+  .anim-pulse-glow,.anim-pulse{
+    animation:none !important;opacity:1 !important;
+    filter:drop-shadow(var(--glow) 0 0 currentColor)
+           drop-shadow(calc(-1 * var(--glow)) 0 0 currentColor)
+           drop-shadow(0 var(--glow) 0 currentColor)
+           drop-shadow(0 calc(-1 * var(--glow)) 0 currentColor)}  /* halo held on */
+  .anim-queue-fill,.anim-fill{
+    animation:none !important;clip-path:inset(0 var(--empty) 0 0) !important}  /* at rest */
+  .anim-heartbeat{animation:none !important;transform:none !important}
+  .anim-batch-tick{animation:none !important;transform:none !important}
+}
+
+/* ===== small screens ================================================= */
+@media (max-width:640px){
+  :root{--fs-title:.75rem}
+  .diagram{padding:16px 12px 32px}
+  .legend{gap:8px 14px}
+}
+
+/* ===== legend ======================================================== */
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0 0;padding:0}
+.legend__item{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);
+              min-height:24px}
+.legend__swatch{inline-size:16px;block-size:16px;border-radius:0;flex:none;   /* PIXEL: square */
+                background:var(--fill);border:4px solid var(--line)}
+.legend__label{line-height:1.4}
+</style>
+</head>
+
+<body>
+<main class="diagram">
+  <h1 class="diagram__title">CHECKOUT REQUEST FLOW</h1>
+  <p class="diagram__subtitle">pixel-retro style &middot; layered left-to-right &middot; six components &middot;
+    stair-stepped connectors, no diagonals</p>
+
+  <svg class="diagram__canvas" viewBox="38 78 1344 384" role="img"
+       aria-labelledby="dgm-title dgm-desc">
+    <title id="dgm-title">Checkout request flow</title>
+    <desc id="dgm-desc">A browser sends a checkout request to the api-gateway, which forwards it
+      over HTTP to orders-service. Orders-service reads and writes redis-cache, persists orders to
+      sql-database, and publishes an order-placed event asynchronously to message-queue down a
+      stair-stepped connector. Every component is drawn as a blocky sprite with its role printed in
+      an all-caps tag across the top. Stepped marching dashes on the connectors indicate live
+      traffic, the square packets hopping one grid cell at a time are individual in-flight requests,
+      the blinking halo on orders-service means it is actively processing, and the filling bar
+      inside message-queue shows queue depth growing one block at a time.</desc>
+
+    <defs>
+      <!-- DEFS:START -->
+      <!-- PIXEL: stepped arrowheads. A smooth triangle would be the only
+           anti-aliased edge in the file. markerUnits is userSpaceOnUse so a
+           20x20 head stays 20x20 whatever the edge's stroke-width is —
+           strokeWidth units would multiply a 4-6px stroke into a blob. -->
+      <marker id="arrow" class="marker" viewBox="0 0 10 10" refX="9.5" refY="5"
+              markerWidth="20" markerHeight="20" orient="auto-start-reverse"
+              markerUnits="userSpaceOnUse">
+        <path d="M 0 0 H 3.33 V 1.67 H 6.67 V 3.33 H 10 V 6.67 H 6.67 V 8.33 H 3.33 V 10 H 0 Z" />
+      </marker>
+      <marker id="arrow-open" class="marker marker--open" viewBox="0 0 10 10" refX="9.5" refY="5"
+              markerWidth="20" markerHeight="20" orient="auto-start-reverse"
+              markerUnits="userSpaceOnUse">
+        <path d="M 0 0 H 3.33 V 1.67 H 6.67 V 3.33 H 10 V 6.67 H 6.67 V 8.33 H 3.33 V 10 H 0 Z" />
+      </marker>
+      <!-- DEFS:END -->
+    </defs>
+
+    <g class="layer-groups">
+      <!-- GROUPS:START -->
+      <g class="group" data-role="infra">
+        <rect class="group__box" x="800" y="100" width="200" height="340" />
+        <text class="group__label" x="900" y="126">ORDERS CONTEXT</text>
+      </g>
+      <!-- GROUPS:END -->
+    </g>
+
+    <g class="layer-edges">
+      <!-- EDGES:START -->
+      <path class="edge edge--primary anim-dash-flow" d="M 220 180 L 440 180"
+            marker-end="url(#arrow)"><title>browser calls api-gateway</title></path>
+
+      <g class="edge-group">
+        <path class="edge edge--primary anim-dash-flow" d="M 600 180 L 820 180"
+              marker-end="url(#arrow)"><title>api-gateway calls orders-service over HTTP</title></path>
+        <text class="edge__label" x="710" y="166">HTTP &middot; p99 40ms</text>
+      </g>
+
+      <path class="edge anim-dash-flow" d="M 980 180 L 1200 180"
+            marker-end="url(#arrow)"><title>orders-service writes to sql-database</title></path>
+
+      <g class="edge-group">
+        <path class="edge" d="M 900 220 L 900 340"
+              marker-start="url(#arrow)" marker-end="url(#arrow)"><title>orders-service reads from
+          and writes to redis-cache</title></path>
+        <text class="edge__label" x="884" y="290" style="text-anchor:end">read-through</text>
+      </g>
+
+      <!-- THE STAIRCASE: six 20-unit drops, no diagonal anywhere. -->
+      <g class="edge-group">
+        <path class="edge edge--async"
+              d="M 940 220 V 240 H 1000 V 260 H 1060 V 280 H 1120 V 300 H 1180 V 320 H 1280 V 340"
+              marker-end="url(#arrow-open)"><title>orders-service publishes order-placed to
+          message-queue asynchronously</title></path>
+        <text class="edge__label" x="1150" y="244">async &middot; order-placed</text>
+      </g>
+      <!-- EDGES:END -->
+    </g>
+
+    <g class="layer-nodes">
+      <!-- NODES:START -->
+      <!-- stepped rect: 8-unit corner cuts replace rx/ry -->
+      <g class="node" data-role="client" transform="translate(60,140)">
+        <title>browser — customer web client</title>
+        <g class="node__body">
+          <path class="node__shape"
+                d="M 8 0 H 152 V 8 H 160 V 72 H 152 V 80 H 8 V 72 H 0 V 8 H 8 Z" />
+          <rect class="node__icon" x="8" y="8" width="144" height="20" />
+        </g>
+        <text class="node__icon-glyph" x="80" y="23">CLIENT</text>
+        <text class="node__label" x="80" y="52">browser</text>
+        <text class="node__sub" x="80" y="70">checkout SPA</text>
+      </g>
+
+      <!-- stepped hexagon: the gateway's slopes cut as 8-unit stairs -->
+      <g class="node node--primary" data-role="service" transform="translate(440,140)">
+        <title>api-gateway — edge entry point, health-checked every second</title>
+        <g class="node__body anim-heartbeat">
+          <path class="node__shape"
+                d="M 24 0 H 136 V 8 H 144 V 16 H 152 V 24 H 160 V 56 H 152 V 64 H 144 V 72
+                   H 136 V 80 H 24 V 72 H 16 V 64 H 8 V 56 H 0 V 24 H 8 V 16 H 16 V 8 H 24 Z" />
+          <rect class="node__icon" x="24" y="8" width="112" height="20" />
+        </g>
+        <text class="node__icon-glyph" x="80" y="23">SERVICE</text>
+        <text class="node__label" x="80" y="52">api-gateway</text>
+        <text class="node__sub" x="80" y="70">TLS &middot; authn</text>
+      </g>
+
+      <g class="node node--primary anim-pulse-glow" data-role="service" transform="translate(820,140)">
+        <title>orders-service — application service, currently processing checkout requests</title>
+        <g class="node__body">
+          <path class="node__shape"
+                d="M 8 0 H 152 V 8 H 160 V 72 H 152 V 80 H 8 V 72 H 0 V 8 H 8 Z" />
+          <rect class="node__icon" x="8" y="8" width="144" height="20" />
+          <path class="node__detail node__detail--dashed" d="M 8 34 H 152" />
+        </g>
+        <text class="node__icon-glyph" x="80" y="23">SERVICE</text>
+        <text class="node__label" x="80" y="52">orders-service</text>
+        <text class="node__sub" x="80" y="70">REST &middot; 2 replicas</text>
+      </g>
+
+      <!-- stepped drum: the cylinder's arcs cut as stairs -->
+      <g class="node" data-role="data" transform="translate(1200,140)">
+        <title>sql-database — primary relational datastore</title>
+        <g class="node__body">
+          <path class="node__shape"
+                d="M 32 0 H 128 V 8 H 152 V 16 H 160 V 64 H 152 V 72 H 128 V 80 H 32 V 72
+                   H 8 V 64 H 0 V 16 H 8 V 8 H 32 Z" />
+          <path class="node__detail" d="M 0 16 H 8 V 24 H 32 V 32 H 128 V 24 H 152 V 16 H 160" />
+          <rect class="node__icon" x="32" y="34" width="96" height="18" />
+        </g>
+        <text class="node__icon-glyph" x="80" y="47">DATA</text>
+        <text class="node__label" x="80" y="68">sql-database</text>
+      </g>
+
+      <!-- stepped cache: the lightning badge redrawn on the 4-unit grid -->
+      <g class="node" data-role="data" transform="translate(820,340)">
+        <title>redis-cache — read-through cache with a 60 second time to live</title>
+        <g class="node__body">
+          <path class="node__shape"
+                d="M 8 0 H 152 V 8 H 160 V 72 H 152 V 80 H 8 V 72 H 0 V 8 H 8 Z" />
+          <rect class="node__icon" x="8" y="8" width="144" height="20" />
+          <!-- the lightning badge as four offset blocks: the only honest way
+               to draw a bolt when diagonals are banned. Kept right of x=128
+               so it never crowds the label. -->
+          <g class="node__icon">
+            <rect x="144" y="40" width="8" height="8" />
+            <rect x="136" y="48" width="8" height="8" />
+            <rect x="144" y="56" width="8" height="8" />
+            <rect x="136" y="64" width="8" height="8" />
+          </g>
+        </g>
+        <text class="node__icon-glyph" x="80" y="23">DATA</text>
+        <text class="node__label" x="80" y="52">redis-cache</text>
+        <text class="node__sub" x="80" y="70">TTL 60s</text>
+      </g>
+
+      <g class="node" data-role="async" transform="translate(1200,340)">
+        <title>message-queue — durable buffer; the bar shows queue depth growing</title>
+        <g class="node__body">
+          <path class="node__shape"
+                d="M 8 0 H 152 V 8 H 160 V 72 H 152 V 80 H 8 V 72 H 0 V 8 H 8 Z" />
+          <rect class="node__icon" x="8" y="8" width="144" height="20" />
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="136" height="16" />
+            <rect class="queue__fill anim-queue-fill" x="12" y="52" width="136" height="16" />
+            <path class="node__detail" d="M 46 52 V 68 M 80 52 V 68 M 114 52 V 68" />
+          </g>
+        </g>
+        <text class="node__icon-glyph" x="80" y="23">ASYNC</text>
+        <text class="node__label" x="80" y="46">message-queue</text>
+      </g>
+      <!-- NODES:END -->
+    </g>
+
+    <g class="layer-motion">
+      <!-- MOTION:START -->
+      <!-- one 16x16 sprite per in-flight request; offset-path lives in the stylesheet -->
+      <rect class="packet anim-packet-travel packet--e1" data-role="client"
+            x="-8" y="-8" width="16" height="16" />
+      <rect class="packet anim-packet-travel packet--e3" data-role="data"
+            x="-8" y="-8" width="16" height="16" style="--i:1" />
+      <!-- MOTION:END -->
+    </g>
+  </svg>
+
+  <!-- LEGEND:START -->
+  <ul class="legend">
+    <li class="legend__item"><span class="legend__swatch" data-role="client"></span>
+      <span class="legend__label">client — browser, mobile, or device (tag: CLIENT)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="service"></span>
+      <span class="legend__label">service — application code we own (tag: SERVICE)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="data"></span>
+      <span class="legend__label">data — database, cache, object store (tag: DATA)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="async"></span>
+      <span class="legend__label">async — queue or worker (tag: ASYNC, dashed edge)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="external"></span>
+      <span class="legend__label">external — third party we do not run (tag: EXTERNAL)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="error"></span>
+      <span class="legend__label">error — failure path (tag: ERROR, long-short dash)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="infra"></span>
+      <span class="legend__label">infra — platform and observability (tag: INFRA)</span></li>
+  </ul>
+  <!-- LEGEND:END -->
+
+  <p class="diagram__note">Reading the motion: everything moves in whole grid cells, never
+    fractions — marching dashes step 4 units per tick to show traffic flowing, a square packet hops
+    20 units per tick as one in-flight request, the hard halo blinking on and off means that sprite
+    is actively processing, and the bar fills one block at a time for queue depth. With
+    <em>reduced motion</em> enabled every one of those renders as its end state — solid strokes,
+    packets parked at their destination, the halo held on, the queue bar at its resting depth — so
+    nothing here depends on animation to be understood. The all-caps tag across each sprite repeats
+    its role as text, so the diagram also survives greyscale.</p>
+</main>
+</body>
+</html>

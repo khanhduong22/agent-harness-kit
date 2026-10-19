@@ -1,0 +1,285 @@
+<!-- =====================================================================
+     node-shapes.html — canonical node geometry for diagram-director
+     ---------------------------------------------------------------------
+     WHAT THIS IS
+     The canonical base geometries referenced by data/components.csv ->
+     Snippet Ref (`snippets/node-shapes.html#shape-<id>`). Copy a block into
+     the NODES:START / NODES:END region of any base template and adapt.
+
+     THIS FILE IS ALSO THE ASCII-TERMINAL RESOLUTION TABLE
+     Every components.csv row's `ascii-terminal:box-<base>` hint resolves
+     against a `shape-<base>` anchor HERE, and the validator enforces it
+     (csv_schema.SHAPE_HINT_RULES, check V7s). So a family file
+     (node-shapes-glyphs / -ml / -actors / -artifacts / -actions) may invent
+     any default geometry it likes, but its rows degrade to one of the base
+     geometries below -- and a genuinely new BASE geometry (the decision
+     diamond was the last one) belongs in this file, not in the family file
+     that happened to need it first.
+
+     RULES THAT MAKE THESE PORTABLE ACROSS ALL 4 STYLES
+     - Nominal box is 160 x 80, origin at the top-left of the group.
+       The caller positions the node with transform="translate(x,y)".
+       NEVER add a scale/rotate to .node: .anim-heartbeat animates the
+       inner .node__body precisely so the positioning transform survives.
+     - 160 x 80 is THE node size. Every layout in data/layouts.csv is
+       specified against it, so a shape is copied in as-is and never
+       re-computed per layout; layouts differ by their gaps, radius and
+       grouping, not by node size.
+
+     THE ONE SANCTIONED SIZE EXCEPTION (do not invent others)
+       When a layout deliberately makes one node bigger to mark it as the
+       subject -- today only hub-spoke's 200 x 100 hub -- wrap the BODY,
+       and only the body, in a uniform scale and keep the stroke weight
+       constant with vector-effect:
+
+         <g class="node" data-role="async" transform="translate(X,Y)">
+           <title>Event bus - central broker</title>
+           <g class="node__body">
+             <g transform="scale(1.25)">              <!-- 160x80 -> 200x100 -->
+               <rect class="node__shape" vector-effect="non-scaling-stroke"
+                     x="0" y="0" width="160" height="80" rx="8" ry="8" />
+               ...rest of the snippet's geometry, unchanged...
+             </g>
+           </g>
+           <text class="node__label" x="100" y="37">…</text>   <!-- 80*k, 30*k -->
+           <text class="node__sub"   x="100" y="57">…</text>   <!-- 46*k        -->
+         </g>
+
+       Rules for it: uniform scale only (never scale(a,b)); every stroked
+       element inside the wrapper carries vector-effect="non-scaling-stroke"
+       so line weight does not thicken; the <text> labels stay OUTSIDE the
+       wrapper, hand-placed at k times their native x/y, so type stays on
+       the style's type scale instead of being magnified with the box.
+       Anything else -- per-shape compact variants, hand-recomputed
+       coordinates, non-uniform stretch -- is out of spec.
+     - Colour comes from data-role only. The template stylesheet maps
+       data-role -> var(--role-*) / var(--ink-*) / var(--on-*). Do not
+       put fill= or stroke= presentation attributes on shapes.
+       Valid roles: client service data async external error infra
+     - Every node carries a <title> (its accessible name) and real <text>
+       labels. Never convert a label to a path.
+     - Meaning is never colour-only: the shape and the label carry it too.
+
+     STRUCTURE
+       <g class="node" data-role="…" transform="translate(X,Y)">
+         <title>…</title>
+         <g class="node__body"> …geometry… </g>
+         <text class="node__label" …>name</text>
+         <text class="node__sub"   …>optional detail</text>
+       </g>
+     ===================================================================== -->
+
+<!-- snippet: shape-device -->
+<!-- browser / mobile / iot client. Chrome bar + 3 dots reads as "a screen". -->
+<g class="node" data-role="client" transform="translate(0,0)">
+  <title>Browser — web client</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <path class="node__detail" d="M 0 20 H 160" />
+    <circle class="node__icon" cx="14" cy="10" r="3" />
+    <circle class="node__icon" cx="26" cy="10" r="3" />
+    <circle class="node__icon" cx="38" cy="10" r="3" />
+  </g>
+  <text class="node__label" x="80" y="50">browser</text>
+  <text class="node__sub" x="80" y="68">checkout SPA</text>
+</g>
+
+<!-- snippet: shape-hexagon -->
+<!-- gateway / router / load-balancer: something traffic passes THROUGH. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>API gateway — edge entry point</title>
+  <g class="node__body">
+    <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+  </g>
+  <text class="node__label" x="80" y="42">api-gateway</text>
+  <text class="node__sub" x="80" y="60">TLS · authn</text>
+</g>
+
+<!-- snippet: shape-rounded-rect -->
+<!-- the neutral default: any plain service, app, or process. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Orders service — application process</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+  </g>
+  <text class="node__label" x="80" y="42">orders-service</text>
+  <text class="node__sub" x="80" y="60">REST · HTTP</text>
+</g>
+
+<!-- snippet: shape-gear -->
+<!-- worker / job runner / background processor: a gear badge means "does work off the request path". -->
+<g class="node" data-role="async" transform="translate(0,0)">
+  <title>Worker — background job processor</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <circle class="node__detail" cx="136" cy="20" r="9" />
+      <circle class="node__detail" cx="136" cy="20" r="3.5" />
+      <path class="node__detail" d="M 136 8 V 4 M 136 36 V 32 M 124 20 H 120 M 152 20 H 148
+                                    M 127.5 11.5 L 124.7 8.7 M 144.5 28.5 L 147.3 31.3
+                                    M 144.5 11.5 L 147.3 8.7 M 127.5 28.5 L 124.7 31.3" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="50">worker</text>
+  <text class="node__sub" x="80" y="68">consumer group</text>
+</g>
+
+<!-- snippet: shape-lambda -->
+<!-- serverless function: the λ glyph is REAL TEXT, never a path. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Function — serverless compute</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <rect class="node__detail" x="118" y="8" width="34" height="26" rx="6" ry="6" />
+    <text class="node__icon-glyph" x="135" y="27">&#955;</text>
+  </g>
+  <text class="node__label" x="80" y="50">image-resize-fn</text>
+  <text class="node__sub" x="80" y="68">on-demand</text>
+</g>
+
+<!-- snippet: shape-cylinder -->
+<!-- relational / document database: the classic drum. -->
+<g class="node" data-role="data" transform="translate(0,0)">
+  <title>SQL database — primary datastore</title>
+  <g class="node__body">
+    <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z" />
+    <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14" />
+  </g>
+  <text class="node__label" x="80" y="46">sql-database</text>
+  <text class="node__sub" x="80" y="64">primary</text>
+</g>
+
+<!-- snippet: shape-cache -->
+<!-- cache / CDN edge: rounded rect + lightning badge = "fast, volatile". -->
+<g class="node" data-role="data" transform="translate(0,0)">
+  <title>Redis cache — read-through cache</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <polygon class="node__icon" points="140,8 128,26 136,26 130,42 146,22 138,22 144,8" />
+  </g>
+  <text class="node__label" x="80" y="46">redis-cache</text>
+  <text class="node__sub" x="80" y="64">TTL 60s</text>
+</g>
+
+<!-- snippet: shape-bucket -->
+<!-- object storage / blob store: a tapered pail with a rim. -->
+<g class="node" data-role="data" transform="translate(0,0)">
+  <title>Object storage — blob bucket</title>
+  <g class="node__body">
+    <path class="node__shape" d="M 14 10 L 146 10 L 130 80 L 30 80 Z" />
+    <ellipse class="node__detail" cx="80" cy="10" rx="66" ry="9" />
+  </g>
+  <text class="node__label" x="80" y="46">object-store</text>
+  <text class="node__sub" x="80" y="64">media assets</text>
+</g>
+
+<!-- snippet: shape-pipe -->
+<!-- queue / topic / stream: lanes are message slots and double as the
+     queue-fill track. Wire .anim-queue-fill onto .queue__fill. -->
+<g class="node" data-role="async" transform="translate(0,0)">
+  <title>Message queue — durable buffer, depth shown by the fill bar</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6" />
+    <g class="queue">
+      <rect class="queue__track" x="12" y="52" width="136" height="14" rx="4" ry="4" />
+      <rect class="queue__fill anim-queue-fill" x="12" y="52" width="136" height="14" rx="4" ry="4" />
+      <path class="node__detail" d="M 46 52 V 66 M 80 52 V 66 M 114 52 V 66" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="30">message-queue</text>
+  <text class="node__sub" x="80" y="46">depth</text>
+</g>
+
+<!-- snippet: shape-container-box -->
+<!-- deployable unit: container, pod, VM, module. Inner dashed outline
+     reads as a boundary you can ship. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Container — deployable unit</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+  </g>
+  <text class="node__label" x="80" y="42">orders-container</text>
+  <text class="node__sub" x="80" y="60">2 replicas</text>
+</g>
+
+<!-- snippet: shape-replica-stack -->
+<!-- N identical instances acting as one: pods, consumer groups, shard sets,
+     replica sets. Two ghost copies behind the card carry the multiplicity;
+     the sub-label states the count. Ghosts use inline styles so this works
+     unchanged in every base template. Offset is down-left on purpose: the
+     right-hand gap between nodes is where edge labels live.
+     GHOSTS ARE OUTLINE-ONLY (fill:none) -- never a copy of the full body.
+     A full copy multiplies paint cost and noise in heavy-body style forks
+     (clay rims, comic halftone, iso slabs), while an outline ghost re-skins
+     for free because it rides the same stroke the shape class already maps.
+     NEVER stack a component whose singularity is the point (a leader, a
+     single-threaded counter) -- there, one box IS the information. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>worker-group — twelve identical consumers acting as one group</title>
+  <rect class="node__shape" style="fill:none;opacity:.3" x="-14" y="14" width="160" height="80" rx="8" ry="8" />
+  <rect class="node__shape" style="fill:none;opacity:.5" x="-7" y="7" width="160" height="80" rx="8" ry="8" />
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+  </g>
+  <text class="node__label" x="80" y="42">worker-group</text>
+  <text class="node__sub" x="80" y="60">x12 consumers</text>
+</g>
+
+<!-- snippet: shape-cloud-external -->
+<!-- third-party / SaaS / anything you do not operate. -->
+<g class="node" data-role="external" transform="translate(0,0)">
+  <title>External provider — third-party system outside our control</title>
+  <g class="node__body">
+    <path class="node__shape" d="M 40 66 A 22 22 0 0 1 42 24 A 28 28 0 0 1 94 18
+                                 A 24 24 0 0 1 130 34 A 18 18 0 0 1 126 66 Z" />
+  </g>
+  <text class="node__label" x="83" y="46">payment-gateway</text>
+  <text class="node__sub" x="83" y="62">third party</text>
+</g>
+
+<!-- snippet: shape-gauge -->
+<!-- monitoring / metrics / SLO surface: an arc + needle badge. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Monitoring — metrics and SLO dashboard</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 120 28 A 16 16 0 0 1 152 28" />
+      <path class="node__detail" d="M 136 28 L 146 18" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="52">monitoring</text>
+  <text class="node__sub" x="80" y="70">p99 latency</text>
+</g>
+
+<!-- snippet: shape-diamond -->
+<!-- THE CANONICAL DECISION GEOMETRY. A branch point: the flow arrives, a
+     condition is evaluated, and it leaves by exactly one of two labelled
+     edges. Inscribed in the nominal 160 x 80 box (its four vertices ARE the
+     box's edge midpoints), so camera frames, edge anchors and spotlight
+     brackets computed against the box stay valid.
+
+     WHY IT LIVES HERE and not in a family file: it is the resolution target
+     for every `ascii-terminal:box-diamond` hint (V7s), and the terminal
+     style has exactly one diamond. `node-shapes-actions.html#shape-decision-
+     diamond` is the process genre's dressed version of this base; ml's
+     `shape-diamond-router` is NOT -- that one degrades to box-rounded-rect
+     by design, and a rounded-rect "diamond" is no longer a decision.
+
+     LABEL BELOW, ALWAYS. A diamond's interior narrows away from its midline
+     faster than a hexagon's, and containment is measured at the text's own
+     y-band (checklist item 7). The GROUP footprint therefore runs ~38px past
+     the nominal box; clearance floors apply to that extended footprint. The
+     BODY bbox is still exactly nominal.
+
+     BOTH BRANCHES ARE LABELLED on the EDGES, never inside the diamond, and
+     the label is the QUESTION ("Good enough to ship?"), never the answer. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Decision — is the acceptance check green?</title>
+  <g class="node__body">
+    <polygon class="node__shape" points="80,0 160,40 80,80 0,40" />
+  </g>
+  <text class="node__label" x="80" y="98">Ship it?</text>
+  <text class="node__sub" x="80" y="114">yes / not yet</text>
+</g>

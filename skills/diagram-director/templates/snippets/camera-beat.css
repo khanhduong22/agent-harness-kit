@@ -1,0 +1,556 @@
+/* =====================================================================
+   camera-beat.css — the educational/beats idiom as copy-source CSS
+   ---------------------------------------------------------------------
+   WHAT THIS IS
+   The presentation layer of a narrated-camera cut, distilled verbatim
+   from the two FROZEN goldens in examples/:
+     [G-CMP] examples/compare-chat-pubsub.html   (comparison, 7 beats,
+             --master 33.6s = 7 x 4800ms, flat-minimal)
+     [G-PRG] examples/progressive-500k-ccu.html  (scaling-story, 4 acts
+             + recap, --master 38.4s = 8 x 4800ms, flat-minimal)
+   Every block below cites the golden it came from. Where the two goldens
+   differ, both numbers are given — neither is "the" answer, the RANGE is.
+
+   HOW TO USE
+   - Copy the block(s) you need into the <style> element of a base
+     template, exactly like templates/snippets/motion-blocks.css. This is
+     REFERENCE CSS to copy from, not a stylesheet to link.
+   - Then replace the per-beat @keyframes with YOUR storyboard's numbers.
+     The class shapes, the property choices and the keyframe ANATOMY are
+     the law; the percentages are per-cut arithmetic.
+   - Checklist item 16 (style fidelity) diffs your cut against this file
+     plus the two goldens. A line here with no counterpart in your file
+     — or a line in your file with no counterpart here — is a finding.
+
+   THE WHOLE IDIOM IN ONE SENTENCE
+   One master timeline; every beat layer (camera, caption, spotlight,
+   staged state, act) is an OVERLAY whose `opacity` (plus, for captions,
+   `clip-path`) is keyed to a window of that one duration — so nothing
+   can drift, and nothing ever repaints a base node.
+
+   PROPERTIES READ (declare on :root)
+     --master  --ink  --surface  --font-label
+   Animated properties, all of them: transform, opacity, clip-path.
+   Never stroke / fill / stroke-dasharray on a base element — that takes
+   the node off the compositor and re-rasters it every frame.
+
+   SPEC AUTHORITY
+   references/camera-beat.md is the prose contract; this file is the
+   implementation it describes. If the two ever disagree, THIS FILE and
+   the goldens win — they are what shipped and what review accepted.
+   ===================================================================== */
+
+/* snippet: cb-master
+   THE MASTER TIMELINE + the divisor rule.
+   MEANING  one duration, shared by every beat layer in the file, so the
+            layers cannot drift apart.
+   RULE     --master MUST be an integer multiple of EVERY ambient loop in
+            the file, or the loop seam visibly jumps and the video
+            exporter's frame-0-vs-frame-end hash fails. The house ambient
+            beat is 4800ms (dash 1200 x4, pulse 1600 x3, fill 2400 x2), so
+            any multiple of 4800ms closes. Budget one beat per 4800ms.
+              [G-CMP] 7 beats x 4800ms = 33.6s
+              [G-PRG] 8 beats x 4800ms = 38.4s (2400x16, 1600x24, 1200x32)
+            A restyle that retunes a rhythm must land on a divisor too:
+            snap 1400 -> 1200 or 1440, 2000 -> 1920 or 2400.
+   CROSSFADE every window edge in this file is one 0.6s crossfade, taken
+            BEFORE the window opens. As a percentage that is 0.6/master:
+              [G-CMP] 1.7857%     [G-PRG] 1.5625%
+            Derive it once, then reuse the same number everywhere.
+   ORIGIN   `transform-origin: 0 0` on .camera is MANDATORY or the
+            tx/ty math (tx = W/2 - k*cx, ty = H/2 - k*cy) is wrong. */
+:root {
+  --master: 33.6s;   /* = beats x 4800ms. Recompute per cut. */
+}
+.camera {
+  transform-origin: 0 0;
+  animation: beats var(--master) linear infinite;
+}
+/* [G-CMP] 7 beats; moves 0.6s = 1.7857%. Each hold declares its OWN
+   ease-in-out so the move eases and the hold stays dead still. */
+@keyframes beats {
+  0%,       14.2857% { transform: none;                                  animation-timing-function: ease-in-out }
+  16.0714%, 26.7857% { transform: translate(295px,-216px)   scale(1.4);  animation-timing-function: ease-in-out }
+  28.5714%           { transform: none;                                  animation-timing-function: ease-in-out }
+  30.3571%, 69.6429% { transform: translate(-74px,-703px)   scale(2.2);  animation-timing-function: ease-in-out }
+  71.4286%           { transform: none;                                  animation-timing-function: ease-in-out }
+  73.2143%, 83.9286% { transform: translate(-1063px,-216px) scale(1.4);  animation-timing-function: ease-in-out }
+  85.7143%           { transform: none;                                  animation-timing-function: ease-in-out }
+  87.5%,    98.2143% { transform: translate(-31px,68px)     scale(1.05); animation-timing-function: ease-in-out }
+  100%               { transform: none }
+}
+
+/* snippet: cb-caption-card
+   THE NARRATOR CARD: rounded box + text in one <g>, revealed by a
+   left-to-right clip-path WIPE, drawn in INVERTED polarity.
+   [G-CMP] lines 102-142 / [G-PRG] lines 206-236 — byte-identical rules,
+   only the per-beat percentages and font sizes differ.
+
+   POLARITY (the non-negotiable half)
+     .caption-box  fill: var(--ink)      <- the card is INK
+     text          fill: var(--surface)  <- the words are PAPER
+   The caption is the narrator's voice, not part of the scene. Flipping
+   polarity makes it unmissable without introducing a hue — which is the
+   only legal attention lever in a monochrome style. A same-polarity
+   panel (color-mix(ink 9%, surface)) was tried first and reviewed as too
+   easy to miss.
+
+   THE CARD IS ONE GROUP, so the wipe clips box and text together:
+     <g class="beat-caption cap-b2">
+       <rect class="caption-box" x=".." y=".." width=".." height=".."
+             rx="8" ry="8" data-cap="b2"/>
+       <text x=".." y="..">Nine words or fewer, one claim.</text>
+     </g>
+   BAKE the rect from the text's MEASURED getBBox() + ~14x8 padding
+   (scripts/browser-checks/rebake-caption-boxes.mjs does this; the
+   data-cap attribute is how it finds its pair). Guessed widths either
+   clip descenders or leave lopsided margins.
+
+   FACE  always a TEXT face (Inter here), even when the style's label
+   font is a display face. The card carries the longest line in the piece
+   at the smallest size for a few seconds; a script or pixel face costs
+   real legibility exactly where the viewer cannot re-read. The display
+   face still owns the scenery labels — that is what carries the style.
+   font-variant-ligatures: none keeps the wipe from revealing a ligature
+   as one lump.
+
+   THE WIPE — three poses, all zero-area but the middle one
+     inset(-6% 100% -6%  -1%)  -> parked LEFT  (before: clipped away)
+     inset(-6%  -1% -6%  -1%)  -> fully revealed
+     inset(-6%  -1% -6% 101%)  -> parked RIGHT (after: swept away)
+   The -6% top/bottom is REQUIRED: at 0 the clip shaves the card's own
+   top and bottom edges. The -1% left/right keeps the first and last
+   glyph's antialiasing clear of the clip edge. Both parked poses sit
+   OUTSIDE the card body (100% past its left edge, 101% past its right)
+   so a zero-area clip can never leave an antialiased sliver on the
+   border.
+   Keep it CONTINUOUS — never chop it into steps. `steps(n)` declared on
+   a fractional keyframe is silently ignored (clip-path interpolates
+   linearly straight through it), and hand-built staircase keyframes DO
+   step but read as stutter at 60Hz, not as typing. Both were measured
+   and rejected. A smooth linear wipe is jank-proof at any refresh rate.
+
+   KEYFRAME ANATOMY — three segments, six stops, ONE property:
+     0%, T_on        -> parked LEFT     (ease-in-out)
+     T_wipe, T_hold  -> fully revealed  (wipe done; hold; ease-in-out)
+     T_off, 100%     -> parked RIGHT    (swept away)
+   `opacity` IS NOT HERE, and that is the point. It is a constant 1 on
+   .beat-caption and never appears in a keyframe: the card is hidden by
+   GEOMETRY at all times. The old block snapped opacity 0 -> 1 an epsilon
+   before the wipe and faded it back at the end, which put a COMPOSITOR
+   property (opacity) and a PAINT property (clip-path) on the same
+   element — so a card that sat invisible for ~30s of every loop could
+   have its tiles evicted and, on the frame opacity left 0, present the
+   stale FULLY-REVEALED raster for one frame. Pass 1 was always clean;
+   later passes blinked. Removing the opacity animation removes the
+   "becomes visible again" event the race needs (diagnosed on the process
+   golden, 2026-08-27; scripts/timeline_css_idiom.py::caption_window
+   emits this shape). The exit is now a same-direction wipe-OUT: the
+   sentence is swept away in the direction it arrived.
+   THE THREE SYSTEM-DESIGN GOLDENS BELOW STILL SHIP THE OLD FOUR-SEGMENT
+   BLOCK — re-bake deferred by the user, exempted by name as
+   SD_LEGACY_CAPTION in tests/run_golden_regression.py. Copy the block
+   below, never theirs.
+   Wipe span (T_wipe - T_on) measured on the goldens:
+     [G-CMP] 1.19-1.47% of 33.6s = 0.40-0.49s
+     [G-PRG] 1.88% of 38.4s      = 0.72s
+   Hold must fit the line at ~3 words/second. Shorter caption > faster
+   beat. Adjacent beats inside ONE continuous camera shot reuse the SAME
+   card slot ([G-CMP] b3/b4/b5 all sit at y=712.4): the camera never cuts
+   across the domino, so the caption must not jump around inside one
+   shot. Otherwise place the card in the gap directly above/below its
+   beat's spotlight set — a card parked next to a DIFFERENT component
+   narrates that component instead. */
+.beat-caption {
+  opacity: 1;                            /* constant, never keyframed */
+  clip-path: inset(-6% 100% -6% -1%);    /* fail-safe: hidden if the keyframes never apply */
+  animation-duration: var(--master);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.caption-box { fill: var(--ink); stroke: none; opacity: .97 }
+.beat-caption text {
+  fill: var(--surface);
+  font-family: var(--font-label);
+  font-weight: 600;
+  text-anchor: middle;
+  font-variant-ligatures: none;
+}
+/* One pair per beat: name the animation, then size the text for that
+   beat's k so it lands ~24 frame-px. [G-CMP] ran 10px at k=2.2 up to
+   16px at overview; [G-PRG] 15px inside an act, 24px at the recap. */
+.cap-b2 { animation-name: cap-b2 } .cap-b2 text { font-size: 15px }
+/* Numbers from [G-PRG] cap-b2 (on 9.4, wiped 11.3, hold to 16.2, gone
+   17.1875) written in the CURRENT shape -- that cut itself still ships
+   the legacy four-segment block under SD_LEGACY_CAPTION. */
+@keyframes cap-b2 {
+  0%,       9.4%   { clip-path: inset(-6% 100% -6%  -1%); animation-timing-function: ease-in-out }
+  11.3%,   16.2%   { clip-path: inset(-6%  -1% -6%  -1%); animation-timing-function: ease-in-out }
+  17.1875%, 100%   { clip-path: inset(-6%  -1% -6% 101%) }
+}
+
+/* snippet: cb-heading-fade
+   THE HEADING IS SCENERY — fade it out while the camera is away.
+   [G-CMP] .layer-heading (title + subtitle + pane rules)
+   [G-PRG] .layer-chrome  (title + subtitle + shared legend)
+   MEANING  a title/subtitle line is wide; once the camera zooms, some
+            hold drags it half across the frame edge and PARKS it there,
+            cut mid-word for the whole hold (observed: a subtitle sat
+            clipped at the frame's right edge for a full 7.6s beat).
+            Transient clipping DURING a move is fine; a clipped hold is
+            a defect.
+   SHAPE    visible through the opening overview, out with the first
+            zoom-in, back for the finale return. Check every OTHER wide
+            scenery line at each hold the same way.
+   REDUCED-MOTION keeps it visible (see cb-reduced-motion). */
+.layer-heading { animation: heading-fade var(--master) linear infinite }
+/* [G-CMP]: opening overview ends 14.2857; finale return starts 85.7143. */
+@keyframes heading-fade {
+  0%,       14.2857% { opacity: 1 }
+  16.4286%, 83.5714% { opacity: 0 }
+  86.4286%, 100%     { opacity: 1 }
+}
+
+/* snippet: cb-spotlight-bracket
+   THE BEAT SPOTLIGHT: four corner brackets, opacity only.
+   [G-CMP] lines 143-157 / [G-PRG] lines 237-247 — identical rule block.
+   MEANING  while the camera holds, the components the beat is ABOUT
+            light up; when the camera leaves, the light goes out. Without
+            it every node in the zoomed frame has equal weight and the
+            viewer re-derives the subject from the caption alone.
+   SUBJECTS = the caption's subjects, EXACTLY. The upstream context node
+            is in frame by rule but is NEVER highlighted — the spotlight
+            is what separates subject from scenery.
+   NOT A CLOSED RING. Review rejected a closed ring in favour of house
+            corner brackets (roadmap, comparison review round 2). Softer
+            styles may substitute an OFFSET OUTLINE RING; nothing else.
+   OVERLAY, NOT RESTYLE. Animate ONLY opacity. Any glow lives in a static
+            filter on this class. Never touch the node's own stroke/fill.
+   PLACEMENT last child of the node group (so it inherits the translate),
+            or — when the set spans groups, as every example below does —
+            in WORLD coordinates at the layer root.
+
+   ---- THE PATH FORMULA (this is the whole geometry) ----
+   Take the subject's full VISUAL bbox (x0,y0)-(x1,y1). "Visual" means
+   including the state chip, the fill bar, the badge — a chip is part of
+   the subject (observed: a ring sized to the node alone sliced through
+   the overload chip's first glyph). Then:
+
+       pad = 12        arm = 22        stroke-linecap: square
+       L = x0 - pad    R = x1 + pad    T = y0 - pad    B = y1 + pad
+
+       d = "M {L+arm} {T} H {L} V {T+arm}
+            M {R-arm} {T} H {R} V {T+arm}
+            M {R} {B-arm} V {B} H {R-arm}
+            M {L+arm} {B} H {L} V {B-arm}"
+
+   Four subpaths = four corners = TL, TR, BR, BL, each an L of two arms.
+   stroke-linecap:square is what makes the arms read as machined corners
+   rather than as a broken rectangle.
+   MERGE ADJACENT SUBJECTS: when two subjects sit closer than pad + arm,
+   per-node brackets interlock in the gap (observed: two nodes 4px apart
+   produced nested corner marks). Draw ONE overlay around the pair's
+   union bbox; it may legally enclose the beat's caption card too.
+   COLLISION-CHECK IT: bracket arms are new strokes near node corners.
+   Re-run the edge/label clearance pass after adding them, and confirm
+   each overlay sits fully inside its beat's frame — the visible window
+   at scale k is x0..x1 = (0 - tx)/k .. (W - tx)/k (observed: an arm 5px
+   outside the computed window rendered as a clipped corner).
+
+   ---- WINDOWS ----
+   Mirror the caption windows on the same master. The spotlight fades in
+   over one crossfade so it reaches FULL exactly when the caption's wipe
+   completes, holds with the caption, and goes out with it:
+     [G-PRG] cap-b2 wipes 9.42 -> 11.3, holds to 16.2, gone 17.1875
+             focus-a1 ramps 9.9 -> 11.3, holds to 16.2, gone 17.1875
+   A node highlighted in several beats needs MERGED keyframes, not two
+   competing animations on one element. */
+.node__focus {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3px;
+  stroke-linecap: square;
+  opacity: 0;
+  animation-duration: var(--master);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.focus-a1 { animation-name: focus-a1 }
+@keyframes focus-a1 {
+  0%,      9.9%  { opacity: 0 }
+  11.3%,  16.2%  { opacity: 1 }
+  17.1875%, 100% { opacity: 0 }
+}
+/* Example path, verbatim [G-PRG] line 413. Subject = the postgres node
+   at translate(1330,460), body 160x80, plus its "100/100 CONNS" chip
+   which starts 10px above the body — so the visual bbox is
+   (1330,450)-(1490,540) and pad 12 gives L1318 R1502 T438 B552. */
+/*
+<path class="node__focus focus-a1"
+      d="M 1340 438 H 1318 V 460
+         M 1480 438 H 1502 V 460
+         M 1502 530 V 552 H 1480
+         M 1340 552 H 1318 V 530"/>
+*/
+
+/* snippet: cb-stage-window
+   STAGED STATES ARE OVERLAYS, NEVER MUTATIONS.
+   [G-CMP] lines 158-190 / [G-PRG] lines 194-205.
+   MEANING  a component's condition CHANGES over the story — healthy,
+            then overloaded, then down, then the failure dominoes. The
+            base node stays UNTOUCHED; the state's static encoding
+            (dashed ring, chip, fill bar, colored replica — from
+            data/states.csv + templates/snippets/state-effects.css) is
+            drawn once into an overlay group whose opacity is keyed to a
+            window of the master. Identical machinery to captions and
+            spotlights. Animating the node's own stroke-dasharray /
+            stroke / fill to "become overloaded" takes the whole node off
+            the compositor.
+   THE WINDOW ANNOTATION CONTRACT (single source for the verifier)
+            Every staged element carries data-window="A,B" — percent of
+            master where it is visible. An element that returns later
+            carries several windows, space-separated:
+              <g class="stage stage-a1" data-window="10.4167,17.1875 68.75,76.5625">
+            The keyframes and the data-window attributes must come from
+            the SAME storyboard table; hand-writing either half re-opens
+            exactly the drift the annotation exists to close.
+            Gate: scripts/browser-checks/verify-staged-windows.mjs. It
+            FAILS ON ZERO annotated elements — an un-annotated staged cut
+            is an unverified one.
+   ONE @keyframes PER WINDOW SET, 0.6s crossfade taken BEFORE each edge.
+   THE WRAPPER IS WHAT FADES. Traffic a dead node can no longer carry is
+            made of base packets, so you fade their WRAPPER, never the
+            packets ([G-CMP] .traffic / w-traffic-a).
+   LOOP SEAM. Every failure window closes at 98.5% and is fully gone by
+            100%, so the frame at 100% is byte-identical to the frame at
+            0% ([G-CMP] w-down-a1). A staged state left open at 100%
+            fails the exporter's seam hash.
+   REGISTER. In the EDUCATIONAL register the state is the full form:
+            colored replica + shake-stress on overload + collapse-death
+            into a down window + the chip on top. Review rejected the
+            quiet chip-and-hairline form in an educational cut as "too
+            gentle" — if the cut exists to show a thing breaking, the
+            break has to be visible from across the room. */
+.stage {
+  opacity: 0;
+  animation-duration: var(--master);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+/* Pair 1 — a state that appears and then RETIRES ([G-CMP] w-oload-a1:
+   ws-1 overloads at 28.5714, hands off to "down" at 42.8571). */
+.stage-oload-a1 { animation-name: w-oload-a1 }
+@keyframes w-oload-a1 {
+  0%,       26.7857% { opacity: 0 }
+  28.5714%, 42.8571% { opacity: 1 }
+  44.6429%, 100%     { opacity: 0 }
+}
+/* Pair 2 — a state that STAYS until the seam ([G-CMP] w-down-a1). Note
+   the hard 100% stop: the corpse must be gone before the loop restarts. */
+.stage-down-a1, .stage-break-a { animation-name: w-down-a1 }
+@keyframes w-down-a1 {
+  0%,       41.0714% { opacity: 0 }
+  42.8571%, 98.5%    { opacity: 1 }
+  100%               { opacity: 0 }
+}
+
+/* snippet: cb-act-recap
+   ACTS (temporal tiers) + THE RECAP WINDOW.
+   [G-PRG] lines 141-193, 346/419/513/691.
+   MEANING  an act is a scene group that owns the WHOLE canvas — a fresh
+            drawing of the system at that stage of the story. The canvas
+            "clears" between acts by WINDOW HANDOFF (0.6s crossfade), not
+            by moving anything. Layout is free per act. Continuity: a
+            component alive across acts keeps its identity (shape, role
+            colour, label) and anchors NEAR its previous position, so the
+            eye reads growth rather than meeting strangers; each act's
+            NEW components take the accent on entry.
+   MARKUP   <g class="act act-1" data-act="1"
+                data-window="5.2083,17.1875 68.75,76.5625">
+            TWO windows: the act's own scene, then its RECAP slot.
+   THE PARKING TRANSFORM (this is the subtle half)
+            A hidden act must contribute NO GEOMETRY to any render-side
+            sweep — a text-containment or edge-anchor check walks the DOM
+            and would measure an invisible act's boxes as if they were on
+            stage. So a hidden act is translated far off-canvas
+            (-2400px per act here), and the transform snaps back one
+            hundredth of a percent BEFORE the opacity ramp starts, and
+            snaps away one hundredth of a percent AFTER it ends. That
+            0.01% is a single frame at any sane duration: the park is
+            never visible, and the act is never both on-stage and
+            invisible.
+   RECAP    each act gets one extra short window (~3s) near the end, in
+            act order, with the camera holding the overview — the story
+            replayed as a contact sheet. THE FINAL ACT'S LAST WINDOW RUNS
+            TO 100%, so the loop parks on the finished design rather than
+            on a fade. [G-PRG] act4 is on at 0% and again 92.1875-100%.
+   REDUCED-MOTION: only the FINAL act (see cb-reduced-motion). */
+.act {
+  opacity: 0;
+  animation-duration: var(--master);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.act-1 { animation-name: act1; transform: translate(0px,-2400px) }
+.act-2 { animation-name: act2; transform: translate(0px,-4800px) }
+.act-3 { animation-name: act3; transform: translate(0px,-7200px) }
+.act-4 { animation-name: act4; transform: none }
+/* [G-PRG] act1: scene 5.2083-17.1875, recap 68.75-76.5625. Read the
+   pairs as: park -> unpark -> fade in -> hold -> fade out -> park. */
+@keyframes act1 {
+  0%,       2.99%    { opacity: 0; transform: translate(0px,-2400px) }
+            3%       { opacity: 0; transform: none }
+  5.2083%, 17.1875%  { opacity: 1; transform: none }
+           18.75%    { opacity: 0; transform: none }
+  18.76%,  67.1775%  { opacity: 0; transform: translate(0px,-2400px) }
+           67.1875%  { opacity: 0; transform: none }
+  68.75%,  76.5625%  { opacity: 1; transform: none }
+           78.125%   { opacity: 0; transform: none }
+  78.135%, 100%      { opacity: 0; transform: translate(0px,-2400px) }
+}
+/* [G-PRG] act4 — the FINAL act: on at 0%, and its recap runs to 100%,
+   so frame 100% == frame 0% and the seam closes on the finished design. */
+@keyframes act4 {
+  0%                 { opacity: 1; transform: none }
+           2.8%      { opacity: 0; transform: none }
+  2.81%,  49.99%     { opacity: 0; transform: translate(0px,-9600px) }
+          50%        { opacity: 0; transform: none }
+  51.5625%, 68.75%   { opacity: 1; transform: none }
+          70.3125%   { opacity: 0; transform: none }
+  70.3225%, 90.615%  { opacity: 0; transform: translate(0px,-9600px) }
+          90.625%    { opacity: 0; transform: none }
+  92.1875%, 100%     { opacity: 1; transform: none }
+}
+
+/* snippet: cb-negative-delay
+   ALL animation-delays IN A LOOPING CUT ARE NEGATIVE. No exceptions.
+   [G-CMP] every packet: animation-delay:-600ms / -1200ms / -1800ms
+   [G-PRG] same, -600ms through -2400ms
+   WHY  a POSITIVE animation-delay leaves its element un-animated at
+        t=0 — parked at the keyframes' offset-0 pose — while at t=100%
+        the same element is mid-flight. The loop seam is therefore NOT
+        byte-identical and the video exporter's frame-0-vs-frame-end
+        hash fails. The negative equivalent (-600ms for 600ms) produces
+        the IDENTICAL steady state with the seam closed, because a
+        negative delay starts the animation already that far in.
+   HISTORY  caught independently on BOTH educational builds on the same
+        day (2026-08-26) — the progressive cut and the comparison cut —
+        which is why it is a rule and not a note.
+   HOW  stagger a fan of packets by writing the delays as negative
+        multiples of the loop, inline on the element:
+          style="offset-path:path('M 1170 330 L 1370 460');
+                 animation-delay:-600ms"
+        and keep each delay a divisor-true fraction of the recipe's own
+        duration, exactly as you would a positive one. */
+
+/* snippet: cb-reduced-motion
+   THE INFORMATIVE END STATE. Ship this LAST in the stylesheet.
+   [G-CMP] lines 203-219 / [G-PRG] lines 248-267.
+   THE SHARED RULES (identical in both goldens):
+     camera parked at the overview, heading/chrome back on, captions
+     HIDDEN, spotlights HIDDEN (no camera, no lock-on), packets parked at
+     their destination, queues at rest, async edges solid-dashed.
+     The narration must not be motion-only: the <desc> carries the full
+     beat-by-beat story, and each beat's key fact also exists statically
+     somewhere in the diagram.
+   THE RESTING STATE IS PER-CUT — and this is where the two goldens
+   DELIBERATELY differ. Pick the one that tells the truth about YOUR cut:
+     [G-PRG] ACT CUT: only the FINAL act is visible, at its resting
+       states. The informative end state is the FINISHED architecture —
+       never a frozen montage of every act at once, never a mid-cascade
+       freeze.
+     [G-CMP] COMPARISON CUT: the REFERENCE cut. Healthy panes, plus the
+       static is-overloaded chip + bar that is TRUE of the design at rest
+       — and no scenario. A frozen mid-domino would misrepresent the
+       design as permanently dead. */
+@media (prefers-reduced-motion: reduce) {
+  .camera        { animation: none !important; transform: none !important }
+  .layer-heading { animation: none !important; opacity: 1 !important }
+  .beat-caption  { animation: none !important; opacity: 0 !important }
+  .node__focus   { animation: none !important; opacity: 0 !important }   /* no camera, no lock-on */
+  .anim-dash-flow{ animation: none !important }
+  .edge--async   { stroke-dasharray: 12 9 !important }
+  .packet, .anim-packet, .packet--cargo {
+    animation: none !important; offset-distance: 100% !important; opacity: 1 !important }
+  .anim-queue-fill { animation: none !important; clip-path: inset(0 var(--empty,3%) 0 0) !important }
+
+  /* --- act cut [G-PRG]: final act alone, the rest parked off-stage --- */
+  .act   { animation: none !important; opacity: 0 !important }
+  .act-1 { transform: translate(0px,-2400px) !important }
+  .act-2 { transform: translate(0px,-4800px) !important }
+  .act-3 { transform: translate(0px,-7200px) !important }
+  .act-4 { opacity: 1 !important; transform: none !important }
+  .stage { animation: none !important; opacity: 0 !important }
+
+  /* --- comparison cut [G-CMP]: swap the two rules above for these ---
+  .stage          { animation: none !important; opacity: 0 !important }
+  .stage-oload-a1 { opacity: 1 !important }
+  .traffic        { animation: none !important; opacity: 1 !important }
+  */
+}
+
+/* snippet: cb-delta-chip
+   THE ACT'S OWN +N / −N, printed on its title card.
+   MARKUP   templates/snippets/act-delta-chip.html
+   OPT-IN   absent by default. The sheet's ACT DELTA row is the fact; the
+            chip is one optional rendering of it. No frozen golden renders
+            one, and an act with no chip reports `delta-chip` as N-A.
+   MEANING  a tier is an ARCHITECTURE BREAK POINT, so the cheapest honest
+            summary of one is how many components it added and how many it
+            retired. Two numbers, beside the act title, read before the
+            first caption.
+   STATIC   build-side scenery: no JS, no hover, no transition. The numbers
+            are TYPED from the sheet's ACT DELTA row; the gate
+            `acts/delta-chip-mismatch` fails the cut when they stop equalling
+            len(delta.added) / len(delta.removed).
+   COLOUR   tokens only. `--ink` for the addition, `--muted` for the
+            retirement — a retirement is not an error and never takes the
+            error role — and `--surface` behind both. */
+.act-chip__box { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2px;
+                 opacity: .9 }
+.act-chip__add { font: 600 13px var(--font-mono); fill: var(--ink);
+                 text-anchor: middle; font-variant-ligatures: none }
+.act-chip__rm  { font: 600 13px var(--font-mono); fill: var(--muted);
+                 text-anchor: middle; font-variant-ligatures: none }
+
+/* snippet: cb-ghost-retired
+   THE RETIRED COMPONENT'S ONE FAREWELL WINDOW.
+   MEANING  "Retired components never reappear" (references/multi-pane.md)
+            is a hard rule, and a component that simply vanishes between two
+            acts is a cut that lost a box. So a retired component gets ONE
+            window — the first act after its removal — as an OUTLINE, in the
+            slot it used to hold, and then it is gone for good.
+   MARKUP   <g class="node-ghost is-ghost" data-ghost-of="app-monolith"
+                transform="translate(830,250)">
+              <rect class="node__shape" .../><text class="node-ghost__label" .../>
+            </g>
+            NOT `class="node"` and NO `data-node-id`: a ghost is the memory
+            of a component, not the component. Giving it the id would put the
+            retired node back in the act's id set and make that act's own
+            delta a lie — which is exactly what `acts/retired-id-returns`
+            and `acts/delta-mismatch` exist to catch.
+   PAINT    fill NONE, always. `acts/retired-ghost-missing` fails a ghost
+            with a fill: a filled ghost reads as a component still running.
+            The dash and the opacity are the veteran-recede ladder's last
+            rung, one step past `.node__ghost--1`. */
+.is-ghost .node__shape { fill: none; stroke: var(--muted); stroke-width: 1.286px;
+                         stroke-dasharray: 7 6 }
+.is-ghost { opacity: .38 }
+.node-ghost__label { font: 500 14px var(--font-label); fill: var(--muted);
+                     text-anchor: middle; letter-spacing: .02em }
+
+/* snippet: cb-lens
+   THE ROLE-LENS BEAT — how do these two roles talk?
+   MEANING  one question per beat. The spotlight hold declares
+            `lens: [roleA, roleB]`; every node outside those two roles
+            recedes, and dash-flow runs ONLY on the edges that span them.
+            `lens/edge-set-mismatch` and `lens/node-not-idled` hold the cut
+            to exactly that, reading `data-from`/`data-to` off each edge.
+   NO NEW TIER: the recede is the EXISTING `.is-idle` from
+            templates/snippets/state-effects.css (snippet: state-is-idle),
+            because "outside the question being asked" is what that state
+            already means. Only the edge rule is new, and it is a rule about
+            which edges carry `.anim-dash-flow`, not a new paint.
+   Nothing else moves: a lens that animates a third role is teaching a
+   different lesson than the one it announced. */
+.is-idle .node__label, .is-idle .node__sub { opacity: .7 }

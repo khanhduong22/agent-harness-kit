@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Realtime chat fanout — mesh vs pub/sub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#f8fafc; --surface:#ffffff;
+  --grid:color-mix(in srgb, #0f172a 5%, transparent);
+  --ink:#0f172a; --muted:#64748b; --stroke:#475569; --stroke-w:1.8px;
+  --font-title:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-label:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --role-client:#dbeafe;  --ink-client:#2563eb;  --accent-client:#3b82f6;
+  --role-service:#ffedd5; --ink-service:#ea580c; --accent-service:#f97316;
+  --role-async:#f3e8ff;   --ink-async:#9333ea;   --accent-async:#a855f7;
+  --role-error:#fee2e2;   --ink-error:#dc2626;   --accent-error:#ef4444;
+  --dur-flow:2400ms; --dur-fill:2400ms; --ease-flow:ease-in-out; --master:33.6s;
+}
+html,body{margin:0;background:var(--bg)}
+body{display:grid;place-items:center;min-height:100vh}
+svg{display:block;width:min(100vw,177.8vh);height:auto}
+.world-grid{fill:url(#grid-pat)}
+/* ---- heading: fades out while the camera is deep in a pane ---- */
+.layer-heading{animation:heading-fade var(--master) linear infinite}
+@keyframes heading-fade{0%,14.2857%{opacity:1}16.4286%,83.5714%{opacity:0}86.4286%,100%{opacity:1}}
+.title{font:700 34px var(--font-title);fill:var(--ink);text-anchor:middle}
+.subtitle{font:400 16px var(--font-label);fill:var(--muted);text-anchor:middle}
+.pane-rule{stroke:var(--muted);stroke-width:1;opacity:.5}
+.pane-head{font:700 15px var(--font-label);fill:var(--ink);letter-spacing:.06em}
+.pane-note{font:400 12px var(--font-label);fill:var(--muted);text-anchor:middle}
+.verdict-box{fill:var(--ink);opacity:.95}
+.verdict{font:600 13px var(--font-mono);fill:var(--surface);text-anchor:middle;font-variant-ligatures:none}
+/* ---- nodes: flat-minimal skin (light canvas, zero shadow) ---- */
+.node__shape{fill:var(--surface);stroke:var(--stroke);stroke-width:var(--stroke-w);stroke-opacity:.9}
+.node--primary .node__shape{stroke-width:2.4px;stroke-opacity:1}
+.node[data-role="client"] .node__shape{fill:var(--role-client);stroke:var(--ink-client)}
+.node[data-role="service"] .node__shape{fill:var(--role-service);stroke:var(--ink-service)}
+.node[data-role="async"] .node__shape{fill:var(--role-async);stroke:var(--ink-async)}
+.node__label{font:600 16px var(--font-label);fill:var(--ink);text-anchor:middle}
+.node__sub{font:400 12.5px var(--font-label);fill:var(--muted);text-anchor:middle}
+.node__sub,.edge__label--mono,.verdict{font-variant-ligatures:none}
+/* ---- node detail art (shape-device chrome bar, shape-pipe lanes) ---- */
+.node__detail{fill:none;stroke-width:1;opacity:.65;stroke-linecap:round}
+.node[data-role="client"] .node__detail{stroke:var(--ink-client)}
+.node[data-role="async"] .node__detail{stroke:var(--ink-async)}
+.node[data-role="service"] .node__detail{stroke:var(--ink-service)}
+.node__icon{stroke:none;opacity:.9}
+.node[data-role="client"] .node__icon{fill:var(--ink-client)}
+.queue__track{fill:var(--ink);opacity:.16;stroke:none}
+.queue__fill{fill:var(--accent-async);stroke:none}
+.queue .node__detail{stroke:var(--role-async);opacity:.9}
+/* ---- edges: house weights, quiet by default, async dashed ---- */
+.edge{fill:none;stroke:var(--stroke);stroke-width:2px;stroke-opacity:.55;
+      stroke-linecap:round;stroke-linejoin:round;marker-end:url(#v-arrow)}
+.edge--quiet{stroke-width:1.6px;stroke-opacity:.4;marker-end:none}
+.edge--async{stroke:var(--ink-async);stroke-opacity:.8;stroke-dasharray:12 9;marker-end:url(#v-arrow-open)}
+.anim-dash-flow{animation:dash-flow var(--dur-flow) linear infinite}
+@keyframes dash-flow{to{stroke-dashoffset:-42}}
+.edge__label{font:500 13px var(--font-label);fill:var(--muted)}
+.edge__label--mono{font:500 12.5px var(--font-mono);fill:var(--ink)}
+.marker{fill:var(--stroke);stroke:none}
+.marker--open{fill:none;stroke:var(--ink-async);stroke-width:1.6;stroke-linecap:round}
+/* ---- state: is-overloaded (states.csv) — bar + chip, queue-fill motion ---- */
+.state-chip-box{fill:var(--ink-error)}
+.state-chip{font:600 11px var(--font-label);fill:#ffffff;text-anchor:middle;letter-spacing:.04em}
+.load-track{fill:var(--muted);opacity:.15}
+.load-bar{fill:var(--accent-error);opacity:.55}
+.anim-queue-fill{clip-path:inset(0 100% 0 0);animation:queue-fill var(--dur-fill) ease-out infinite alternate}
+@keyframes queue-fill{from{clip-path:inset(0 40% 0 0)}to{clip-path:inset(0 var(--empty,3%) 0 0)}}
+/* ---- packets ---- */
+.packet{fill:var(--ink);stroke:var(--surface);stroke-width:3;offset-distance:0%;offset-rotate:auto}
+.packet--delta{fill:var(--ink-async)}
+/* payload glyphs (payloads.csv): the chat traffic SHOWS its cargo -- a message
+   on every user<->server hop, an event on every publish/fan-out hop. Ink comes
+   from `color` so a skin gets them free; no tumbling (offset-rotate:0deg). */
+.packet--cargo{fill:none;stroke:none;color:var(--ink);offset-distance:0%;offset-rotate:0deg}
+.packet--cargo.packet--event{color:var(--ink-async)}
+.packet__halo{fill:var(--surface);stroke:var(--surface);stroke-width:3;stroke-linejoin:round}
+.anim-packet{animation:pkt var(--dur-flow) var(--ease-flow) infinite}
+@keyframes pkt{0%{offset-distance:0%;opacity:0}8%{opacity:1}42%{offset-distance:100%;opacity:1}
+               50%,100%{offset-distance:100%;opacity:0}}
+.legend text{font:400 12px var(--font-label);fill:var(--ink)}
+.legend .k{font-weight:600}
+/* ---- camera: 7 beats on one 33.6s master (7 x 4800ms); moves 0.6s = 1.7857% ----
+   b1 overview | b2 pane A flow | b3/b4/b5 pane A mesh (ONE continuous shot: the
+   domino must not be cut) | b6 pane B flow | b7 delta overview
+   REV 2 (2026-08-27, frame-edge-margin re-solve): b3-b5 ty -703 -> -714 and b6
+   tx -1063 -> -783. Camera only -- no cast, no edge, no string, no k, and b2/b6
+   still share k 1.4 (multi-pane.md: the goldens frame their panes at a constant k).
+   b6's frame used to cut pane A's ws-3 and User B in half and leave THEIR delivery
+   line painted 0.4px over the left frame edge for its whole 204px run; b3-b5's
+   used to end the incoming `1 msg` edge 1px inside the top edge, on User A's
+   bottom border. Both lived on the clipped-anchor waiver. Now the left edge clears
+   pane A's pair by 169 frame px and the top edge sits 10 frame px BELOW User A, so
+   the message genuinely arrives from off-frame. ---- */
+.camera{transform-origin:0 0;animation:beats var(--master) linear infinite}
+@keyframes beats{
+  0%,14.2857%{transform:none;animation-timing-function:ease-in-out}
+  16.0714%,26.7857%{transform:translate(295px,-216px) scale(1.4);animation-timing-function:ease-in-out}
+  28.5714%{transform:none;animation-timing-function:ease-in-out}
+  30.3571%,69.6429%{transform:translate(-74px,-714px) scale(2.2);animation-timing-function:ease-in-out}
+  71.4286%{transform:none;animation-timing-function:ease-in-out}
+  73.2143%,83.9286%{transform:translate(-783px,-216px) scale(1.4);animation-timing-function:ease-in-out}
+  85.7143%{transform:none;animation-timing-function:ease-in-out}
+  87.5%,98.2143%{transform:translate(-31px,68px) scale(1.05);animation-timing-function:ease-in-out}
+  100%{transform:none}
+}
+/* ---- captions: typewriter reveal, narrator-card polarity ---- */
+.beat-caption{opacity:0;clip-path:inset(-6% 101% -6% -1%);
+  animation-duration:var(--master);animation-timing-function:linear;animation-iteration-count:infinite}
+.caption-box{fill:var(--ink);stroke:none;opacity:.97}
+.beat-caption text{fill:var(--surface);font-family:var(--font-label);font-weight:600;
+                   text-anchor:middle;font-variant-ligatures:none}
+.cap-b1{animation-name:cap-b1}.cap-b1 text{font-size:16px}
+.cap-b2{animation-name:cap-b2}.cap-b2 text{font-size:13px}
+.cap-b3{animation-name:cap-b3}.cap-b3 text{font-size:10px}
+.cap-b4{animation-name:cap-b4}.cap-b4 text{font-size:10px}
+.cap-b5{animation-name:cap-b5}.cap-b5 text{font-size:10px}
+.cap-b6{animation-name:cap-b6}.cap-b6 text{font-size:13px}
+.cap-b7{animation-name:cap-b7}.cap-b7 text{font-size:16px}
+@keyframes cap-b1{0%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}
+  .1%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}
+  1.5714%,12.5%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}
+  13.9286%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+@keyframes cap-b2{0%,16.0714%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}
+  16.0914%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}
+  17.2857%,25%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}
+  26.2857%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+@keyframes cap-b3{0%,30.3571%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}
+  30.3771%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}
+  31.5714%,39.2857%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}
+  40.5714%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+@keyframes cap-b4{0%,44.6429%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}
+  44.6629%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}
+  45.8571%,53.5714%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}
+  54.8571%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+@keyframes cap-b5{0%,58.9286%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}
+  58.9486%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}
+  60.1429%,67.8571%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}
+  69.1429%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+@keyframes cap-b6{0%,73.2143%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}
+  73.2343%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}
+  74.4286%,82.1429%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}
+  83.4286%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+@keyframes cap-b7{0%,87.5%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}
+  87.52%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}
+  88.7143%,97.1429%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}
+  98.4286%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+/* ---- beat spotlight: opacity-only, ink ring (flat-minimal idiom) ---- */
+.node__focus{fill:none;stroke:var(--ink);stroke-width:3px;stroke-linecap:square;opacity:0;
+  animation-duration:var(--master);animation-timing-function:linear;animation-iteration-count:infinite}
+.focus-b2{animation-name:focus-b2}
+.focus-b3{animation-name:focus-b3}
+.focus-b4{animation-name:focus-b4}
+.focus-b5{animation-name:focus-b5}
+.focus-b6{animation-name:focus-b6}
+.focus-b7{animation-name:focus-b7}
+@keyframes focus-b2{0%,16.0714%{opacity:0}17.8571%,25%{opacity:1}26.7857%,100%{opacity:0}}
+@keyframes focus-b3{0%,30.3571%{opacity:0}32.1429%,39.2857%{opacity:1}41.0714%,100%{opacity:0}}
+@keyframes focus-b4{0%,44.6429%{opacity:0}46.4286%,53.5714%{opacity:1}55.3571%,100%{opacity:0}}
+@keyframes focus-b5{0%,58.9286%{opacity:0}60.7143%,67.8571%{opacity:1}69.6429%,100%{opacity:0}}
+@keyframes focus-b6{0%,73.2143%{opacity:0}75%,82.1429%{opacity:1}83.9286%,100%{opacity:0}}
+@keyframes focus-b7{0%,87.5%{opacity:0}89.2857%,97.1429%{opacity:1}98.5714%,100%{opacity:0}}
+/* ==== SCENARIO LAYER (educational register) =========================
+   Staged states are OVERLAYS, never mutations: the base node/edge is
+   untouched and a group carrying the state's static encoding has its
+   opacity keyed to a window of the master. Every window below is the
+   sheet's event table converted from seconds (master 33600ms):
+     28.6-42.9 -> 28.5714,42.8571   ws-1(A) overloaded
+     42.9-98.5 -> 42.8571,98.5      ws-1(A) down + its mesh edges broken
+     50.0-57.1 -> 50,57.1429        ws-2(A) overloaded + m12 backpressure
+     57.1-98.5 -> 57.1429,98.5      ws-2(A) down
+     71.4-98.5 -> 71.4286,98.5      ws-1(B) down + staged reconnect edge
+   Crossfade 0.6s = 1.7857%, taken BEFORE the window opens. Loop seam:
+   every failure window closes at 98.5% and is fully gone by 100%, so the
+   frame at 100% is byte-identical to the frame at 0% (healthy). ==== */
+.stage{opacity:0;animation-duration:var(--master);animation-timing-function:linear;
+       animation-iteration-count:infinite}
+.stage-oload-a1{animation-name:w-oload-a1}
+.stage-down-a1,.stage-break-a{animation-name:w-down-a1}
+.stage-oload-a2{animation-name:w-oload-a2}
+.stage-down-a2{animation-name:w-down-a2}
+.stage-down-b1,.stage-reconnect{animation-name:w-down-b1}
+@keyframes w-oload-a1{0%,26.7857%{opacity:0}28.5714%,42.8571%{opacity:1}44.6429%,100%{opacity:0}}
+@keyframes w-down-a1 {0%,41.0714%{opacity:0}42.8571%,98.5%{opacity:1}100%{opacity:0}}
+@keyframes w-oload-a2{0%,48.2143%{opacity:0}50%,57.1429%{opacity:1}58.9286%,100%{opacity:0}}
+@keyframes w-down-a2 {0%,55.3571%{opacity:0}57.1429%,98.5%{opacity:1}100%{opacity:0}}
+@keyframes w-down-b1 {0%,69.6429%{opacity:0}71.4286%,98.5%{opacity:1}100%{opacity:0}}
+/* Traffic a dead node can no longer carry: the packets themselves are base
+   elements, so the WRAPPER is what fades -- same overlay discipline. */
+.traffic{animation-duration:var(--master);animation-timing-function:linear;
+         animation-iteration-count:infinite}
+.traffic-a{animation-name:w-traffic-a}
+.traffic-b{animation-name:w-traffic-b}
+@keyframes w-traffic-a{0%,42.8571%{opacity:1}44.6429%,98.5%{opacity:0}99.1%,100%{opacity:1}}
+@keyframes w-traffic-b{0%,71.4286%{opacity:1}73.2143%,98.5%{opacity:0}99.1%,100%{opacity:1}}
+/* is-down (states.csv): sparse dash 2 6, fill at 40%, error stroke, DOWN chip.
+   Dead = STILL: not one animation on the corpse. */
+.state-veil{fill:var(--bg);opacity:.55;stroke:none}
+.state-down-ring{fill:none;stroke:var(--ink-error);stroke-width:2.6;stroke-dasharray:2 6}
+/* flow-broken (states.csv): the gap is GEOMETRY (two stubs), never a colour
+   change -- the cover knocks the middle out of the base edge underneath. */
+.edge-broken{fill:none;stroke:var(--ink-error);stroke-width:2.4px;stroke-opacity:.95;
+             stroke-linecap:round;marker-end:url(#v-arrow-err)}
+.edge-gap{stroke:var(--bg);stroke-width:9;stroke-linecap:butt}
+.marker--err{fill:var(--ink-error);stroke:none}
+/* flow-backpressure: stroke widening toward the congested end (ws-2). */
+.edge-backpressure{fill:var(--accent-error);opacity:.6;stroke:none}
+@media (prefers-reduced-motion: reduce){
+  .camera{animation:none !important;transform:none !important}
+  .layer-heading{animation:none !important;opacity:1 !important}
+  .beat-caption{animation:none !important;opacity:0 !important}
+  .node__focus{animation:none !important;opacity:0 !important}   /* no camera, no lock-on */
+  .anim-dash-flow{animation:none !important}
+  .edge--async{stroke-dasharray:12 9 !important}
+  .packet,.anim-packet,.packet--cargo{animation:none !important;offset-distance:100% !important;opacity:1 !important}
+  .anim-queue-fill{animation:none !important;clip-path:inset(0 var(--empty,3%) 0 0) !important}
+  /* Comparison-specific resting state (differs from the act-cut rule): the
+     REFERENCE cut. Healthy panes, the static is-overloaded chip + bar on
+     ws-1(A), no scenario. A frozen mid-domino would misrepresent the design
+     as permanently dead. */
+  .stage{animation:none !important;opacity:0 !important}
+  .stage-oload-a1{opacity:1 !important}
+  .traffic{animation:none !important;opacity:1 !important}
+}
+</style></head><body>
+<svg viewBox="0 0 1920 1080" role="img" aria-labelledby="t d">
+  <title id="t">Realtime chat fanout: server mesh without pub/sub versus with a pub/sub stream</title>
+  <desc id="d">Two panes compare delivering one chat message across 20 WebSocket servers.
+  Left: without pub/sub the origin server forwards 19 copies over a 190-link mesh and is
+  overloaded. Right: with pub/sub it publishes once and the stream fans out to 20 subscribers.</desc>
+  <defs>
+    <pattern id="grid-pat" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--grid)" stroke-width="1"/>
+    </pattern>
+    <marker id="v-arrow" class="marker" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M 0 0 L 10 5 L 0 10 z"/></marker>
+    <marker id="v-arrow-err" class="marker marker--err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M 0 0 L 10 5 L 0 10 z"/></marker>
+    <marker id="v-arrow-open" class="marker marker--open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M 0 0 L 10 5 L 0 10" fill="none"/></marker>
+  </defs>
+
+  <g class="camera">
+    <rect class="world-grid" x="-400" y="-400" width="2720" height="1880"/>
+
+    <!-- title band -->
+    <g class="layer-heading" aria-hidden="true">
+    <text class="title" x="960" y="54">Realtime chat fanout</text>
+    <text class="subtitle" x="960" y="86">20 WebSocket servers, one room, one message — mesh vs pub/sub</text>
+    </g>
+
+    <!-- pane chrome -->
+    <line class="pane-rule" x1="960" y1="120" x2="960" y2="920"/>
+    <text class="pane-head" x="40" y="142">A · WITHOUT PUB/SUB</text>
+    <text class="pane-head" x="1010" y="142">B · WITH PUB/SUB</text>
+    <rect class="verdict-box" x="714" y="122" width="196" height="28" rx="14" data-chip="A"/>
+    <text class="verdict" x="812" y="140">190 mesh links · O(N^2)</text>
+    <rect class="verdict-box" x="1636" y="122" width="204" height="28" rx="14" data-chip="B"/>
+    <text class="verdict" x="1738" y="140">20 subscriptions · O(N)</text>
+    <text class="pane-note" x="475" y="200">3 of 20 servers shown</text>
+    <text class="pane-note" x="1445" y="200">3 of 20 servers shown</text>
+
+    <!-- ================= PANE A : direct mesh fanout ================= -->
+    <g id="pane-a">
+      <!-- edges under nodes -->
+      <path class="edge" d="M 130 320 L 130 466"><title>User A sends one message to ws-1</title></path>
+      <path class="edge" id="pA-m12" d="M 270 510 L 391 510"><title>ws-1 forwards a copy to ws-2</title></path>
+      <path class="edge" id="pA-m13" d="M 210 550 Q 475 700 736 552"><title>ws-1 forwards a copy to ws-3</title></path>
+      <path class="edge edge--quiet" d="M 555 510 L 680 510"><title>Standing mesh link ws-2 to ws-3, idle for this message</title></path>
+      <path class="edge" d="M 760 550 L 760 696"><title>ws-3 delivers to User B</title></path>
+      <text class="edge__label" x="144" y="400">1 msg</text>
+      <text class="edge__label--mono" x="475" y="668" text-anchor="middle">x19 copies/msg</text>
+      <text class="edge__label" x="592" y="498" font-size="10">idle link</text>
+      <text class="edge__label" x="774" y="632">deliver</text>
+
+      <!-- packets: user<->server hops carry a `message`, the mesh copies stay
+           the plain dot (payloads.csv names no cargo for a peer forward) -->
+      <g class="packet packet--cargo packet--message anim-packet" aria-hidden="true"
+         style="offset-path:path('M 130 320 L 130 466')">
+        <rect class="packet__halo" x="-8" y="-8" width="16" height="16" rx="5"/>
+        <path class="packet__glyph" fill="currentColor"
+              d="M -4 -7 H 4 A 3 3 0 0 1 7 -4 V 1 A 3 3 0 0 1 4 4 H 0 L -4 8 V 4 A 3 3 0 0 1 -7 1 V -4 A 3 3 0 0 1 -4 -7 Z"/>
+      </g>
+      <g class="traffic traffic-a" data-window="0,42.8571 99.1,100">
+        <circle class="packet anim-packet" r="7" style="offset-path:path('M 270 510 L 391 510');animation-delay:-1800ms"/>
+        <circle class="packet anim-packet" r="7" style="offset-path:path('M 210 550 Q 475 700 736 552');animation-delay:-1800ms"/>
+      </g>
+      <g class="packet packet--cargo packet--message anim-packet" aria-hidden="true"
+         style="offset-path:path('M 760 550 L 760 696');animation-delay:-1200ms">
+        <rect class="packet__halo" x="-8" y="-8" width="16" height="16" rx="5"/>
+        <path class="packet__glyph" fill="currentColor"
+              d="M -4 -7 H 4 A 3 3 0 0 1 7 -4 V 1 A 3 3 0 0 1 4 4 H 0 L -4 8 V 4 A 3 3 0 0 1 -7 1 V -4 A 3 3 0 0 1 -4 -7 Z"/>
+      </g>
+
+      <!-- staged: ws-1's mesh edges go flow-broken when ws-1 dies (42.9-98.5%).
+           Red copy of the same `d` + a bg-coloured cover that knocks a real gap
+           out of the middle of both the copy and the base edge underneath. -->
+      <g class="stage stage-break-a" data-window="42.8571,98.5">
+        <path class="edge-broken" d="M 270 510 L 391 510"/>
+        <path class="edge-broken" d="M 210 550 Q 475 700 736 552"/>
+        <line class="edge-gap" x1="318" y1="510" x2="344" y2="510"/>
+        <line class="edge-gap" x1="461" y1="625.4" x2="487" y2="625.6"/>
+      </g>
+
+      <g class="node" data-role="client" transform="translate(110,240)">
+        <title>User A — browser client in room general, sends the message</title>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8"/>
+          <path class="node__detail" d="M 0 20 H 160"/>
+          <circle class="node__icon" cx="14" cy="10" r="3"/>
+          <circle class="node__icon" cx="26" cy="10" r="3"/>
+          <circle class="node__icon" cx="38" cy="10" r="3"/></g>
+        <text class="node__label" x="80" y="46">User A</text>
+        <text class="node__sub" x="80" y="66">room #general</text>
+      </g>
+      <g class="node node--primary is-overloaded" data-role="service" transform="translate(110,470)">
+        <title>ws-1 — origin WebSocket server, overloaded: it forwards nineteen copies per message</title>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8"/>
+          <g class="node__icon">
+            <path class="node__detail" d="M 118 14 H 148 M 142 9 L 148 14 L 142 19"/>
+            <path class="node__detail" d="M 148 26 H 118 M 124 21 L 118 26 L 124 31"/>
+          </g></g>
+        <text class="node__label" x="80" y="34">ws-1</text>
+        <text class="node__sub" x="80" y="52">origin</text>
+        <!-- staged is-overloaded: the load rises through the b3 hold (28.6-42.9%) -->
+        <g class="stage stage-oload-a1" data-window="28.5714,42.8571">
+          <rect class="load-track" x="8" y="64" width="144" height="6" rx="3"/>
+          <rect class="load-bar anim-queue-fill" style="--empty:3%" x="8" y="64" width="144" height="6" rx="3"/>
+          <rect class="state-chip-box" x="50" y="-19" width="104" height="20" rx="10"/>
+          <text class="state-chip" x="102" y="-5">19 SENDS/MSG</text>
+        </g>
+        <path class="node__focus focus-b2" d="M 10 -24 H -12 V -2 M 150 -24 H 172 V -2 M 172 70 V 92 H 150 M 10 92 H -12 V 70"/>
+        <path class="node__focus focus-b4" d="M 10 -24 H -12 V -2 M 150 -24 H 172 V -2 M 172 70 V 92 H 150 M 10 92 H -12 V 70"/>
+        <!-- staged is-down: ws-1 dies at 42.9% and stays dead to the loop seam -->
+        <g class="stage stage-down-a1" data-window="42.8571,98.5">
+          <rect class="state-veil" x="-2" y="-2" width="164" height="84" rx="9"/>
+          <rect class="state-down-ring" x="0" y="0" width="160" height="80" rx="8"/>
+          <rect class="state-chip-box" x="18" y="70" width="60" height="20" rx="10"/>
+          <text class="state-chip" x="48" y="84">DOWN</text>
+        </g>
+      </g>
+      <g class="node" data-role="service" transform="translate(395,470)">
+        <title>ws-2 — peer WebSocket server, receives a copy it may not even need</title>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8"/>
+          <g class="node__icon">
+            <path class="node__detail" d="M 118 14 H 148 M 142 9 L 148 14 L 142 19"/>
+            <path class="node__detail" d="M 148 26 H 118 M 124 21 L 118 26 L 124 31"/>
+          </g></g>
+        <text class="node__label" x="80" y="36">ws-2</text>
+        <text class="node__sub" x="80" y="56">peer</text>
+        <path class="node__focus focus-b5" d="M 10 -24 H -12 V -2 M 150 -24 H 172 V -2 M 172 70 V 92 H 150 M 10 92 H -12 V 70"/>
+        <!-- staged is-overloaded: ws-2 inherits ws-1's fanout (50-57.1%); the
+             taper on m12's surviving stub is flow-backpressure widening toward
+             the congested end, paired with this node's overload per states.csv -->
+        <g class="stage stage-oload-a2" data-window="50,57.1429">
+          <path class="edge-backpressure" d="M -49 38 L -4 33 L -4 47 L -49 42 Z"/>
+          <rect class="load-track" x="8" y="64" width="144" height="6" rx="3"/>
+          <rect class="load-bar anim-queue-fill" style="--empty:3%" x="8" y="64" width="144" height="6" rx="3"/>
+          <rect class="state-chip-box" x="50" y="-19" width="104" height="20" rx="10"/>
+          <text class="state-chip" x="102" y="-5">19 SENDS/MSG</text>
+        </g>
+        <!-- staged is-down: ws-2 follows at 57.1% -- the domino -->
+        <g class="stage stage-down-a2" data-window="57.1429,98.5">
+          <rect class="state-veil" x="-2" y="-2" width="164" height="84" rx="9"/>
+          <rect class="state-down-ring" x="0" y="0" width="160" height="80" rx="8"/>
+          <rect class="state-chip-box" x="18" y="70" width="60" height="20" rx="10"/>
+          <text class="state-chip" x="48" y="84">DOWN</text>
+        </g>
+      </g>
+      <g class="node" data-role="service" transform="translate(680,470)">
+        <title>ws-3 — peer WebSocket server hosting User B's connection</title>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8"/>
+          <g class="node__icon">
+            <path class="node__detail" d="M 118 14 H 148 M 142 9 L 148 14 L 142 19"/>
+            <path class="node__detail" d="M 148 26 H 118 M 124 21 L 118 26 L 124 31"/>
+          </g></g>
+        <text class="node__label" x="80" y="36">ws-3</text>
+        <text class="node__sub" x="80" y="56">hosts User B</text>
+      </g>
+      <g class="node" data-role="client" transform="translate(680,700)">
+        <title>User B — browser client in room general, receives the message</title>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8"/>
+          <path class="node__detail" d="M 0 20 H 160"/>
+          <circle class="node__icon" cx="14" cy="10" r="3"/>
+          <circle class="node__icon" cx="26" cy="10" r="3"/>
+          <circle class="node__icon" cx="38" cy="10" r="3"/></g>
+        <text class="node__label" x="80" y="46">User B</text>
+        <text class="node__sub" x="80" y="66">room #general</text>
+      </g>
+    </g>
+
+    <!-- ================= PANE B : pub/sub fanout ================= -->
+    <g id="pane-b">
+      <path class="edge" d="M 1100 320 L 1100 466"><title>User A sends one message to ws-1</title></path>
+      <path class="edge edge--async anim-dash-flow" d="M 1160 550 L 1378 632"><title>ws-1 publishes the message once to the stream</title></path>
+      <path class="edge edge--async anim-dash-flow" d="M 1445 630 L 1445 554"><title>Stream fans out to subscriber ws-2</title></path>
+      <path class="edge edge--async anim-dash-flow" d="M 1510 632 L 1706 554"><title>Stream fans out to subscriber ws-3</title></path>
+      <path class="edge" d="M 1730 550 L 1730 696"><title>ws-3 delivers to User B</title></path>
+      <text class="edge__label" x="1114" y="400">1 msg</text>
+      <text class="edge__label--mono" x="1230" y="662" text-anchor="middle">PUBLISH room:#general</text>
+      <text class="edge__label" x="1480" y="600">fan-out</text>
+      <text class="edge__label" x="1744" y="632">deliver</text>
+      <text class="pane-note" x="1445" y="742">20 subscriptions total</text>
+
+      <!-- traffic that a dead ws-1 can no longer originate: User A's message in
+           and its single publish out. The stream's fan-out keeps running -- that
+           IS beat 6's claim ("the stream never notices"). -->
+      <g class="traffic traffic-b" data-window="0,71.4286 99.1,100">
+        <g class="packet packet--cargo packet--message anim-packet" aria-hidden="true"
+           style="offset-path:path('M 1100 320 L 1100 466')">
+          <rect class="packet__halo" x="-8" y="-8" width="16" height="16" rx="5"/>
+          <path class="packet__glyph" fill="currentColor"
+                d="M -4 -7 H 4 A 3 3 0 0 1 7 -4 V 1 A 3 3 0 0 1 4 4 H 0 L -4 8 V 4 A 3 3 0 0 1 -7 1 V -4 A 3 3 0 0 1 -4 -7 Z"/>
+        </g>
+        <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true"
+           style="offset-path:path('M 1160 550 L 1378 632');animation-delay:-1800ms">
+          <circle class="packet__halo" r="6.8"/>
+          <circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <circle class="packet__glyph" r="3.2" fill="currentColor"/>
+        </g>
+      </g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true"
+         style="offset-path:path('M 1445 630 L 1445 554');animation-delay:-1200ms">
+        <circle class="packet__halo" r="6.8"/>
+        <circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <circle class="packet__glyph" r="3.2" fill="currentColor"/>
+      </g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true"
+         style="offset-path:path('M 1510 632 L 1706 554');animation-delay:-1200ms">
+        <circle class="packet__halo" r="6.8"/>
+        <circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <circle class="packet__glyph" r="3.2" fill="currentColor"/>
+      </g>
+      <g class="packet packet--cargo packet--message anim-packet" aria-hidden="true"
+         style="offset-path:path('M 1730 550 L 1730 696');animation-delay:-600ms">
+        <rect class="packet__halo" x="-8" y="-8" width="16" height="16" rx="5"/>
+        <path class="packet__glyph" fill="currentColor"
+              d="M -4 -7 H 4 A 3 3 0 0 1 7 -4 V 1 A 3 3 0 0 1 4 4 H 0 L -4 8 V 4 A 3 3 0 0 1 -7 1 V -4 A 3 3 0 0 1 -4 -7 Z"/>
+      </g>
+
+      <!-- staged: the same server dies in B (71.4-98.5%) and User A's client
+           re-attaches to a peer. The stream is not involved. -->
+      <g class="stage stage-reconnect" data-window="71.4286,98.5">
+        <path class="edge" d="M 1240 290 Q 1330 300 1420 466"><title>User A's client reconnects to ws-2 after ws-1 fails</title></path>
+        <text class="edge__label" x="1252" y="372">reconnect</text>
+        <g class="packet packet--cargo packet--message anim-packet" aria-hidden="true"
+           style="offset-path:path('M 1240 290 Q 1330 300 1420 466')">
+          <rect class="packet__halo" x="-8" y="-8" width="16" height="16" rx="5"/>
+          <path class="packet__glyph" fill="currentColor"
+                d="M -4 -7 H 4 A 3 3 0 0 1 7 -4 V 1 A 3 3 0 0 1 4 4 H 0 L -4 8 V 4 A 3 3 0 0 1 -7 1 V -4 A 3 3 0 0 1 -4 -7 Z"/>
+        </g>
+      </g>
+
+      <g class="node" data-role="client" transform="translate(1080,240)">
+        <title>User A — browser client in room general, sends the message</title>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8"/>
+          <path class="node__detail" d="M 0 20 H 160"/>
+          <circle class="node__icon" cx="14" cy="10" r="3"/>
+          <circle class="node__icon" cx="26" cy="10" r="3"/>
+          <circle class="node__icon" cx="38" cy="10" r="3"/></g>
+        <text class="node__label" x="80" y="46">User A</text>
+        <text class="node__sub" x="80" y="66">room #general</text>
+      </g>
+      <g class="node" data-role="service" transform="translate(1080,470)">
+        <title>ws-1 — origin WebSocket server, publishes once and is done</title>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8"/>
+          <g class="node__icon">
+            <path class="node__detail" d="M 118 14 H 148 M 142 9 L 148 14 L 142 19"/>
+            <path class="node__detail" d="M 148 26 H 118 M 124 21 L 118 26 L 124 31"/>
+          </g></g>
+        <text class="node__label" x="80" y="34">ws-1</text>
+        <text class="node__sub" x="80" y="52">origin</text>
+        <!-- staged is-down: the SAME server dies here, and nothing else moves -->
+        <g class="stage stage-down-b1" data-window="71.4286,98.5">
+          <rect class="state-veil" x="-2" y="-2" width="164" height="84" rx="9"/>
+          <rect class="state-down-ring" x="0" y="0" width="160" height="80" rx="8"/>
+          <rect class="state-chip-box" x="18" y="70" width="60" height="20" rx="10"/>
+          <text class="state-chip" x="48" y="84">DOWN</text>
+        </g>
+      </g>
+      <g class="node" data-role="service" transform="translate(1365,470)">
+        <title>ws-2 — peer WebSocket server, subscribes once to the stream</title>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8"/>
+          <g class="node__icon">
+            <path class="node__detail" d="M 118 14 H 148 M 142 9 L 148 14 L 142 19"/>
+            <path class="node__detail" d="M 148 26 H 118 M 124 21 L 118 26 L 124 31"/>
+          </g></g>
+        <text class="node__label" x="80" y="36">ws-2</text>
+        <text class="node__sub" x="80" y="56">peer</text>
+      </g>
+      <g class="node" data-role="service" transform="translate(1650,470)">
+        <title>ws-3 — peer WebSocket server hosting User B's connection</title>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8"/>
+          <g class="node__icon">
+            <path class="node__detail" d="M 118 14 H 148 M 142 9 L 148 14 L 142 19"/>
+            <path class="node__detail" d="M 148 26 H 118 M 124 21 L 118 26 L 124 31"/>
+          </g></g>
+        <text class="node__label" x="80" y="36">ws-3</text>
+        <text class="node__sub" x="80" y="56">hosts User B</text>
+      </g>
+      <g class="node" data-role="client" transform="translate(1650,700)">
+        <title>User B — browser client in room general, receives the message</title>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8"/>
+          <path class="node__detail" d="M 0 20 H 160"/>
+          <circle class="node__icon" cx="14" cy="10" r="3"/>
+          <circle class="node__icon" cx="26" cy="10" r="3"/>
+          <circle class="node__icon" cx="38" cy="10" r="3"/></g>
+        <text class="node__label" x="80" y="46">User B</text>
+        <text class="node__sub" x="80" y="66">room #general</text>
+      </g>
+      <!-- the delta: event stream (components.csv event-bus -> shape-pipe) -->
+      <g class="node node--primary" data-role="async" transform="translate(1365,630)">
+        <title>Event stream — pub/sub broker; owns fan-out to all twenty subscribers</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6"/>
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="136" height="14" rx="4" ry="4"/>
+            <rect class="queue__fill anim-queue-fill" style="--empty:35%" x="12" y="52" width="136" height="14" rx="4" ry="4"/>
+            <path class="node__detail" d="M 46 52 V 66 M 80 52 V 66 M 114 52 V 66"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="30">event stream</text>
+        <text class="node__sub" x="80" y="46">pub/sub broker</text>
+      </g>    </g>
+
+    <!-- world-space spotlight overlays that span groups -->
+    <path class="node__focus focus-b3" d="M 110 422 H 88 V 444 M 870 422 H 892 V 444 M 892 680 V 702 H 870 M 110 702 H 88 V 680"/>
+    <!-- b6: ws-1(B) dying + the reconnect edge landing on its peer -->
+    <path class="node__focus focus-b6" d="M 1082 228 H 1060 V 250 M 1523 228 H 1545 V 250 M 1545 548 V 570 H 1523 M 1082 570 H 1060 V 548"/>
+    <path class="node__focus focus-b7" d="M 724 110 H 702 V 132 M 900 110 H 922 V 132 M 922 140 V 162 H 900 M 724 162 H 702 V 140"/>
+    <path class="node__focus focus-b7" d="M 1646 110 H 1624 V 132 M 1830 110 H 1852 V 132 M 1852 140 V 162 H 1830 M 1646 162 H 1624 V 140"/>
+
+    <!-- legend -->
+    <g class="legend" transform="translate(330,1000)">
+      <rect x="0" y="-14" width="18" height="18" rx="4" fill="var(--role-client)" stroke="var(--ink-client)" stroke-width="1.8"/>
+      <text x="26" y="0">client</text>
+      <rect x="90" y="-14" width="18" height="18" rx="4" fill="var(--role-service)" stroke="var(--ink-service)" stroke-width="1.8"/>
+      <text x="116" y="0">ws server</text>
+      <rect x="204" y="-14" width="18" height="18" rx="4" fill="var(--role-async)" stroke="var(--ink-async)" stroke-width="1.8"/>
+      <text x="230" y="0">stream <tspan class="k">(the delta)</tspan></text>
+      <line x1="340" y1="-6" x2="386" y2="-6" stroke="var(--ink)" stroke-width="2"/>
+      <text x="394" y="0">message path</text>
+      <line x1="500" y1="-6" x2="546" y2="-6" stroke="var(--muted)" stroke-width="1.4" opacity=".6"/>
+      <text x="554" y="0">standing link</text>
+      <rect x="656" y="-16" width="94" height="20" rx="10" fill="var(--ink-error)"/>
+      <text x="703" y="-2" text-anchor="middle" style="font:600 10px var(--font-label);fill:#fff">19 SENDS/MSG</text>
+      <text x="762" y="0">= overload state chip</text>
+      <line x1="920" y1="-6" x2="966" y2="-6" stroke="var(--ink-async)" stroke-width="2" stroke-dasharray="8 6"/>
+      <text x="974" y="0">pub/sub path <tspan class="k">(accent)</tspan></text>
+    </g>
+
+    <!-- ================= captions (one card per beat) ================= -->
+    <g class="beat-caption cap-b1">
+      <rect class="caption-box" x="703.6" y="921.6" width="512.9" height="35.2" rx="8" ry="8" data-cap="b1" />
+      <text x="960" y="944">One message must reach every room member on every server.</text>
+    </g>
+    <g class="beat-caption cap-b2">
+      <rect class="caption-box" x="209.3" y="382" width="531.4" height="30.8" rx="8" ry="8" data-cap="b2" />
+      <text x="475" y="402">Without pub/sub, the origin server forwards a copy to each of the 19 peers itself.</text>
+    </g>
+    <g class="beat-caption cap-b3">
+      <rect class="caption-box" x="283.4" y="712.4" width="383.2" height="28" rx="8" ry="8" data-cap="b3" />
+      <text x="475" y="730">Every server links to every other: 190 standing connections at 20 servers.</text>
+    </g>
+    <!-- b4 and b5 hold the same card slot as b3: the camera never cuts across
+         the domino, so the caption must not jump around inside one shot -->
+    <g class="beat-caption cap-b4">
+      <rect class="caption-box" x="310.7" y="712.4" width="328.6" height="28" rx="8" ry="8" data-cap="b4" />
+      <text x="475" y="730">ws-1 dies. Every copy it owed now re-routes through its peers.</text>
+    </g>
+    <g class="beat-caption cap-b5">
+      <rect class="caption-box" x="323.4" y="712.4" width="303.3" height="28" rx="8" ry="8" data-cap="b5" />
+      <text x="475" y="730">ws-2 inherits the load and follows — the mesh dominoes.</text>
+    </g>
+    <g class="beat-caption cap-b6">
+      <rect class="caption-box" x="1218.9" y="808" width="472.2" height="30.4" rx="8" ry="8" data-cap="b6" />
+      <text x="1455" y="828">The same server dies in B: clients reconnect; the stream never notices.</text>
+    </g>
+    <g class="beat-caption cap-b7">
+      <rect class="caption-box" x="642.1" y="187.6" width="635.8" height="35.2" rx="8" ry="8" data-cap="b7" />
+      <text x="960" y="210">190 links become 20 subscriptions — and a dead server becomes a non-event.</text>
+    </g>
+  </g>
+</svg>
+</body></html>

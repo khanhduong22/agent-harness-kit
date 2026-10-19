@@ -1,0 +1,408 @@
+{
+  "manifest": 1,
+  "target": {
+    "file": "progressive-500k-ccu.html",
+    "title": "0 to 500K CCU",
+    "type": "scaling-story",
+    "layout": "progressive-tiers",
+    "style": "flat-minimal",
+    "palette": "house",
+    "register": "educational",
+    "viewbox": [
+      0,
+      0,
+      1920,
+      1080
+    ],
+    "master_ms": 38400,
+    "beat_ms": 4800
+  },
+  "features": [
+    "beats",
+    "acts",
+    "recap",
+    "act-titles",
+    "staged-states",
+    "spotlight",
+    "captions",
+    "payload-glyphs",
+    "state-chips",
+    "replica-stack",
+    "legend",
+    "multi-pane",
+    "reduced-motion-mode"
+  ],
+  "holds": [
+    {
+      "id": "intro",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        960.0,
+        540.0
+      ],
+      "bbox": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "fs_min": 15,
+      "p_min": 28.0,
+      "window": [
+        0,
+        2.8
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "a1",
+      "kind": "camera",
+      "k": 1.6,
+      "tx": -720,
+      "ty": -252,
+      "center": [
+        1050.0,
+        495.0
+      ],
+      "bbox": [
+        637.4,
+        190,
+        864.6,
+        612.8
+      ],
+      "fs_min": 15,
+      "p_min": 28.0,
+      "window": [
+        5.2083,
+        17.1875
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "a2",
+      "kind": "camera",
+      "k": 1.6,
+      "tx": -608,
+      "ty": -252,
+      "center": [
+        980.0,
+        495.0
+      ],
+      "bbox": [
+        470,
+        190,
+        1032,
+        612.8
+      ],
+      "fs_min": 15,
+      "p_min": 28.0,
+      "window": [
+        18.75,
+        34.375
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "a3",
+      "kind": "camera",
+      "k": 1.6,
+      "tx": -512,
+      "ty": -252,
+      "center": [
+        920.0,
+        495.0
+      ],
+      "bbox": [
+        350,
+        190,
+        1160,
+        612.8
+      ],
+      "fs_min": 15,
+      "p_min": 28.0,
+      "window": [
+        35.9375,
+        65
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "a4-recap",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        960.0,
+        540.0
+      ],
+      "bbox": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "fs_min": 15,
+      "p_min": 28.0,
+      "window": [
+        67.1875,
+        100
+      ],
+      "gate": "overview"
+    },
+    {
+      "element": ".act-1",
+      "kind": "act",
+      "keyframe": "act1",
+      "windows": [
+        [
+          5.2083,
+          17.1875
+        ],
+        [
+          68.75,
+          76.5625
+        ]
+      ],
+      "source": "layouts:progressive-tiers"
+    },
+    {
+      "element": ".act-2",
+      "kind": "act",
+      "keyframe": "act2",
+      "windows": [
+        [
+          17.1875,
+          34.375
+        ],
+        [
+          76.5625,
+          84.375
+        ]
+      ],
+      "source": "layouts:progressive-tiers"
+    },
+    {
+      "element": ".act-3",
+      "kind": "act",
+      "keyframe": "act3",
+      "windows": [
+        [
+          34.375,
+          51.5625
+        ],
+        [
+          84.375,
+          92.1875
+        ]
+      ],
+      "source": "layouts:progressive-tiers"
+    },
+    {
+      "element": ".act-4",
+      "kind": "act",
+      "keyframe": "act4",
+      "windows": [
+        [
+          51.5625,
+          68.75
+        ],
+        [
+          92.1875,
+          100.0
+        ]
+      ],
+      "source": "layouts:progressive-tiers"
+    },
+    {
+      "element": ".stage-a1",
+      "kind": "state",
+      "keyframe": "stg-a1",
+      "windows": [
+        [
+          10.4167,
+          17.1875
+        ],
+        [
+          68.75,
+          76.5625
+        ]
+      ],
+      "source": "states:is-overloaded"
+    },
+    {
+      "element": ".stage-a2",
+      "kind": "state",
+      "keyframe": "stg-a2",
+      "windows": [
+        [
+          27.0833,
+          34.375
+        ],
+        [
+          76.5625,
+          84.375
+        ]
+      ],
+      "source": "states:is-overloaded"
+    },
+    {
+      "element": ".stage-a3",
+      "kind": "state",
+      "keyframe": "stg-a3",
+      "windows": [
+        [
+          44.2708,
+          51.5625
+        ],
+        [
+          84.375,
+          92.1875
+        ]
+      ],
+      "source": "states:is-degraded"
+    },
+    {
+      "element": ".focus-a1",
+      "kind": "spotlight",
+      "keyframe": "focus-a1",
+      "windows": [
+        [
+          11.3,
+          16.2
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-a2",
+      "kind": "spotlight",
+      "keyframe": "focus-a2",
+      "windows": [
+        [
+          23.4,
+          33.4
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-a3",
+      "kind": "spotlight",
+      "keyframe": "focus-a3",
+      "windows": [
+        [
+          40.6,
+          50.6
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-a4",
+      "kind": "spotlight",
+      "keyframe": "focus-a4",
+      "windows": [
+        [
+          57.8,
+          63.0
+        ]
+      ],
+      "source": "motion:camera-beat"
+    }
+  ],
+  "captions": [
+    {
+      "element": ".cap-b2",
+      "text": "To 1K CCU a monolith and one Postgres hold — until the 100-connection pool queues.",
+      "window": [
+        9.4,
+        16.2
+      ]
+    },
+    {
+      "element": ".cap-b3",
+      "text": "Pool fixed by 6 replicas and a 90% cache; now the single Postgres caps at ~2K writes/s.",
+      "window": [
+        21.5,
+        33.4
+      ]
+    },
+    {
+      "element": ".cap-b4",
+      "text": "Reads move to CDN and 3 replicas, async work to a queue; one hot row still serializes writes.",
+      "window": [
+        38.7,
+        50.6
+      ]
+    },
+    {
+      "element": ".cap-b5",
+      "text": "16 shards spread the hot row; a pub/sub stream fans out; 3 cells cap the blast radius. 500K holds.",
+      "window": [
+        55.9,
+        63.0
+      ]
+    },
+    {
+      "element": ".cap-b1",
+      "text": "One system, four architectures: what broke decided every boundary.",
+      "window": [
+        69.6,
+        75.6
+      ]
+    }
+  ],
+  "glyphs": [
+    "request",
+    "event",
+    "binary-stream"
+  ],
+  "sources": {
+    "types": [
+      "scaling-story"
+    ],
+    "layouts": [
+      "progressive-tiers"
+    ],
+    "styles": [
+      "flat-minimal"
+    ],
+    "components": [
+      "browser",
+      "monolith",
+      "microservice",
+      "load-balancer",
+      "cache",
+      "sql-database",
+      "read-replica",
+      "cdn",
+      "message-queue",
+      "pubsub-topic",
+      "availability-zone",
+      "worker"
+    ],
+    "states": [
+      "is-overloaded",
+      "is-degraded",
+      "is-syncing"
+    ],
+    "motion": [
+      "dash-flow",
+      "packet-travel",
+      "queue-fill",
+      "camera-beat",
+      "shake-stress",
+      "pulse-glow",
+      "replication-sync"
+    ],
+    "payloads": [
+      "request",
+      "event",
+      "binary-stream"
+    ]
+  }
+}

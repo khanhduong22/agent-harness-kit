@@ -1,0 +1,1639 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vibe-code với AI — quy trình 7 nhịp</title>
+<!--
+  GENRE: process (SKILL.md STEP 0). Construction mode: HTML-FIRST + a thin SVG
+  overlay for connectors only (references/genres/process.md). Stations are divs
+  copied block-by-block from templates/snippets/process-stations.html and
+  templates/snippets/process-webapp-templates.html; the stage / overlay / edge
+  contract is templates/snippets/process-stage-and-edges.css.
+  REVISION 3 -- PRODUCT-FIRST: the brief is a real one-page document
+  (station-brd-doc), the app is a browser window running a real dashboard
+  (station-webapp + webapp-skin--dashboard, --win-w 640), the deploy beat is the
+  responsive pair (station-deploy-responsive, option C2), and the whole canvas
+  runs the two-tier LOD: far at the overviews, close on the beats that zoom.
+  Beat machinery (camera, caption card + wipe, chrome fade, corner-bracket
+  spotlight, staged windows, negative delays, reduced motion) is the ENGINE idiom
+  from templates/snippets/camera-beat.css.
+  Sheet: vibe-code-voi-ai.sheet.md -- every string on this canvas traces to a line
+  in it. Windows emitted by scripts/emit_timeline.py from
+  tests/fixtures/vibe-code-voi-ai.timeline.tsv (master 38400ms, beat 4800ms);
+  every k/tx/ty by scripts/solve_camera.py.
+  FROZEN GOLDEN -- the process genre's first. See examples/README.md for what that
+  means and for the SHA-256 that makes drift detectable.
+-->
+<style>
+/* ===== snippet: css-process-tokens (process-stage-and-edges.css) ============
+   No handwriting font anywhere: Vietnamese stacked diacritics go mushy in a
+   script face. No web font at all -- system-ui covers Vietnamese natively and
+   keeps the file self-contained (zero external hosts). */
+:root{
+  --master:38.4s;
+  --bg:#f1f5f9; --surface:#f8fafc;
+  --grid:color-mix(in srgb,#475569 10%,transparent);
+  --ink:#1e293b; --muted:#475569; --stroke:#475569;
+
+  --font-title:system-ui,-apple-system,"SF Pro Text","Segoe UI",Roboto,
+               "Helvetica Neue",Arial,sans-serif;
+  --font-label:var(--font-title);
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --fs-label:16px; --fw-title:600; --ls-title:-.012em;
+
+  --role-client:#dbeafe;   --ink-client:#2563eb;   --accent-client:#3b82f6;   --on-client:#1e40af;
+  --role-service:#ffedd5;  --ink-service:#ea580c;  --accent-service:#f97316;  --on-service:#9a3412;
+  --role-data:#dcfce7;     --ink-data:#16a34a;     --accent-data:#22c55e;     --on-data:#166534;
+  --role-async:#f3e8ff;    --ink-async:#9333ea;    --accent-async:#a855f7;    --on-async:#6b21a8;
+  --role-external:#f3f4f6; --ink-external:#4b5563; --accent-external:#6b7280; --on-external:#1f2937;
+  --role-error:#fee2e2;    --ink-error:#dc2626;    --accent-error:#ef4444;    --on-error:#991b1b;
+  --role-infra:#f1f5f9;    --ink-infra:#475569;    --accent-infra:#14b8a6;    --on-infra:#1e293b;
+
+  --shape-bw:1.5px; --pill-radius:999px; --chip-radius:8px;
+  --stage-radius:8px; --stage-bg:#f8fafc;
+  --stage-hair:inset 0 0 0 1px color-mix(in srgb,#475569 12%,transparent);
+  --node-shadow:0 1px 2px rgba(30,41,59,.06),0 6px 16px -12px rgba(30,41,59,.30);
+  --paper-fill:#f8fafc; --paper-radius:8px;
+  --paper-shadow:0 1px 2px rgba(30,41,59,.06),0 6px 16px -10px rgba(30,41,59,.28);
+  --dash-ink:color-mix(in srgb,#475569 42%,transparent);
+  --skel:color-mix(in srgb,#475569 16%,transparent);
+  --code-bg:#f1f5f9;
+
+  --edge-ink:#475569;      /* gray solid  = forward handoff              */
+  --edge-service:#ea580c;  /* orange dash = return / loop / "not yet"    */
+  --edge-data:#16a34a;     /* green       = derivation (X read FROM Y)   */
+  --edge-w:2px;
+  --packet-bg:#14b8a6;
+  --packet-glow:0 0 0 4px color-mix(in srgb,#14b8a6 20%,transparent);
+
+  /* FIT-TO-VIEWPORT. An SVG-mode cut gets this free from
+     `svg{width:min(100vw,177.8vh)}`; an HTML-mode frame is a fixed 1920x1080 box
+     and is CLIPPED in any window narrower than 1920px unless it is scaled. One
+     number, no JavaScript: the largest 16:9 box the viewport holds, divided by
+     the authored width. Exactly 1 at a 1920x1080 viewport, so every headless
+     gate measures the same px it always did. */
+  --fit:calc(min(100vw,177.7778vh) / 1920px);
+}
+
+/* ===== snippet: css-process-role-mapping ================================== */
+[data-role]{--fill:var(--role-external);--line:var(--ink-external);
+            --accent:var(--accent-external);--on:var(--on-external)}
+[data-role="client"]  {--fill:var(--role-client);  --line:var(--ink-client);  --accent:var(--accent-client);  --on:var(--on-client)}
+[data-role="service"] {--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="data"]    {--fill:var(--role-data);    --line:var(--ink-data);    --accent:var(--accent-data);    --on:var(--on-data)}
+[data-role="async"]   {--fill:var(--role-async);   --line:var(--ink-async);   --accent:var(--accent-async);   --on:var(--on-async)}
+[data-role="external"]{--fill:var(--role-external);--line:var(--ink-external);--accent:var(--accent-external);--on:var(--on-external)}
+[data-role="error"]   {--fill:var(--role-error);   --line:var(--ink-error);   --accent:var(--accent-error);   --on:var(--on-error)}
+[data-role="infra"]   {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* ===== frame + camera (HTML-mode contract: the camera transform goes on a DIV
+   wrapper, never on the stage or on a station; no backdrop-filter anywhere, so
+   nothing samples through the camera subtree) ============================== */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);height:100%;overflow:hidden}
+body{font-family:var(--font-title);color:var(--ink);
+     -webkit-font-smoothing:antialiased}
+/* the fit layer: the frame keeps its authored 1920x1080 layout box (so every
+   world coordinate in this file stays literal) and is SCALED into the viewport,
+   16:9 preserved. CENTRING IS NOT `place-items:center`: a grid does not centre
+   an item WIDER than its track -- it leaves it at the start edge, and scaling
+   about the element's own centre then parks the paint half off-screen. */
+.frame{margin:0;width:1920px;height:1080px;position:absolute;overflow:hidden;
+       background:var(--bg);
+       left:50%;top:50%;
+       transform:translate(-50%,-50%) scale(var(--fit))}
+/* the product-first stations are BIGGER than the box-and-label ones they
+   replace (a 640px browser window, a 360px document, a 470+216 responsive pair),
+   so the world grew 1920x1280 -> 2160x1460 and the overview k fell 0.80 -> 0.69.
+   That is the honest trade the genre guide predicts: at the overview the text is
+   TEXTURE (LOD says so out loud) and what the viewer reads is the SHAPE -- and a
+   document, a browser window and a phone are more legible shapes at k 0.69 than
+   labelled boxes were at k 0.80. */
+.camera{position:absolute;left:0;top:0;width:2160px;height:1460px;
+        transform-origin:0 0;
+        animation:beats var(--master) linear infinite}
+.world{position:relative;width:2160px;height:1460px}
+
+/* snippet: cb-master -- one duration, every layer keyed to a percent of it.
+   REV 3.2: 38.4s = 6 beats x 4800ms + a CLOSING OVERVIEW OF 9600ms. The recap
+   beat holds twice as long as a working beat because that is the one beat whose
+   job is to be looked at rather than read (camera-beat.md, rule dated
+   2026-08-27); the OPENING overview stays 1x -- it is a teaser, not a recap.
+   Every ambient loop below still divides the master (2560x15, 2400x16, 1600x24);
+   the sticky pulse was retuned 2800 -> 2560ms for exactly that reason.
+   Each hold declares its own ease-in-out so the move eases and the hold stays
+   dead still. k/tx/ty from solve_camera.py.
+   b3 is the ONE beat with a mid-beat move: see the FOLLOW note below. */
+/* THE b3 FOLLOW (REV 3.2, re-paced in REV 6). The return arc leaves the b3 frame
+   on the left, so the beat used to end without ever showing WHERE the loop goes.
+   The camera holds the decision framing while the caption lands
+   (26.5625-30.4688% = 10200-11700ms), then travels with the orange packet --
+   1200ms, ease-in-out, transform only -- to a second DECLARED hold `b3b` that
+   frames the AI station the arc lands on plus the app window it rebuilds, and
+   SETTLES there for 1500ms (33.5938-37.5% = 12900-14400ms). ONE travel per beat,
+   never a lap-by-lap chase: a camera that loops with the packet induces motion
+   sickness, so the packet completes its lap with the camera already parked at b3b.
+   cap-b3 is world-anchored and stays fully inside BOTH frames, so it needs no
+   ride and no hide. Reduced motion parks at the overview and never travels.
+
+   REV 5 -- THE FRAME-MARGIN RE-SOLVE. b3's must-show set was wrong in the one
+   way a bbox can be wrong without any gate noticing: it named the return arc in
+   its comment but its numbers stopped at the app window's top (y 168.5), 26 world
+   px BELOW the arc's own painted band. The arc is this beat's SUBJECT -- it wears
+   the 11px halo -- and it was running 11.6 frame px from the frame's top edge at
+   b3 and 24.8 at b3b, i.e. 2.4 and 16.0 px once the halo is counted. User-
+   reported ("bien qua sat nen duong net dan ve de bi che"). The bbox now carries
+   BOTH the things the old one dropped -- the arc's painted top (y 142.5 = the run
+   at 148 minus half its halo) and cap-b3's own card (world 868.3..1431.7 x
+   736..772) -- and both holds were re-solved from it: k 1.68 -> 1.6 (the read
+   floor exactly, 24 frame px at fs_min 15) with ty -237/-212 -> -192 on both, so
+   the arc clears the top by 36 frame px and the card clears the bottom by 36.8.
+   The follow is now a PURE HORIZONTAL PAN -- same k, same ty, tx -1143 -> -680 --
+   which is also the truer camera for a packet travelling a horizontal run.
+   Gated from here on by scripts/browser-checks/verify-frame-edge-margin.mjs.
+
+   REV 6 -- THE PACING RE-BAKE, and the one breather this cut does not take.
+   User-reported ("cho camera follow duong loop ve dang nhanh qua, can cho lai
+   mot chut"). The old split was hold 2100 / travel 900 / SETTLE 600 / breather
+   600: the viewer followed the packet home and got six tenths of a second at the
+   destination, less than the caption's own wipe. Rebalanced INSIDE b3's own
+   envelope -- master still 38400ms, b4 still opens at 39.0625% -- to
+   hold 1500 / travel 1200 / settle 1500 / transition 600, every stop still on
+   the cut's 300ms (1/128th) grid.
+   The 600ms that bought the settle is the RETURN-TO-OVERVIEW breather at 37.5%,
+   which is deleted: b3b goes straight to b4. That is a deliberate, single
+   deviation from camera-beat.md's "every working beat ends by throwing the
+   viewer back to the whole picture", taken because (a) b3b and b4 are the SAME
+   scale (k 1.6), the same ty family (-192 -> -169) and share their subject --
+   the app window is in both frames -- so the breather would be re-establishing a
+   picture that never left; (b) a pure 680px lateral pan over 600ms is GENTLER
+   than any of the five breathers this cut keeps, each of which zooms 1.6-2x in
+   the same 600ms; (c) b3 is already the one beat with a mid-beat move, so the
+   deviation is confined to the beat that declared itself special. Knock-ons
+   re-derived, not assumed: traffic-b3 + arc-halo windows run to 37.5%, focus-b3b
+   fades up ACROSS the move (32.0312 -> 33.5938%), recede-b3/br-back hold their
+   b3 pose to 37.5%, and lod-app's two close-tier windows MERGE (10200-18600ms)
+   because the camera no longer passes through the overview between b3 and b4 --
+   a skeleton flip at k 1.6 would have been visible. */
+@keyframes beats{
+  0%,      12.5%   {transform:translate(215px,43px) scale(.69);           animation-timing-function:ease-in-out}
+  14.0625%,23.4375%{transform:translate(146px,-247px) scale(1.75);        animation-timing-function:ease-in-out}
+  25%              {transform:translate(215px,43px) scale(.69);           animation-timing-function:ease-in-out}
+  26.5625%,30.4688%{transform:translate(-1143px,-192px) scale(1.6);       animation-timing-function:ease-in-out}
+  33.5938%,37.5%   {transform:translate(-680px,-192px) scale(1.6);        animation-timing-function:ease-in-out}
+  39.0625%,48.4375%{transform:translate(-1360px,-169px) scale(1.6);       animation-timing-function:ease-in-out}
+  50%              {transform:translate(215px,43px) scale(.69);           animation-timing-function:ease-in-out}
+  51.5625%,60.9375%{transform:translate(-90px,-1502px) scale(2);          animation-timing-function:ease-in-out}
+  62.5%            {transform:translate(215px,43px) scale(.69);           animation-timing-function:ease-in-out}
+  64.0625%,73.4375%{transform:translate(-1774px,-1555px) scale(1.85);     animation-timing-function:ease-in-out}
+  75%,100%         {transform:translate(215px,43px) scale(.69)}
+}
+
+/* ===== snippet: css-process-stage ======================================== */
+.stage{position:absolute;left:60px;top:120px;overflow:hidden;
+       background:var(--stage-bg);border-radius:var(--stage-radius);
+       box-shadow:var(--stage-hair);
+       background-image:radial-gradient(var(--grid) 1px,transparent 1px);
+       background-size:20px 20px}
+/* never background-attachment:fixed -- it re-anchors the grid to the viewport
+   and a camera move tears a seam across it. */
+
+/* ===== snippet: css-process-edges ========================================
+   Contract clause 4: the overlay sits UNDER the stations, so a path may run
+   behind one. ONE station opts out -- see the note on `.win` below. */
+.edges{position:absolute;left:0;top:0;width:100%;height:100%;
+       z-index:1;pointer-events:none;overflow:visible}
+.edges-top{position:absolute;left:0;top:0;width:100%;height:100%;
+           z-index:7;pointer-events:none;overflow:visible}
+.edge{fill:none;stroke:var(--edge-ink);stroke-width:var(--edge-w);
+      stroke-linecap:round;stroke-linejoin:round}
+.edge--back{stroke:var(--edge-service);stroke-dasharray:8 7}
+/* fill:none is repeated here on purpose: `.edge--pull` is used WITHOUT `.edge`
+   elsewhere in the genre, and a path with a jog encloses area. */
+.edge--pull{fill:none;stroke:var(--edge-data);stroke-width:1.75px}
+/* the annotation tie: dashed, NO marker, because nothing travels along it.
+   Both of its endpoints are on real station borders, so it is anchored like any
+   other edge and the checker treats it like any other edge. */
+.edge--soft{fill:none;stroke:var(--dash-ink);stroke-width:1.5px;stroke-dasharray:5 6}
+/* ===== REV 3.2 -- THE RETURN FLOW'S HALO. The loop back to the AI had no
+   PRESENCE: it is a 1.75px dashed line crossing the widest part of the canvas,
+   and at b3 it simply left the frame. It gets weight, not a new hue -- the same
+   path drawn once more UNDERNEATH at 11px in the loop's own orange, held at .22
+   stroke-opacity so it reads as a glow rather than a second edge. Only `opacity`
+   animates (0 outside b3, 1 inside), which is the emphasis lever a palette with
+   fixed role colours allows. It carries no `data-edge` and no `edge` class on
+   purpose: the anchor checker walks `path[class*="edge"]`, and one arc must be
+   counted once. */
+.arc-halo{fill:none;stroke:var(--edge-service);stroke-width:11px;
+          stroke-linecap:round;stroke-linejoin:round;stroke-opacity:.22;
+          opacity:0;animation-duration:var(--master);
+          animation-timing-function:linear;animation-iteration-count:infinite}
+/* ...and the cluster that is NOT the loop recedes for the same window. Exactly
+   the `.pull-park` grammar below: opacity only, PARKED not hidden (the schema
+   table and the second AI are still drawn, still legible as structure), and back
+   to full strength well before b4 makes them the subject. */
+.recede-b3{animation-name:recede-b3;animation-duration:var(--master);
+           animation-timing-function:linear;animation-iteration-count:infinite}
+@keyframes recede-b3{0%,25%{opacity:1}26.5625%,37.5%{opacity:.34}39.0625%,100%{opacity:1}}
+/* BRANCH CONVENTION: both branches are ALWAYS drawn and always labelled; the
+   untaken one parks at reduced opacity for the beats it is not taken in. */
+.br-back,.br-ok{animation-duration:var(--master);animation-timing-function:linear;
+                animation-iteration-count:infinite}
+.br-back{animation-name:br-back}
+@keyframes br-back{0%,25%{opacity:.5}26.5625%,37.5%{opacity:1}39.0625%,100%{opacity:.5}}
+.br-ok{animation-name:br-ok}
+@keyframes br-ok{0%,37.5%{opacity:.5}39.0625%,48.4375%{opacity:1}50%,100%{opacity:.5}}
+/* THE SAME PARKING, applied to the three derivation pull-lines. They are not a
+   branch, but they carry a claim that belongs to ONE beat, and they run straight
+   across the app window (that is the point -- see the z-index note on `.win`).
+   Left at full strength they slice the dashboard at every other beat, which
+   makes b3's "AI built you a screen" read as "something is crossed out". Parked
+   at .32 the derivation is still drawn and still legible as a relationship;
+   b4 brings it up to full. Opacity only, on the master, like every other layer. */
+.pull-park{animation-name:pull-park;animation-duration:var(--master);
+           animation-timing-function:linear;animation-iteration-count:infinite}
+@keyframes pull-park{0%,37.5%{opacity:.32}39.0625%,48.4375%{opacity:1}50%,100%{opacity:.32}}
+
+/* ===== snippet: css-process-edge-labels ================================== */
+.pill{position:absolute;z-index:3;padding:3px 13px;border-radius:var(--pill-radius);
+      font-size:15px;font-weight:600;line-height:1.4;white-space:nowrap;
+      background:var(--stage-bg);border:1.5px solid var(--line);color:var(--on)}
+.tag{position:absolute;z-index:3;font-size:15px;line-height:1.35;color:var(--muted)}
+.tag b{color:var(--ink);font-weight:600}
+.packet{position:absolute;z-index:3;width:14px;height:14px;translate:-50% -50%;
+        border-radius:50%;background:var(--packet-bg);box-shadow:var(--packet-glow)}
+
+/* ===== snippet: css-process-lod -- LEVEL OF DETAIL, two tiers, one switch ===
+   THE PROBLEM: the 15px body floor is authored in WORLD px and the overview hold
+   is at k 0.69, so a compliant 15px line PAINTS at 10px. The overview was always
+   showing text as texture; LOD admits it. At the FAR tier the line IS a skeleton
+   bar; on the beat that zooms, the real words cross-fade in at >= 24 painted px.
+
+   HOW THE SWITCH IS DRIVEN HERE, and why it is not the attribute.
+   The copy-source flips `data-lod-tier="far|close"` on an ancestor. A single-
+   canvas BEATS cut has no per-beat wrapper to flip and no JavaScript, so the
+   same "one switch on an ancestor" is expressed as ONE REGISTERED CUSTOM
+   PROPERTY, `--lodc`, animated on the station wrapper by the master timeline --
+   the identical mechanism every other beat layer in this file uses. The
+   attribute selectors are kept and still work, so a static copy of a station
+   behaves exactly as the snippet documents.
+   The four rules are unchanged and all four still hold:
+   1. opacity ONLY: `.lod__near` stays in flow and defines the box height,
+      `.lod__far` is absolutely positioned over it -- height is IDENTICAL at both
+      tiers, nothing reflows.
+   2. NOTHING inside an LOD subtree sets its own opacity; every dim tone below is
+      a color-mix. Gated by verify-html-edge-anchors.mjs -> [LOD-LEAK], which
+      freezes the page at t=0 -- where every `--lodc` keyframe is 0, i.e. the FAR
+      tier -- and reads computed opacity back.
+   3. LOD reveals MORE, it never authors SMALLER: close-tier text is >= 15px.
+   4. The fade runs AFTER the camera stops (0.34s == 1.0119% of the master), so
+      the whole reading time sits inside the hold. */
+@property --lodc{syntax:"<number>";inherits:true;initial-value:0}
+[data-lod-tier="far"]{--lodc:0}
+[data-lod-tier="close"]{--lodc:1}
+[data-lod="close"]{opacity:var(--lodc)}
+.lod{position:relative;display:block}
+.lod__near{display:block;opacity:var(--lodc)}
+.lod__far{position:absolute;left:0;top:0;right:0;bottom:0;z-index:1;
+          display:flex;flex-direction:column;justify-content:center;gap:6px;
+          opacity:calc(1 - var(--lodc));pointer-events:none}
+.lod__far i{display:block;height:7px;border-radius:4px;background:var(--skel)}
+.lod__far i.w95{width:95%}.lod__far i.w88{width:88%}.lod__far i.w76{width:76%}
+.lod__far i.w64{width:64%}.lod__far i.w52{width:52%}.lod__far i.w40{width:40%}
+/* one animation per LOD station: the brief opens at b2, the app at b3 AND b4,
+   and both are back at the far tier for every overview instant between them.
+   REV 6: the app's two close-tier windows MERGED into one (10200-18600ms). The
+   b3->b4 hand-off no longer passes through the overview (see the FOLLOW note),
+   so there is no overview instant to be far at, and a skeleton flip mid-pan at
+   k 1.6 would have been a visible glitch rather than an honest tier change. */
+.lodw-brief,.lodw-app{animation-duration:var(--master);
+   animation-timing-function:linear;animation-iteration-count:infinite}
+.lodw-brief{animation-name:lod-brief}
+@keyframes lod-brief{0%,14.0625%{--lodc:0}14.9479%,23.4375%{--lodc:1}24.3229%,100%{--lodc:0}}
+.lodw-app{animation-name:lod-app}
+@keyframes lod-app{0%,26.5625%{--lodc:0}27.4479%,48.4375%{--lodc:1}
+                   49.3229%,100%{--lodc:0}}
+
+/* ===== stations: copied from templates/snippets/process-stations.css and
+   templates/snippets/process-webapp-templates.css ========================= */
+/* snippet: css-station-brd-doc -- the PRODUCT-FIRST brief: a real one-page
+   document, not a labelled box. The paper is a LABEL column + a VALUE column,
+   and the grid is load-bearing: only a grid lets the far tier skeletonise the
+   values while the section names still read as structure. */
+.doc{position:absolute;z-index:2;width:360px;color:var(--line)}
+.doc__tab{margin:0 0 -1px 18px;display:inline-block;padding:4px 14px;font-size:15px;
+          font-weight:600;color:var(--on);background:var(--fill);
+          border:var(--shape-bw) solid var(--line);border-bottom:0;border-radius:6px 6px 0 0}
+.doc__paper{background:var(--paper-fill);border:var(--shape-bw) solid var(--line);
+            border-radius:var(--paper-radius);box-shadow:var(--paper-shadow);
+            padding:15px 17px 14px}
+.doc__hd{display:flex;align-items:baseline;gap:10px;padding-bottom:10px;
+         border-bottom:var(--shape-bw) solid var(--line)}
+.doc__h{margin:0;font-family:var(--font-title);font-size:19px;font-weight:var(--fw-title);
+        letter-spacing:var(--ls-title);color:var(--ink);line-height:1.15}
+.doc__v{margin:0 0 0 auto;font-size:15px;color:var(--muted);white-space:nowrap}
+.doc__r{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:start;
+        padding:9px 0 8px;border-bottom:1px solid color-mix(in srgb,var(--line) 18%,transparent)}
+.doc__r:last-of-type{border-bottom:0}
+.doc__k{margin:0;font-size:15px;font-weight:700;color:var(--on);line-height:1.35}
+.doc__val{min-width:0;min-height:21px}
+.doc__val p{margin:0;font-size:15px;line-height:1.4;color:var(--ink)}
+.doc__val .lod__far{gap:7px}
+.doc__flow{margin:0;padding:0;list-style:none}
+.doc__flow li{display:flex;align-items:baseline;gap:8px;margin-bottom:5px;
+              font-size:15px;line-height:1.35;color:var(--ink)}
+.doc__flow li:last-child{margin-bottom:0}
+.doc__flow li b{flex:0 0 auto;width:19px;height:19px;display:grid;place-items:center;
+                border-radius:50%;background:var(--fill);color:var(--on);
+                font-family:var(--font-title);font-size:15px;font-weight:700;line-height:1}
+/* the struck scope line. Its opacity is OUTSIDE any LOD subtree -- inside one it
+   would be the cascade collision css-process-lod rule 2 bans. */
+.doc__cut{margin:11px 0 0;padding-top:10px;border-top:1px dashed var(--dash-ink);
+          font-size:15px;line-height:1.4;color:var(--ink);opacity:.62;
+          text-decoration:line-through;text-decoration-thickness:1px}
+.doc__cut b{font-weight:700;color:var(--on)}
+
+/* snippet: css-station-ai-spark -- THE TITLE CARRIES THE VERB */
+.ai{position:absolute;z-index:2;display:flex;align-items:center;gap:14px;
+    padding:14px 20px 14px 16px;background:var(--fill);
+    border:var(--shape-bw) solid var(--line);border-radius:10px;
+    box-shadow:var(--node-shadow)}
+.ai__glyph{position:relative;flex:0 0 auto;width:var(--sz,46px);height:var(--sz,46px)}
+.ai__glyph i{position:absolute;background:var(--line);
+             clip-path:polygon(50% 0%,60% 40%,100% 50%,60% 60%,50% 100%,
+                               40% 60%,0% 50%,40% 40%)}
+.ai__glyph i:nth-child(1){left:0;top:0;width:74%;height:74%}
+.ai__glyph i:nth-child(2){right:0;bottom:2%;width:42%;height:42%;opacity:.62}
+.ai__txt{min-width:0}
+.ai__t{margin:0;font-family:var(--font-title);font-size:20px;letter-spacing:.02em;
+       font-weight:700;color:var(--on);line-height:1.1}
+.ai__s{margin:4px 0 0;font-size:15px;color:var(--on);opacity:.82;line-height:1.3}
+.ai--sm{gap:10px;padding:10px 14px 10px 12px;--sz:28px}
+.ai--sm .ai__t{font-size:17px}
+.ai--sm .ai__s{font-size:15px;margin-top:1px}
+
+/* snippet: css-station-data-jar -- json rows are TEXTURE-class (12px, the one
+   exemption from the 15px floor): nobody reads them, they say "json lives here".
+   The arrow always runs JAR -> APP: the seed data feeds the UI, never the
+   reverse. Kept in the rebuild because the rich dashboard's seed content would
+   otherwise read as REAL data, and "there is no database yet" is the fact this
+   beat has to carry. */
+.jar{position:absolute;z-index:2;width:180px;color:var(--line)}
+.jar__lid{width:108px;height:16px;margin:0 auto;border-radius:5px;
+          background:var(--fill);border:var(--shape-bw) solid var(--line)}
+.jar__neck{width:86px;height:11px;margin:-1px auto 0;background:var(--fill);
+           border-left:var(--shape-bw) solid var(--line);
+           border-right:var(--shape-bw) solid var(--line)}
+.jar__body{position:relative;height:132px;padding:12px 13px;overflow:hidden;
+           border:var(--shape-bw) solid var(--line);border-radius:8px 8px 16px 16px;
+           background:var(--paper-fill);box-shadow:var(--paper-shadow)}
+.jar__liquid{position:absolute;left:0;right:0;bottom:0;height:56%;
+             background:var(--fill);opacity:.8}
+.jar__code{position:relative;display:block;margin-bottom:8px;font-family:var(--font-mono);
+           font-size:12px;color:var(--on);white-space:nowrap;letter-spacing:-.01em}
+.jar__code--dim{opacity:.45}
+.jar__label{margin:10px 0 0;text-align:center;font-family:var(--font-title);
+            font-size:15px;font-weight:var(--fw-title);color:var(--on)}
+
+/* snippet: css-station-decision-diamond -- rotate(45deg) on a bordered SQUARE
+   keeps the 1.5px stroke; a clip-path diamond throws the border away */
+.dia{position:absolute;z-index:2;width:var(--d,108px);height:var(--d,108px);
+     transform:rotate(45deg);background:var(--fill);
+     border:var(--shape-bw) solid var(--line);border-radius:8px;box-shadow:var(--node-shadow)}
+.dia__in{position:absolute;left:50%;top:50%;width:calc(var(--d,108px)*1.28);
+         translate:-50% -50%;transform:rotate(-45deg);text-align:center;
+         font-family:var(--font-title);font-size:16px;font-weight:700;
+         color:var(--on);line-height:1.22}
+
+/* snippet: css-station-sticky-note -- the rotate(-2deg) is baked into the pulse
+   keyframes: transform-origin is element-local */
+.sticky{position:absolute;z-index:4;padding:11px 14px;max-width:210px;
+        background:#ffedd5;border:var(--shape-bw) solid #ea580c;border-radius:3px;
+        box-shadow:0 2px 4px rgba(30,41,59,.10),0 10px 20px -14px rgba(154,52,18,.7);
+        color:#9a3412;font-size:16px;font-weight:600;line-height:1.3;
+        transform:rotate(-2deg);transform-origin:center}
+.sticky em{display:block;margin-top:3px;font-style:normal;font-weight:500;
+           font-size:15px;opacity:.85}
+/* 2.56s, not 2.8s: 38400/2800 is not an integer, so the old pulse would not
+   close the loop seam. 2560ms x 15 = 38400ms (camera-beat.md: snap each
+   recipe's duration to the nearest divisor of the master). */
+.sticky--pulse{animation:stickyPulse 2.56s ease-in-out infinite}
+@keyframes stickyPulse{
+  0%,100%{transform:rotate(-2deg) scale(1);opacity:.94}
+  50%    {transform:rotate(-2deg) scale(1.035);opacity:1}}
+
+/* snippet: css-station-schema-table -- where a derivation LANDS. Row count must
+   EQUAL the anchor count it was derived from. The ROW ORDER follows the anchors'
+   vertical order on the app window, so the three pull-lines never cross. */
+.tbl{position:absolute;z-index:2;background:var(--paper-fill);
+     border:var(--shape-bw) solid var(--line);border-radius:8px;
+     box-shadow:var(--node-shadow);overflow:hidden}
+.tbl__h{display:flex;align-items:center;gap:9px;height:44px;padding:0 15px;
+        background:var(--fill);border-bottom:var(--shape-bw) solid var(--line)}
+.tbl__h b{font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--on)}
+.tbl__h span{margin-left:auto;font-size:15px;color:var(--on);opacity:.75}
+.tbl__r{display:flex;align-items:center;height:46px;padding:0 15px;gap:10px;
+        border-bottom:1px solid color-mix(in srgb,var(--line) 22%,transparent)}
+.tbl__r:last-child{border-bottom:0}
+.tbl__r b{flex:0 0 150px;font-family:var(--font-mono);font-size:16px;
+          font-weight:600;color:var(--ink)}
+.tbl__r span{font-size:15px;color:var(--muted)}
+.tbl__r i{margin-left:auto;width:9px;height:9px;border-radius:50%;
+          background:var(--accent);opacity:.85}
+
+/* snippet: css-station-list-card -- one shell, two jobs (rule-of-two harvest) */
+.lst{position:absolute;z-index:2;padding:14px 18px 15px;background:var(--fill);
+     border:var(--shape-bw) solid var(--line);border-radius:10px;box-shadow:var(--node-shadow)}
+.lst__t{margin:0 0 10px;font-family:var(--font-title);font-size:18px;
+        font-weight:var(--fw-title);color:var(--on)}
+.lst__l{margin:0 0 8px;display:flex;align-items:center;gap:9px;font-size:15px;color:var(--on)}
+.lst__l:last-child{margin-bottom:0}
+.lst__l i{flex:0 0 auto;width:8px;height:8px;border-radius:2px;background:var(--line)}
+
+/* snippet: css-station-snap-cartridge -- REV 4 (V2 re-bake, user-approved
+   2026-08-27). Three pieces BUILT SEPARATELY that snap together, with one
+   record running through all three.
+   It replaces css-station-snap-seam (three flush rects + a rotated teal seam
+   key), which was sampler-v2 vocabulary authored before the product-first
+   pivot: once the pieces carry product interiors, a 30px diamond floating over
+   a mini dashboard reads as a defect, and at the k=0.69 overview it has all but
+   vanished. The old block also failed the genre's own "the close tier must PAY"
+   rule -- at k=2 it occupied 1620x260 painted px and taught nothing it had not
+   already taught at k=0.69.
+
+   TWO CLAIMS, ONE OBJECT EACH, sharing a centre line:
+   - MỘNG / Ổ (knob / socket). Each piece carries a jigsaw knob on its right
+     edge, already seated in the next piece's socket. The knob wears the LEFT
+     piece's role colour -- the record LEAVES that piece and the next receives
+     it. A knob deforms the piece's own silhouette, so "snap" survives to the
+     overview where a seam key laid ON a piece does not.
+   - PORT BAND (the packet throat). A full-bleed groove across the bottom of
+     every piece. Full-bleed on purpose: side padding would break the groove
+     into three, and three grooves say "three wires", not "one run".
+   The knob sits DEAD-CENTRE on the port band, so the interlock and the throat
+   the record passes through are the SAME object.
+
+   GEOMETRY CONTRACT -- b5's packet path is DERIVED from this, never eyeballed:
+     piece 270x282, port band 46px, packet line = block BOTTOM - 23px.
+     Block top 760 -> line y = 1019, which is what `.traffic-b5` runs on and
+     where b6's edge leaves the block. Doctrine: references/genres/process.md
+     -> "Vocabulary -- mộng / ổ / port band". */
+.snapset{position:absolute;z-index:2;display:flex;align-items:stretch}
+.sp{position:relative;flex:0 0 var(--sp-w,270px);min-width:0;height:var(--sp-h,282px);
+    display:flex;flex-direction:column;background:var(--paper-fill);
+    border:var(--shape-bw) solid var(--line);box-shadow:var(--node-shadow)}
+.sp--a{border-radius:11px 0 0 11px}
+.sp--b{border-radius:0}
+.sp--c{border-radius:0 11px 11px 0}
+.sp__hd{position:relative;display:flex;align-items:baseline;gap:11px;padding:10px 15px 11px;
+        background:var(--fill);border-bottom:var(--shape-bw) solid var(--line)}
+.sp__t{margin:0;font-family:var(--font-title);font-size:20px;font-weight:700;
+       letter-spacing:.01em;line-height:1.1;color:var(--on)}
+/* every dim tone in this block is a color-mix, never self-opacity: the shell
+   must stay droppable into an LOD subtree without colliding with --lodc. */
+.sp__s{margin:0;font-size:15px;line-height:1.25;
+       color:color-mix(in srgb,var(--on) 84%,var(--fill))}
+.sp__body{flex:1;min-height:0;padding:12px 13px}
+.sp__port{position:relative;flex:0 0 var(--port-h,46px);overflow:visible;
+          background:var(--surface);
+          border-top:1px solid color-mix(in srgb,var(--line) 32%,transparent)}
+.sp__port::before{content:"";position:absolute;left:0;right:0;top:50%;height:10px;
+          margin-top:-5px;background:color-mix(in srgb,var(--stroke) 7%,transparent);
+          box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--stroke) 15%,transparent)}
+/* one joint layer over the whole set, so neither piece clips its half of a knob */
+.seamlayer{position:absolute;left:0;top:0;right:0;bottom:0;z-index:5;pointer-events:none}
+.socket{position:absolute;bottom:23px;width:48px;height:46px;translate:-50% 50%;
+        border-radius:15px;background:var(--surface);z-index:4;
+        box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--stroke) 30%,transparent)}
+.knob{position:absolute;bottom:23px;width:34px;height:34px;translate:-50% 50%;
+      border-radius:11px;background:var(--fill);border:var(--shape-bw) solid var(--line);
+      z-index:5}
+.knob::after{content:"";position:absolute;left:-1.5px;right:-1.5px;top:50%;height:8px;
+      margin-top:-4px;background:color-mix(in srgb,var(--stroke) 9%,transparent)}
+/* the SEATED tick -- the flat-minimal way of saying it clicked rather than
+   merely touching. Two strokes, no glow, no motion. */
+.click{position:absolute;bottom:54px;width:24px;height:11px;translate:-50% 0;z-index:5}
+.click::before,.click::after{content:"";position:absolute;top:0;width:2px;height:11px;
+      border-radius:2px;background:color-mix(in srgb,var(--accent-infra) 70%,transparent)}
+.click::before{left:1px;rotate:-26deg}
+.click::after{right:1px;rotate:26deg}
+.grip{position:absolute;right:13px;top:50%;translate:0 -50%;display:flex;gap:3px}
+.grip i{width:2px;height:13px;border-radius:2px;
+        background:color-mix(in srgb,var(--on) 30%,var(--fill))}
+/* out / in -- texture-class, and the ONLY place the block says direction in
+   words. Clear of the socket (24px half-width) and above the groove. */
+.portlbl{position:absolute;top:6px;font-size:12px;line-height:1;letter-spacing:.06em;
+         text-transform:uppercase;color:color-mix(in srgb,var(--on) 58%,var(--surface))}
+.portlbl--in{left:34px}
+.portlbl--out{right:34px}
+
+/* snippet: css-station-mini-base + css-station-mini-api-card
+   + css-station-mini-items-table -- the cartridge's interiors. A station that
+   CONTAINS other stations draws them as MINIATURES, and a miniature re-uses its
+   full-size sibling's silhouette. `.mui` (the dashboard miniature) lives with
+   css-webapp-miniature further down, beside its full-size sibling. */
+.mn{display:flex;flex-direction:column;gap:8px;min-width:0}
+.mn__hd{display:flex;align-items:baseline;gap:9px;height:20px}
+.mn__hd b{font-size:15px;font-weight:700;line-height:1.2;color:var(--on)}
+.mn__hd b.mono{font-family:var(--font-mono)}
+.mn__hd span{margin-left:auto;font-size:12px;line-height:1.2;
+             color:color-mix(in srgb,var(--on) 66%,var(--surface))}
+.mn i.sk{display:block;height:6px;border-radius:4px;background:var(--skel)}
+/* BE: three routes read as "an API" in one glance. Chosen over a
+   receive->validate->save badge strip because the piece's own sub-label already
+   says exactly that, and a strip repeating it is decoration. */
+.mbe{gap:8px}
+.mbe__r{display:flex;align-items:center;gap:9px;height:34px;padding:0 10px;
+        background:var(--surface);border:1px solid color-mix(in srgb,var(--line) 55%,transparent);
+        border-radius:6px}
+.mbe__m{flex:0 0 auto;min-width:44px;padding:3px 7px;border-radius:4px;text-align:center;
+        font-family:var(--font-mono);font-size:12px;font-weight:700;line-height:1.1;
+        letter-spacing:.02em;color:#f8fafc;background:var(--accent)}
+.mbe__m--get{background:color-mix(in srgb,var(--on) 72%,var(--surface))}
+.mbe__p{flex:1;min-width:0;font-family:var(--font-mono);font-size:13px;line-height:1.2;
+        color:var(--ink);white-space:nowrap;overflow:hidden}
+.mbe__ok{flex:0 0 auto;width:8px;height:8px;border-radius:50%;
+        background:color-mix(in srgb,var(--accent-data) 78%,transparent)}
+/* DB: the same `items` table `.tbl` draws full size, at miniature scale. */
+.mdb{gap:7px}
+.mdb__c{display:flex;align-items:center;gap:9px;height:24px;padding:0 9px;
+        background:var(--surface);border:1px solid color-mix(in srgb,var(--line) 50%,transparent);
+        border-radius:5px}
+.mdb__c b{flex:0 0 auto;font-family:var(--font-mono);font-size:13px;font-weight:600;
+        line-height:1.2;color:var(--ink)}
+.mdb__c span{margin-left:auto;font-size:12px;line-height:1.2;
+        color:color-mix(in srgb,var(--on) 66%,var(--surface))}
+.mdb__data{margin-top:2px;padding-top:7px;display:flex;flex-direction:column;gap:6px;
+        border-top:1px dashed var(--dash-ink)}
+.mdb__d{display:flex;align-items:center;gap:7px;height:12px}
+.mdb__d i.sk{height:7px}
+.mdb__d i.sk:nth-child(1){flex:0 0 38%}
+.mdb__d i.sk:nth-child(2){flex:0 0 22%}
+.mdb__d i.sk:nth-child(3){flex:1}
+
+/* snippet: css-station-url-pill -- a deployable is an ARTIFACT here, not a
+   running service. The lock is drawn, never an icon font. */
+.url{position:absolute;z-index:2;display:flex;align-items:center;gap:11px;
+     padding:14px 22px;background:var(--fill);color:var(--on);
+     border:var(--shape-bw) solid var(--line);border-radius:var(--pill-radius);
+     box-shadow:var(--node-shadow);font-family:var(--font-mono);font-size:17px}
+.lockglyph{flex:0 0 auto;width:9px;height:11px;position:relative;
+           background:currentColor;border-radius:2px;opacity:.8}
+.lockglyph::before{content:"";position:absolute;left:50%;top:-6px;width:9px;height:9px;
+                   translate:-50% 0;border:2px solid currentColor;border-bottom:0;
+                   border-radius:5px 5px 0 0}
+.url__live{margin-left:auto;padding:2px 11px;border-radius:var(--pill-radius);
+           background:var(--surface);border:1px solid var(--line);
+           font-family:var(--font-title);font-size:15px;font-weight:600}
+
+/* snippet: css-station-phone-ripple (SHELL ONLY) -- the ripple is deliberately
+   absent from this cut: its claim is "somebody just tapped it", and the deploy
+   beat's claim is "the same app, a narrower screen". */
+.phone{position:absolute;z-index:2;color:var(--line);padding:13px 10px 20px;
+       background:#f1f5f9;border:3px solid var(--line);border-radius:24px;
+       box-shadow:0 2px 4px rgba(30,41,59,.08),0 18px 34px -20px rgba(30,41,59,.5)}
+.phone__notch{position:absolute;left:50%;top:5px;width:66px;height:7px;translate:-50% 0;
+              border-radius:5px;background:var(--line);opacity:.5}
+.phone__home{position:absolute;left:50%;bottom:7px;width:72px;height:5px;translate:-50% 0;
+             border-radius:4px;background:var(--line);opacity:.4}
+.phone__screen{height:100%;overflow:hidden;background:var(--paper-fill);border-radius:0 0 8px 8px}
+
+/* snippet: css-station-webapp -- THE SHELL. Browser chrome + the address + the
+   LOD hook + the anchor idiom, and nothing else. ONE width per cut: 640.
+   Z-INDEX 0, and this is the cut's one deliberate departure from contract
+   clause 4. The three derivation anchors are INSIDE the window (a KPI number, a
+   row title, a date cell), so with the overlay above the station their
+   pull-lines would be invisible for 570px of their run and the b4 claim "the AI
+   reads THESE three things" would be unreadable. Parking this ONE station under
+   the overlay makes the lines visible from their own anchors; every other
+   station stays at z-index 2 with the overlay under it, exactly as the contract
+   says, and no other edge crosses this station's footprint. */
+.win{position:absolute;z-index:0;width:var(--win-w,640px);color:var(--line);
+     background:var(--surface);border:var(--shape-bw) solid var(--line);
+     border-radius:11px;box-shadow:var(--paper-shadow);overflow:hidden}
+.win__tabs{display:flex;align-items:flex-end;gap:7px;height:33px;padding:0 11px;
+           background:var(--fill);border-bottom:1px solid var(--line)}
+.win__tab{display:flex;align-items:center;gap:8px;height:26px;padding:0 13px;
+          background:var(--surface);border:1px solid var(--line);border-bottom:0;
+          border-radius:7px 7px 0 0;font-size:15px;font-weight:600;color:var(--on);
+          line-height:1;white-space:nowrap}
+.win__tab i{width:11px;height:11px;border-radius:3px;background:var(--accent)}
+.win__plus{margin:0 0 6px;font-size:15px;font-weight:600;color:var(--on);opacity:.5}
+.win__addr{display:flex;align-items:center;gap:10px;padding:7px 12px;
+           background:var(--fill);border-bottom:1px solid var(--line)}
+.win__nav{display:flex;gap:7px;flex:0 0 auto}
+.win__nav i{width:9px;height:9px;border-radius:50%;background:var(--line);opacity:.42}
+/* the address is MONO and NEVER WRAPS. A wrapped address does not read as an
+   address, it reads as a bug (first cut, user-caught). */
+.win__url{flex:1;min-width:0;display:flex;align-items:center;gap:9px;padding:4px 12px;
+          background:var(--surface);border:1px solid var(--line);
+          border-radius:var(--pill-radius);font-family:var(--font-mono);
+          font-size:15px;color:var(--on);white-space:nowrap}
+.win__body{display:flex;gap:14px;padding:14px;background:var(--paper-fill)}
+.win__main{flex:1;min-width:0}
+/* THE SEMANTIC ANCHOR (contract v2 invariant #2). Exactly three per webapp
+   station; each one's MEASURED right edge is where a green pull-line leaves.
+   The teal dot marker is BOARD annotation and is not declared here at all: in a
+   cut the anchors are marked by the pull-lines themselves plus the b4 bracket. */
+[data-anchor]{position:relative}
+.win--deploy{--win-w:470px}
+.win--deploy .win__body{padding:12px}
+.win--deploy .webapp-skin--dashboard .kpi__v{font-size:23px}
+.win--deploy .webapp-skin--dashboard .chart__plot{height:66px}
+/* the mock "image" block, five users, one definition */
+:root{--mock-img:linear-gradient(135deg,var(--role-client) 0%,
+                color-mix(in srgb,var(--accent-client) 42%,var(--role-client)) 100%)}
+
+/* snippet: css-webapp-skin-dashboard -- THE NEUTRAL DEFAULT, and the user's
+   chosen flavour for this cut. Real dashboard UX: a toolbar (title + range pill
+   + a "+ New" BUTTON -- the thing you click to open a form, never an open form),
+   a KPI row, a chart, a short item list with a date column.
+   ANCHOR MAP: amount = the KPI number `128`, name = row 1's title,
+   created_at = row 2's date cell. Three columns read from three DIFFERENT
+   places, which is the lesson: the schema is read off the interface. */
+.webapp-skin--dashboard .tbar{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.webapp-skin--dashboard .tbar__t{margin:0 auto 0 0;font-family:var(--font-title);
+       font-size:17px;font-weight:700;letter-spacing:-.015em;line-height:1.2;color:var(--ink)}
+.webapp-skin--dashboard .tbar__pill{display:flex;align-items:center;gap:7px;padding:4px 12px;
+       background:var(--surface);border:1px solid var(--line);border-radius:var(--pill-radius);
+       font-size:15px;line-height:1.2;color:var(--on);white-space:nowrap}
+.webapp-skin--dashboard .tbar__pill i{width:0;height:0;border-left:4px solid transparent;
+       border-right:4px solid transparent;border-top:5px solid currentColor}
+.webapp-skin--dashboard .tbar__new{padding:5px 13px;border-radius:7px;background:#2563eb;
+       color:#f8fafc;border:var(--shape-bw) solid #2563eb;
+       box-shadow:0 2px 6px -1px color-mix(in srgb,#2563eb 45%,transparent);
+       font-family:var(--font-title);font-size:15px;font-weight:600;line-height:1.2;
+       white-space:nowrap}
+.webapp-skin--dashboard .kpi{display:flex;gap:9px}
+.webapp-skin--dashboard .kpi__t{flex:1;min-width:0;padding:9px 11px 10px;
+       background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.webapp-skin--dashboard .kpi__l{margin:0;font-size:15px;line-height:1.2;white-space:nowrap;
+       color:color-mix(in srgb,var(--on) 80%,var(--surface))}
+.webapp-skin--dashboard .kpi__v{margin:5px 0 0;font-family:var(--font-title);font-size:27px;
+       font-weight:700;letter-spacing:-.025em;line-height:1;color:var(--on)}
+/* THE TRAP, ON THE SPOT: this was `opacity:.72` and it cost a rebuild -- same
+   specificity as [data-lod="close"], later file, so the delta stayed visible at
+   the far tier while the audit counted it hidden. Dim with COLOUR. */
+.webapp-skin--dashboard .kpi__d{margin:4px 0 0;font-size:15px;line-height:1.2;
+       color:color-mix(in srgb,var(--on) 74%,var(--surface))}
+.webapp-skin--dashboard .chart{margin-top:12px;padding:11px 13px 10px;background:var(--surface);
+       border:1px solid var(--line);border-radius:8px}
+.webapp-skin--dashboard .chart__t{margin:0 0 10px;font-family:var(--font-title);font-size:15px;
+       font-weight:600;color:var(--on);line-height:1.2}
+.webapp-skin--dashboard .chart__plot{display:flex;align-items:flex-end;gap:11px;height:86px;
+       border-bottom:1.5px solid var(--line)}
+.webapp-skin--dashboard .chart__b{flex:1;background:var(--accent);opacity:.82;
+       border-radius:3px 3px 0 0}
+.webapp-skin--dashboard .chart__b--hi{opacity:1}
+.webapp-skin--dashboard .chart__x{display:flex;gap:11px;margin-top:6px}
+.webapp-skin--dashboard .chart__x span{flex:1;text-align:center;font-size:12px;line-height:1.2;
+       color:color-mix(in srgb,var(--on) 70%,var(--surface))}
+.webapp-skin--dashboard .items{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+/* padding-right is 18, not 11: the row's right-edge anchor needs the clearance */
+.webapp-skin--dashboard .icard{display:flex;align-items:center;gap:12px;padding:8px 18px 8px 11px;
+       background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.webapp-skin--dashboard .icard__img{flex:0 0 auto;width:48px;height:40px;border-radius:6px;
+       background:var(--mock-img)}
+.webapp-skin--dashboard .icard__x{flex:1;min-width:0}
+.webapp-skin--dashboard .icard__t{margin:0;font-size:15px;font-weight:600;line-height:1.25;
+       color:var(--ink)}
+/* the crossfade box shrinks to the WORDS so the pull-line leaves the words, not
+   the row; the far-tier skeleton is then forced to fill that box. */
+.webapp-skin--dashboard .icard__t .lod{display:inline-block}
+.webapp-skin--dashboard .icard__t .lod__far i{width:100%}
+.webapp-skin--dashboard .icard__m{margin:4px 0 0;font-size:12px;line-height:1.2;color:var(--muted)}
+.webapp-skin--dashboard .icard__w{flex:0 0 106px;text-align:right;font-size:12px;line-height:1.2;
+       color:var(--muted);white-space:nowrap}
+.webapp-skin--dashboard .icard__w .lod{display:inline-block}
+.webapp-skin--dashboard .icard__w .lod__far{align-items:flex-end}
+.webapp-skin--dashboard .icard__w .lod__far i{width:100%}
+
+/* snippet: css-webapp-miniature -- REV 4. The SAME dashboard, at
+   station-inside-a-station scale: it is the interior of the cartridge's UI
+   piece at b5. It sits here, beside its full-size sibling, because a miniature
+   must re-use that sibling's SILHOUETTE rather than invent a new one. The four
+   recognition cues, in the order the eye takes them -- browser chrome with a
+   tab and an address, a toolbar line with the primary button, a three-tile KPI
+   row, item rows with a thumbnail -- are all load-bearing; drop one and it
+   stops reading as "the screen you just saw". */
+.mui{gap:7px}
+.mui__chrome{display:flex;align-items:center;gap:7px;height:22px;padding:0 7px;
+             background:var(--fill);border:1px solid var(--line);border-radius:6px 6px 4px 4px}
+.mui__tab{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:1;
+          color:var(--on);white-space:nowrap}
+.mui__tab i{width:8px;height:8px;border-radius:2px;background:var(--accent)}
+.mui__url{flex:1;min-width:0;display:flex;align-items:center;height:14px;padding:0 7px;
+          background:var(--surface);border:1px solid color-mix(in srgb,var(--line) 45%,transparent);
+          border-radius:var(--pill-radius);font-family:var(--font-mono);font-size:12px;
+          line-height:1;color:color-mix(in srgb,var(--on) 78%,var(--surface));
+          white-space:nowrap;overflow:hidden}
+.mui__tbar{display:flex;align-items:center;gap:8px;height:20px}
+.mui__tbar b{font-size:12px;font-weight:700;line-height:1.2;color:var(--ink)}
+.mui__tbar i.sk{flex:1;max-width:64px}
+/* #2563eb is inherited from `.tbar__new` above, not invented here. */
+.mui__new{flex:0 0 auto;padding:3px 9px;border-radius:5px;background:#2563eb;color:#f8fafc;
+          font-size:12px;font-weight:600;line-height:1;white-space:nowrap}
+.mui__kpi{display:flex;gap:6px}
+.mui__t{flex:1;min-width:0;padding:6px 7px 7px;background:var(--surface);
+        border:1px solid color-mix(in srgb,var(--line) 55%,transparent);border-radius:6px}
+.mui__t i.sk{width:70%}
+.mui__t b{display:block;margin-top:5px;font-family:var(--font-title);font-size:16px;
+          font-weight:700;letter-spacing:-.02em;line-height:1;color:var(--on)}
+.mui__rows{display:flex;flex-direction:column;gap:6px}
+.mui__r{display:flex;align-items:center;gap:8px;height:26px;padding:0 8px;
+        background:var(--surface);border:1px solid color-mix(in srgb,var(--line) 55%,transparent);
+        border-radius:6px}
+.mui__r em{flex:0 0 auto;width:24px;height:17px;border-radius:4px;background:var(--mock-img)}
+.mui__r span{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.mui__r span i.sk:first-child{width:58%}
+.mui__r span i.sk:last-child{width:34%;height:5px;
+        background:color-mix(in srgb,var(--stroke) 11%,transparent)}
+.mui__r u{flex:0 0 auto;text-decoration:none;font-size:12px;line-height:1.2;
+        color:color-mix(in srgb,var(--on) 62%,var(--surface))}
+
+/* snippet: css-station-deploy-responsive -- THE DEPLOY BEAT, user-chosen option
+   C2: browser + phone, one app. The phone REUSES the phone shell at a smaller
+   size. Three things make it read as the SAME app and dropping any one breaks
+   it: the same address string, a RE-STACK of the window's own KPI row and first
+   card (nothing invented for the phone), and an `.edge--soft` tie with NO marker
+   because nothing travels along it. */
+.phone--mini{width:216px;height:auto;padding:13px 9px 16px;border-width:3px;border-radius:22px}
+.phone--mini .phone__screen{height:auto;border-radius:7px}
+.phone--mini .phone__notch{top:6px;height:6px}
+.phone--mini .phone__home{bottom:6px;width:74px}
+.ph__url{display:flex;align-items:center;gap:7px;padding:7px 9px;background:var(--fill);
+         border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:15px;
+         letter-spacing:-.02em;color:var(--on);white-space:nowrap;overflow:hidden}
+.ph__body{padding:10px 9px 11px}
+.ph__h{margin:0 0 9px;font-family:var(--font-title);font-size:15px;font-weight:700;
+       color:var(--ink);line-height:1.2}
+.ph__kpi{display:flex;flex-direction:column;gap:6px}
+.ph__kpi div{display:flex;align-items:baseline;gap:8px;padding:6px 9px;background:var(--surface);
+             border:1px solid var(--line);border-radius:6px}
+.ph__kpi p{margin:0;font-size:15px;line-height:1.2;
+           color:color-mix(in srgb,var(--on) 80%,var(--surface))}
+.ph__kpi b{margin-left:auto;font-family:var(--font-title);font-size:17px;font-weight:700;
+           line-height:1;color:var(--on)}
+.ph__card{display:flex;align-items:center;gap:9px;margin-top:9px;padding:7px 9px;
+          background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.ph__card i{flex:0 0 auto;width:34px;height:28px;border-radius:5px;background:var(--mock-img)}
+.ph__card span{min-width:0;font-size:15px;font-weight:600;color:var(--ink);line-height:1.2}
+.ph__more{margin:8px 0 0;font-size:12px;color:var(--muted);line-height:1.2;text-align:center}
+
+/* ===== chrome: heading, legend, verdict banner ===========================
+   snippet: cb-heading-fade -- a title line is wide; once the camera zooms, some
+   hold drags it half across the frame edge and PARKS it there. Visible through
+   the opening overview, out with the first zoom-in, back for the finale. */
+/* the beat-by-beat narration is for assistive tech, not for the frame: visually
+   hidden, never display:none (display:none is removed from the a11y tree too). */
+.narration{position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+           overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+/* z-index 8: the chrome is drawn ABOVE the stage, which is a later sibling --
+   without it the verdict banner (inside the stage's footprint) paints underneath
+   the stage and never appears. */
+.layer-chrome{position:relative;z-index:8;
+              animation:chrome-fade var(--master) linear infinite}
+@keyframes chrome-fade{
+  0%,      12.5%   {opacity:1}
+  14.0625%,73.4375%{opacity:0}
+  75.625%, 100%    {opacity:1}}
+.head{position:absolute;left:80px;top:20px;width:1080px}
+.head__t{margin:0;font-size:44px;font-weight:700;letter-spacing:var(--ls-title);
+         color:var(--ink);line-height:1.1}
+.head__s{margin:8px 0 0;font-size:21px;color:var(--muted);line-height:1.3}
+.legend{position:absolute;left:1380px;top:24px;width:720px;
+        display:flex;flex-wrap:wrap;gap:10px 26px;justify-content:flex-end}
+.lg{display:flex;align-items:center;gap:9px;font-size:19px;color:var(--muted);
+    white-space:nowrap}
+.lg__ln{width:36px;height:0;border-top:2.5px solid var(--edge-ink)}
+.lg__ln--back{border-top-style:dashed;border-top-color:var(--edge-service)}
+.lg__ln--pull{border-top-color:var(--edge-data)}
+.lg__dot{width:16px;height:16px;border-radius:4px;background:var(--fill);
+         border:2px solid var(--line)}
+.banner{position:absolute;z-index:2;left:60px;top:1058px;width:880px;
+        animation:chrome-fade var(--master) linear infinite;
+        padding:13px 24px;border-radius:10px;background:var(--role-service);
+        border:var(--shape-bw) solid var(--ink-service);box-shadow:var(--node-shadow)}
+.banner__t{margin:0;font-size:34px;font-weight:700;color:var(--on-service);
+           letter-spacing:var(--ls-title);line-height:1.15}
+.banner__s{margin:6px 0 0;font-size:20px;color:var(--on-service);opacity:.86;line-height:1.3}
+
+/* ===== snippet: cb-stage-window -- staged states / traffic are OVERLAYS,
+   never mutations. One @keyframes per window set, 0.6s crossfade taken BEFORE
+   each edge; every window annotated with data-window from the same table. ==== */
+.stage-dim-b1,.traffic{opacity:0;animation-duration:var(--master);
+   animation-timing-function:linear;animation-iteration-count:infinite}
+.stage-dim-b1{position:absolute;left:0;top:0;width:2100px;height:1290px;
+              z-index:5;background:rgba(248,250,252,.66);pointer-events:none}
+/* the brief is the one station the establishing shot leaves lit, so it sits
+   ABOVE the wash rather than the wash being cut around it */
+.doc{z-index:6}
+.traffic{position:absolute;left:0;top:0;width:2100px;height:1290px;
+         z-index:6;pointer-events:none}
+
+/* ===== packets. snippet: cb-negative-delay -- ALL delays in a looping cut are
+   NEGATIVE: a positive delay leaves the element un-animated at t=0 while at
+   t=100% it is mid-flight, so the loop seam is not byte-identical. ========== */
+/* offset-path anchors the element's CENTER on the path (offset-anchor:auto);
+   any extra margin/translate "centering" DOUBLE-shifts the dot OFF the line. */
+.pk{position:absolute;left:0;top:0;width:14px;height:14px;
+    border-radius:50%;background:var(--packet-bg);box-shadow:var(--packet-glow);
+    offset-rotate:0deg;animation:pk-run 2400ms linear infinite}
+.pk--back{background:var(--edge-service);
+          box-shadow:0 0 0 4px color-mix(in srgb,#ea580c 20%,transparent)}
+.pk--pull{width:11px;height:11px;background:var(--edge-data);
+          box-shadow:0 0 0 4px color-mix(in srgb,#16a34a 20%,transparent)}
+@keyframes pk-run{from{offset-distance:0%}to{offset-distance:100%}}
+
+/* ===== snippet: cb-caption-card -- rounded card + text revealed by a
+   left-to-right clip-path WIPE, in INVERTED polarity: the card is INK, the
+   words are PAPER, because the caption is the narrator's voice, not part of the
+   scene. HTML mode needs no baked rect: the box IS the measured text. ======= */
+.beat-caption{position:absolute;z-index:9;transform:translateX(-50%);
+  padding:9px 18px;border-radius:8px;background:var(--ink);color:var(--surface);
+  font-family:var(--font-label);font-weight:600;white-space:nowrap;
+  font-variant-ligatures:none;
+  /* ===== REV 3.2 -- THE CAPTION IS 100% CLIP-DRIVEN. `opacity` NEVER MOVES.
+     Two separate defects were fixed here, and this is the second and larger one.
+
+     (1) The CLOSED state is 100%, not the engine idiom's 101%. At 101% the
+     zero-width band opens one card-width-percent OUTSIDE the card, so the first
+     slice of the wipe travels through empty space and the card then arrives
+     already several pixels wide -- a dark slab popping in. At 100% the band
+     sits exactly ON the left edge and the first painted pixel IS the leading
+     edge. (Measured: first inked frame went 864 ink px / 18px wide -> 39 ink px
+     / 1px wide.) The band still starts at left inset -1%, i.e. just OUTSIDE the
+     card, so a zero-area clip can never leave an antialiased sliver on screen.
+
+     (2) THE LOOP-2 DEFECT. The user reported that the blink does NOT happen on
+     the first pass -- only after the whole cut loops back. That is the tell of a
+     TWO-PROPERTY SPLIT: `opacity` is a compositor property, `clip-path` is a
+     paint property. A caption spends ~30s invisible at opacity 0 with its clip
+     left OPEN; a compositor under real memory pressure drops the layer's raster
+     in that time, and the frame where opacity leaves 0 can present the STALE
+     tile -- which was rasterized with the clip OPEN, i.e. the whole card -- for
+     one frame before the fresh closed-clip raster lands. Pass 1 has no stale
+     tile (the only raster that ever existed is the closed one), which is exactly
+     why pass 1 is clean and every pass after it is not.
+
+     The fix removes the split rather than racing it: the keyframes animate ONE
+     property, and it is the non-compositable one. Opacity is a constant 1 for
+     the element's whole life, so there is no "becomes visible again" event for
+     the compositor to serve a stale tile into. The card is hidden by geometry
+     (a zero-area clip) at all times, never by transparency.
+
+     CONSEQUENCE, recorded as sheet deviation 24: the EXIT is now a wipe-out in
+     the SAME direction as the entry (the left inset sweeps right) instead of a
+     fade. The sentence is swept away in the direction it arrived. The parked
+     end state is a zero-area band at 101% -- past the card's right edge, so it
+     paints nothing either.
+
+     FAIL-SAFE: the base clip below is the closed one, so if the keyframes never
+     apply, every caption is hidden -- the same way round as before the change. */
+  opacity:1;clip-path:inset(-6% 100% -6% -1%);
+  animation-duration:var(--master);animation-timing-function:linear;
+  animation-iteration-count:infinite}
+
+/* ===== snippet: cb-spotlight-bracket -- four corner brackets, opacity only.
+   pad 12, arm 22, stroke-linecap:square. Subjects = the caption's subjects
+   EXACTLY; the upstream context station is in frame but never highlighted. === */
+.node__focus{fill:none;stroke:var(--ink);stroke-width:3px;stroke-linecap:square;
+  opacity:0;animation-duration:var(--master);animation-timing-function:linear;
+  animation-iteration-count:infinite}
+
+/* ===== emitted by emit_timeline.py from fixtures/vibe-code-voi-ai.timeline.tsv = */
+/* .stage-dim-b1 -> data-window="0,12.5 98.6979,100" */
+.stage-dim-b1{animation-name:w-dim-b1}
+@keyframes w-dim-b1{0%,12.5%{opacity:1}14.0625%,98.1771%{opacity:0}98.6979%,100%{opacity:1}}
+/* .traffic-b2 -> data-window="14.0625,23.4375" */
+.traffic-b2{animation-name:w-traffic-b2}
+@keyframes w-traffic-b2{0%,12.5%{opacity:0}14.0625%,23.4375%{opacity:1}25%,100%{opacity:0}}
+/* .traffic-b3 -> data-window="26.5625,37.5" */
+.traffic-b3{animation-name:w-traffic-b3}
+@keyframes w-traffic-b3{0%,25%{opacity:0}26.5625%,37.5%{opacity:1}39.0625%,100%{opacity:0}}
+/* .traffic-b4 -> data-window="39.0625,48.4375" */
+.traffic-b4{animation-name:w-traffic-b4}
+@keyframes w-traffic-b4{0%,37.5%{opacity:0}39.0625%,48.4375%{opacity:1}50%,100%{opacity:0}}
+/* .traffic-b5 -> data-window="51.5625,60.9375" */
+.traffic-b5{animation-name:w-traffic-b5}
+@keyframes w-traffic-b5{0%,50%{opacity:0}51.5625%,60.9375%{opacity:1}62.5%,100%{opacity:0}}
+/* .traffic-b6 -> data-window="64.0625,73.4375" */
+.traffic-b6{animation-name:w-traffic-b6}
+@keyframes w-traffic-b6{0%,62.5%{opacity:0}64.0625%,73.4375%{opacity:1}75%,100%{opacity:0}}
+/* .arc-halo -> data-window="26.5625,37.5" */
+.arc-halo{animation-name:halo-b3}
+@keyframes halo-b3{0%,25%{opacity:0}26.5625%,37.5%{opacity:1}39.0625%,100%{opacity:0}}
+.focus-b1{animation-name:focus-b1}
+@keyframes focus-b1{0%,0.1875%{opacity:0}1.75%,11.55%{opacity:1}13.1125%,100%{opacity:0}}
+.focus-b2{animation-name:focus-b2}
+@keyframes focus-b2{0%,13.575%{opacity:0}15.1375%,22.75%{opacity:1}24.3125%,100%{opacity:0}}
+.focus-b3{animation-name:focus-b3}
+@keyframes focus-b3{0%,26.0875%{opacity:0}27.65%,35.2625%{opacity:1}36.825%,100%{opacity:0}}
+.focus-b4{animation-name:focus-b4}
+@keyframes focus-b4{0%,38.6%{opacity:0}40.1625%,47.775%{opacity:1}49.3375%,100%{opacity:0}}
+.focus-b5{animation-name:focus-b5}
+@keyframes focus-b5{0%,51.1125%{opacity:0}52.675%,60.2875%{opacity:1}61.85%,100%{opacity:0}}
+.focus-b6{animation-name:focus-b6}
+@keyframes focus-b6{0%,63.625%{opacity:0}65.1875%,72.8%{opacity:1}74.3625%,100%{opacity:0}}
+.focus-b3b{animation-name:focus-b3b}
+@keyframes focus-b3b{0%,32.0312%{opacity:0}33.5938%,37.5%{opacity:1}39.0625%,100%{opacity:0}}
+.cap-b1{animation-name:cap-b1}
+@keyframes cap-b1{0%,1.75%{clip-path:inset(-6% 100% -6% -1%);animation-timing-function:ease-in-out}3.3125%,11.55%{clip-path:inset(-6% -1% -6% -1%);animation-timing-function:ease-in-out}13.1125%,100%{clip-path:inset(-6% -1% -6% 101%)}}
+.cap-b2{animation-name:cap-b2}
+@keyframes cap-b2{0%,15.1375%{clip-path:inset(-6% 100% -6% -1%);animation-timing-function:ease-in-out}16.7%,22.75%{clip-path:inset(-6% -1% -6% -1%);animation-timing-function:ease-in-out}24.3125%,100%{clip-path:inset(-6% -1% -6% 101%)}}
+.cap-b3{animation-name:cap-b3}
+@keyframes cap-b3{0%,27.65%{clip-path:inset(-6% 100% -6% -1%);animation-timing-function:ease-in-out}29.2125%,35.2625%{clip-path:inset(-6% -1% -6% -1%);animation-timing-function:ease-in-out}36.825%,100%{clip-path:inset(-6% -1% -6% 101%)}}
+.cap-b4{animation-name:cap-b4}
+@keyframes cap-b4{0%,40.1625%{clip-path:inset(-6% 100% -6% -1%);animation-timing-function:ease-in-out}41.725%,47.775%{clip-path:inset(-6% -1% -6% -1%);animation-timing-function:ease-in-out}49.3375%,100%{clip-path:inset(-6% -1% -6% 101%)}}
+.cap-b5{animation-name:cap-b5}
+@keyframes cap-b5{0%,52.675%{clip-path:inset(-6% 100% -6% -1%);animation-timing-function:ease-in-out}54.2375%,60.2875%{clip-path:inset(-6% -1% -6% -1%);animation-timing-function:ease-in-out}61.85%,100%{clip-path:inset(-6% -1% -6% 101%)}}
+.cap-b6{animation-name:cap-b6}
+@keyframes cap-b6{0%,65.1875%{clip-path:inset(-6% 100% -6% -1%);animation-timing-function:ease-in-out}66.75%,72.8%{clip-path:inset(-6% -1% -6% -1%);animation-timing-function:ease-in-out}74.3625%,100%{clip-path:inset(-6% -1% -6% 101%)}}
+.cap-b7{animation-name:cap-b7}
+@keyframes cap-b7{0%,76.5625%{clip-path:inset(-6% 100% -6% -1%);animation-timing-function:ease-in-out}78.125%,85.3125%{clip-path:inset(-6% -1% -6% -1%);animation-timing-function:ease-in-out}86.875%,100%{clip-path:inset(-6% -1% -6% 101%)}}
+
+/* A caption that has to EXPLAIN rather than just name the beat runs past one
+   line. The wipe clips a box either way, so the only change is white-space plus
+   an explicit width; the 15px world floor still holds, and the pace still sits
+   under camera-beat.md's calibrated ~5 words/second ceiling. */
+.beat-caption--2{white-space:normal;text-align:center;line-height:1.34;
+                 text-wrap:balance}
+/* A caption may NAME an element, and every element on this canvas is labelled in
+   English (the Language rule in references/genres/process.md): the explanatory
+   voice stays Vietnamese and quotes the element's own name in mono. */
+.beat-caption code{font-family:var(--font-mono);font-size:.94em}
+
+/* per-beat caption sizes: authored so each lands ~26 FRAME px at that beat's k,
+   except where the 15px world floor wins over the frame-px target */
+.cap-b1,.cap-b7{font-size:38px}
+.cap-b2{font-size:15px}
+.cap-b3{font-size:16px}   /* REV 5: b3's k fell 1.68 -> 1.6, so 15.5 no longer lands
+                             on the ~26 frame px target -- 16 does, and it is what
+                             cap-b4 already uses at the same k. */
+.cap-b4{font-size:16px}
+.cap-b5{font-size:15px}
+.cap-b6{font-size:15px}
+
+/* ===== snippet: cb-reduced-motion -- THE INFORMATIVE END STATE, shipped last.
+   Camera parked at the overview, chrome back on, captions and spotlights hidden
+   (no camera, no lock-on), packets parked at their destination, the dim wash off
+   so the finished dây chuyền is what rests on screen.
+   LOD IN A STILL: the tier is parked CLOSE. The copy-source keeps the far tier
+   under reduced motion because there the tier still SWITCHES and skeleton bars
+   are a passing state; here nothing will ever flip, so a permanent skeleton
+   would claim the app has no content. Same boxes, same heights -- only words
+   instead of bars. Recorded as a sheet deviation, not a silent choice. */
+@media (prefers-reduced-motion:reduce){
+  .camera       {animation:none!important;transform:translate(215px,43px) scale(.69)!important}
+  .layer-chrome,.banner{animation:none!important;opacity:1!important}
+  .beat-caption {animation:none!important;opacity:0!important}
+  .br-back,.br-ok,.pull-park{animation:none!important;opacity:1!important}
+  .node__focus  {animation:none!important;opacity:0!important}
+  /* the b3 highlight is a BEAT device, and reduced motion has no beats: it parks
+     at the OVERVIEW, where a glow on one arc and a parked-back schema table
+     would be an emphasis with nothing to explain it. Both go back to neutral. */
+  .arc-halo     {animation:none!important;opacity:0!important}
+  .recede-b3    {animation:none!important;opacity:1!important}
+  .stage-dim-b1 {animation:none!important;opacity:0!important}
+  .traffic      {animation:none!important;opacity:1!important}
+  .pk           {animation:none!important;offset-distance:100%!important;opacity:1!important}
+  .lodw-brief,.lodw-app{animation:none!important;--lodc:1}
+  .sticky--pulse{animation:none!important}
+}
+</style>
+</head>
+<body>
+
+<figure class="frame"
+        aria-label="Quy trình vibe-code với AI, bảy nhịp: bạn cung cấp bản brief dạng tài liệu
+                    thật, AI dựng ra một web app chạy trong khung trình duyệt kèm dữ liệu giả, bạn
+                    duyệt câu hỏi 'Looks right?' và prompt một câu sửa nếu thấy chưa ổn; khi bạn trả lời
+                    OK, AI đọc chính các phần tử đang hiện dữ liệu trên giao diện — con số tổng,
+                    tên một dòng, ô ngày — rồi suy ngược ra bảng dữ liệu tên items, và dựng khối
+                    back-end theo chính cái bảng đó — thứ tự suy luận là UI, rồi DB, rồi BE — ba
+                    mảnh khớp vào nhau, và cuối cùng deploy ra một link: cùng một app đó mở trên
+                    trình duyệt và trên điện thoại, chỉ xếp lại cho vừa màn hình hẹp.">
+
+<div class="camera">
+<div class="world" data-lod-tier="far">
+
+  <!-- ===== chrome (scenery: on at the two overview beats, out while zoomed) -->
+  <div class="layer-chrome">
+    <div class="head">
+      <h1 class="head__t">Vibe-code với AI</h1>
+      <p class="head__s">Bảy nhịp: bạn cung cấp brief, AI dựng thành app thật để bạn dùng thử.</p>
+    </div>
+    <div class="legend">
+      <span class="lg"><i class="lg__ln"></i>việc đi tiếp</span>
+      <span class="lg"><i class="lg__ln lg__ln--back"></i>quay lại · sửa</span>
+      <span class="lg"><i class="lg__ln lg__ln--pull"></i>từ đây suy ra</span>
+      <span class="lg" data-role="data"><i class="lg__dot"></i>hiện vật</span>
+      <span class="lg" data-role="external"><i class="lg__dot"></i>AI · công cụ</span>
+      <span class="lg" data-role="service"><i class="lg__dot"></i>chỗ bạn quyết</span>
+    </div>
+  </div>
+
+  <!-- ===== the stage. Contract clause 1+2: explicit px width AND height here,
+       the SAME two numbers in the svg viewBox one line below, so they diff
+       together and never drift. Hairline is box-shadow inset, never a border. -->
+  <div class="stage" style="width:2100px;height:1290px">
+
+    <svg class="edges" viewBox="0 0 2100 1290" aria-hidden="true">
+      <!-- markers declared INLINE per svg with a suffixed id -->
+      <defs>
+        <marker id="arrow-fwd-vc" viewBox="0 0 10 10" refX="9.2" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
+        <marker id="arrow-back-vc" viewBox="0 0 10 10" refX="9.2" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 Z" fill="#ea580c"/></marker>
+        <marker id="arrow-deriv-vc" viewBox="0 0 10 10" refX="9.2" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 Z" fill="#16a34a"/></marker>
+      </defs>
+
+      <!-- gray solid = forward handoff -->
+      <path class="edge" data-edge="brief -> AI" d="M 400 332 H 470" marker-end="url(#arrow-fwd-vc)"/>
+      <path class="edge" data-edge="AI -> app" d="M 770 332 H 820" marker-end="url(#arrow-fwd-vc)"/>
+      <path class="edge" data-edge="seed data -> app" d="M 740 532 H 820" marker-end="url(#arrow-fwd-vc)"/>
+      <path class="edge" data-edge="app -> Looks right?" d="M 1460 271 H 1523" marker-end="url(#arrow-fwd-vc)"/>
+      <path class="edge br-ok" data-edge="OK -> AI infers DB+BE" d="M 1675 271 H 1730" marker-end="url(#arrow-fwd-vc)"/>
+      <path class="edge" data-edge="AI -> items" d="M 1845 301 V 364" marker-end="url(#arrow-fwd-vc)"/>
+      <!-- REV 4: the drop moved 470 -> 780. b5's caption card now sits ABOVE the
+           block (the gap below it belongs to the verdict banner since the
+           cartridge grew 152px), and a caption is z-index 9 over a z-index-1
+           edge overlay: at x=470 the run vanished behind the card and the
+           arrowhead re-appeared under it, so the caption read as the thing
+           EMITTING the arrow. Landing on the DB piece's top edge keeps the
+           whole run visible and 75px clear of the card, and it is also the
+           shorter route from a source that sits far to the right. The claim is
+           unchanged -- the spotlight bracket frames all three pieces, and the
+           edge label still says which claim it carries. -->
+      <path class="edge" data-edge="snap three pieces" d="M 1845 720 V 728 H 780 V 760" marker-end="url(#arrow-fwd-vc)"/>
+      <path class="edge" data-edge="snapped build -> deploy" d="M 870 1019 H 1000" marker-end="url(#arrow-fwd-vc)"/>
+
+      <!-- orange dashed = return / loop. It ends pointing back INTO the station
+           that must ACT again (AI · builds the UI), never into the artifact.
+           REV 3.1: it climbs OVER the top of the stage instead of dropping under
+           it. The mid band it used to descend through is now the pull-lines'
+           band, and a return arc crossing three derivation lines is a worse
+           read than a loop that goes over the top -- which is also what a loop
+           back to the start looks like. -->
+      <path class="arc-halo" data-window="26.5625,37.5" d="M 1599 195 V 28 H 500 V 290"/>
+      <path class="edge edge--back br-back" data-edge="not yet -> AI rebuilds"
+            d="M 1599 195 V 28 H 500 V 290" marker-end="url(#arrow-back-vc)"/>
+
+      <!-- green = derivation, and the only thing it means. THREE SEMANTIC
+           ANCHORS, not form fields: the KPI number, row 1's title and row 2's
+           date cell each carry a column, and each gets its OWN line to its OWN
+           row. Every `d` below is written from a MEASURED right edge (a headless
+           getBoundingClientRect pass), never from arithmetic, and each one
+           leaves with a short segment PARALLEL to the window side it sits
+           nearest so the anchoring checker reads a facing departure.
+           REV 3.1 -- the three approaches are now HONEST BY GEOMETRY, not by
+           control point: each line reaches its row at a shallow angle from the
+           left, so the direction the eye reads and the side the line lands on
+           are the same fact. Row 2 is dead level with its anchor; row 3 rises
+           29px over its 104px run; row 1 is the one long pull, and it is the
+           one whose run (637px) can afford the drop. -->
+      <path class="edge edge--pull pull-park" data-edge="KPI 128 -> amount"
+            d="M 892.8 229 V 245 C 950 245, 1470 432, 1530 432" marker-end="url(#arrow-deriv-vc)"/>
+      <path class="edge edge--pull pull-park" data-edge="row title -> name"
+            d="M 969.2 477 H 1010 C 1180 468, 1360 468, 1530 478" marker-end="url(#arrow-deriv-vc)"/>
+      <path class="edge edge--pull pull-park" data-edge="date cell -> created_at"
+            d="M 1426 552 H 1444 C 1470 552, 1480 524, 1530 524" marker-end="url(#arrow-deriv-vc)"/>
+
+      <!-- ...and the SECOND link of the same chain. The back-end is not a
+           sibling the AI happens to also produce: it is DERIVED FROM the table
+           the AI just inferred, which is why this leg is green and not gray.
+           Read together with the three pull-lines above, the drawn story is
+           UI -> DB -> BE, in that order. -->
+      <path class="edge edge--pull" data-edge="items -> Back-end"
+            d="M 1845 548 V 588" marker-end="url(#arrow-deriv-vc)"/>
+
+      <!-- the annotation tie of the responsive pair: dashed, NO marker, because
+           nothing travels along it. Both ends sit on a real station border. -->
+      <path class="edge--soft" data-edge="same app, narrower screen" d="M 1470 1010 H 1620"/>
+    </svg>
+
+    <!-- ===== stations. Absolutely positioned, z-index 2 (the app window is the
+         one exception, z-index 0 -- see css-station-webapp). ================ -->
+
+    <!-- document-spec, PRODUCT-FIRST: the brief as a real one-page DOCUMENT.
+         The label column always paints (structure); the value column is the LOD
+         slot, and the close tier's payload is NEW information -- "Core flow"
+         resolves into three numbered steps rather than the same sentence
+         larger. EVERY WORD ON AN ELEMENT IS ENGLISH and stays generic. -->
+    <div class="doc lodw-brief" data-station="brief" data-role="data" style="left:40px;top:140px">
+      <p class="doc__tab">BRD · 1 page</p>
+      <div class="doc__paper">
+        <div class="doc__hd">
+          <h3 class="doc__h">Your app · BRD</h3>
+          <p class="doc__v">v1 · 1 page</p>
+        </div>
+        <div class="doc__r">
+          <p class="doc__k">Goal</p>
+          <div class="doc__val"><span class="lod">
+            <span class="lod__near"><p>One screen where you add an item and see the list.</p></span>
+            <span class="lod__far" aria-hidden="true"><i class="w95"></i><i class="w64"></i></span>
+          </span></div>
+        </div>
+        <div class="doc__r">
+          <p class="doc__k">Users</p>
+          <div class="doc__val"><span class="lod">
+            <span class="lod__near"><p>Anyone who opens the app every day.</p></span>
+            <span class="lod__far" aria-hidden="true"><i class="w88"></i><i class="w52"></i></span>
+          </span></div>
+        </div>
+        <div class="doc__r">
+          <p class="doc__k">Core flow</p>
+          <div class="doc__val"><span class="lod">
+            <span class="lod__near"><ul class="doc__flow">
+              <li><b>1</b>Add an item</li>
+              <li><b>2</b>See the list</li>
+              <li><b>3</b>Edit or delete</li>
+            </ul></span>
+            <span class="lod__far" aria-hidden="true"><i class="w76"></i><i class="w88"></i><i class="w64"></i></span>
+          </span></div>
+        </div>
+        <div class="doc__r">
+          <p class="doc__k">Main screen</p>
+          <div class="doc__val"><span class="lod">
+            <span class="lod__near"><p>One list, one add form.</p></span>
+            <span class="lod__far" aria-hidden="true"><i class="w76"></i></span>
+          </span></div>
+        </div>
+        <p class="doc__cut"><b>Not now:</b> everything else</p>
+      </div>
+    </div>
+
+    <!-- ai-assistant, full size. THE TITLE CARRIES THE VERB. -->
+    <div class="ai" data-station="ai-ui" data-role="external" style="left:470px;top:290px;width:300px">
+      <span class="ai__glyph"><i></i><i></i></span>
+      <span class="ai__txt">
+        <p class="ai__t">AI</p>
+        <p class="ai__s">builds the UI</p>
+      </span>
+    </div>
+
+    <!-- the seed-data jar: the arrow always runs JAR -> APP. Kept in the rebuild
+         because a rich dashboard full of numbers would otherwise read as REAL
+         data, and "there is no database yet" is this beat's fact. -->
+    <div class="jar" data-station="seed" data-role="data" style="left:560px;top:425px">
+      <div class="jar__lid"></div>
+      <div class="jar__neck"></div>
+      <div class="jar__body">
+        <div class="jar__liquid"></div>
+        <code class="jar__code">{"id":1,"name":".."}</code>
+        <code class="jar__code">{"id":2,"name":".."}</code>
+        <code class="jar__code jar__code--dim">{"id":3, ... }</code>
+      </div>
+      <p class="jar__label">mock data · json</p>
+    </div>
+
+    <!-- prototype-screen, PRODUCT-FIRST: station-webapp + webapp-skin--dashboard
+         at the cut default --win-w 640. Contract v2 invariants: browser chrome
+         with `my-app.pages.dev`, EXACTLY THREE semantic anchors, the two-tier
+         LOD, flat-minimal tokens. There is NO form: the anchors are ordinary UI
+         elements that visibly carry data. -->
+    <div class="win lodw-app" data-station="app" data-role="client" style="left:820px;top:50px">
+      <div class="win__tabs">
+        <span class="win__tab"><i></i>Your app</span>
+        <span class="win__plus">+</span>
+      </div>
+      <div class="win__addr">
+        <span class="win__nav"><i></i><i></i><i></i></span>
+        <span class="win__url"><i class="lockglyph"></i>my-app.pages.dev</span>
+      </div>
+      <div class="win__body">
+        <div class="win__main webapp-skin--dashboard">
+          <div class="tbar">
+            <p class="tbar__t">Overview</p>
+            <span class="tbar__pill">Last 7 days<i></i></span>
+            <span class="tbar__new">+ New</span>
+          </div>
+          <div class="kpi">
+            <div class="kpi__t"><p class="kpi__l">Total items</p>
+              <p class="kpi__v"><span data-anchor="amount">128</span></p>
+              <p class="kpi__d" data-lod="close">all time</p></div>
+            <div class="kpi__t"><p class="kpi__l">This week</p>
+              <p class="kpi__v"><span>12</span></p>
+              <p class="kpi__d" data-lod="close">new</p></div>
+            <div class="kpi__t"><p class="kpi__l">Growth</p>
+              <p class="kpi__v"><span>↑ 8%</span></p>
+              <p class="kpi__d" data-lod="close">vs last week</p></div>
+          </div>
+          <div class="chart">
+            <p class="chart__t">Items per day</p>
+            <div class="chart__plot">
+              <i class="chart__b" style="height:34%"></i>
+              <i class="chart__b" style="height:52%"></i>
+              <i class="chart__b" style="height:41%"></i>
+              <i class="chart__b" style="height:70%"></i>
+              <i class="chart__b" style="height:58%"></i>
+              <i class="chart__b chart__b--hi" style="height:88%"></i>
+            </div>
+            <div class="chart__x" data-lod="close">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            </div>
+          </div>
+          <div class="items">
+            <div class="icard">
+              <i class="icard__img"></i>
+              <span class="icard__x">
+                <p class="icard__t"><span class="lod" data-anchor="name">
+                  <span class="lod__near">Item one</span>
+                  <span class="lod__far" aria-hidden="true"><i class="w52"></i></span></span></p>
+                <p class="icard__m" data-lod="close">In list</p>
+              </span>
+              <span class="icard__w"><span class="lod">
+                <span class="lod__near">Added today</span>
+                <span class="lod__far" aria-hidden="true"><i class="w64"></i></span></span></span>
+            </div>
+            <div class="icard">
+              <i class="icard__img"></i>
+              <span class="icard__x">
+                <p class="icard__t"><span class="lod">
+                  <span class="lod__near">Item two</span>
+                  <span class="lod__far" aria-hidden="true"><i class="w40"></i></span></span></p>
+                <p class="icard__m" data-lod="close">In list</p>
+              </span>
+              <span class="icard__w"><span class="lod" data-anchor="created_at">
+                <span class="lod__near">Added yesterday</span>
+                <span class="lod__far" aria-hidden="true"><i class="w88"></i></span></span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- decision-point. THE DIAMOND CARRIES THE QUESTION; THE EDGES CARRY THE
+         ANSWERS. Both branches are drawn; the untaken one parks at reduced
+         opacity with its condition still legible. AI is never the decider.
+         REV 3.1: the whole decision cluster moved to the TOP of the right
+         column so the MID band (the anchors' own band, y 229-552) is free for
+         the schema table. See the note on the pull-lines for why. -->
+    <div class="dia" data-station="decide" data-role="service" style="left:1545px;top:217px">
+      <span class="dia__in">Looks right?</span>
+    </div>
+    <span class="pill br-ok" data-role="service" style="left:1678px;top:215px">OK</span>
+    <span class="pill br-back" data-role="service" style="left:1620px;top:154px">not yet</span>
+
+    <!-- feedback-note: it rides the RETURN ARC and names the INCREMENT --
+         what is different on the next lap. "back to step 1" is not one.
+         The arc now climbs OVER the top of the stage, so the note sits on that
+         climb -- same relationship, mirrored. -->
+    <span class="sticky sticky--pulse" data-station="fix-note"
+          style="left:1499px;top:52px;width:200px">
+      fix the main button<em>one sentence, no need to open code</em>
+    </span>
+
+    <!-- ai-assistant --sm: same glyph, second job, its own verb -->
+    <div class="ai ai--sm recede-b3" data-station="ai-db" data-role="external" style="left:1730px;top:240px;width:230px">
+      <span class="ai__glyph"><i></i><i></i></span>
+      <span class="ai__txt"><p class="ai__t">AI</p><p class="ai__s">infers DB + BE</p></span>
+    </div>
+
+    <!-- schema table: row count EQUALS the anchor count it was derived from, and
+         the ROW ORDER follows the anchors' vertical order on the window so the
+         three green lines never cross.
+         REV 3.1 -- WHY IT SITS THIS LOW. The three anchors it is derived from
+         live at y 229 / 477 / 552 on the window. Parked at the top of the column
+         (the first cut) two of the three pull-lines had to CLIMB 311 and 341px
+         across the whole dashboard to reach it, and a reader reads a line that
+         crosses that much interface as a mis-attachment, not as a derivation
+         (user-reported, twice). Landing the rows ON the anchors' own band --
+         row 2 dead level with the row-title anchor -- turns the fan into three
+         short, mostly-horizontal pulls. -->
+    <div class="tbl recede-b3" data-station="items" data-role="data" style="left:1530px;top:364px;width:430px">
+      <div class="tbl__h"><b>items</b><span>table · AI-named</span></div>
+      <div class="tbl__r"><b>amount</b><span>number</span><i></i></div>
+      <div class="tbl__r"><b>name</b><span>text</span><i></i></div>
+      <div class="tbl__r"><b>created_at</b><span>date</span><i></i></div>
+    </div>
+
+    <!-- the derivation edge's cargo label: it says WHERE the back-end came
+         from, which is the whole point of the green leg beside it. -->
+    <span class="tag" style="left:1600px;top:558px;width:230px">built from the <b>items</b> table</span>
+
+    <!-- list card, back-end job -->
+    <div class="lst recede-b3" data-station="backend" data-role="service" style="left:1730px;top:588px;width:230px">
+      <p class="lst__t">Back-end</p>
+      <p class="lst__l"><i></i>receive what you send</p>
+      <p class="lst__l"><i></i>check it is valid</p>
+      <p class="lst__l"><i></i>save it to the table</p>
+    </div>
+
+    <!-- REV 4 -- CARTRIDGE MODULES (V2, user-approved 2026-08-27). Three pieces
+         built separately, each carrying the product it actually is (the same
+         dashboard from b3/b4, an API card, the same `items` table from b4), a
+         knob already seated in the next piece's socket, and one full-bleed port
+         band the record runs through. The knob wears the LEFT piece's role
+         colour on purpose: the record leaves that piece, the next receives it.
+         810x282 at left 60 / top 760 -- the top edge is unchanged, so the
+         "snap three pieces" edge above still lands where it did; everything
+         BELOW the block moved (see the banner and the two overview captions). -->
+    <!-- the wrapper carries NO data-station: the three pieces are the stations,
+         and a fourth box around them would give every edge two facing sides to
+         choose between. -->
+    <div class="snapset" style="left:60px;top:760px">
+      <div class="sp sp--a" data-station="snap-ui" data-role="client">
+        <div class="sp__hd"><p class="sp__t">UI</p><p class="sp__s">clickable screen</p>
+          <span class="grip"><i></i><i></i><i></i></span></div>
+        <div class="sp__body">
+          <div class="mn mui">
+            <div class="mui__chrome">
+              <span class="mui__tab" data-texture><i></i>Your app</span>
+              <span class="mui__url" data-texture>my-app.pages.dev</span>
+            </div>
+            <div class="mui__tbar"><b data-texture>Items</b><i class="sk"></i>
+              <span class="mui__new" data-texture>+ New</span></div>
+            <div class="mui__kpi">
+              <div class="mui__t"><i class="sk"></i><b data-texture>128</b></div>
+              <div class="mui__t"><i class="sk"></i><b data-texture>12</b></div>
+              <div class="mui__t"><i class="sk"></i><b data-texture>↑ 8%</b></div>
+            </div>
+            <div class="mui__rows">
+              <div class="mui__r"><em></em><span><i class="sk"></i><i class="sk"></i></span>
+                <u data-texture>today</u></div>
+              <div class="mui__r"><em></em><span><i class="sk"></i><i class="sk"></i></span>
+                <u data-texture>2d</u></div>
+            </div>
+          </div>
+        </div>
+        <div class="sp__port"><span class="portlbl portlbl--out" data-texture>out</span></div>
+      </div>
+      <div class="sp sp--b" data-station="snap-be" data-role="service">
+        <div class="sp__hd"><p class="sp__t">BE</p><p class="sp__s">receive · validate · save</p>
+          <span class="grip"><i></i><i></i><i></i></span></div>
+        <div class="sp__body">
+          <div class="mn mbe">
+            <div class="mn__hd"><b>API</b><span data-texture>3 routes</span></div>
+            <div class="mbe__r"><span class="mbe__m" data-texture>POST</span>
+              <span class="mbe__p" data-texture>/items</span><i class="mbe__ok"></i></div>
+            <div class="mbe__r"><span class="mbe__m mbe__m--get" data-texture>GET</span>
+              <span class="mbe__p" data-texture>/items</span><i class="mbe__ok"></i></div>
+            <div class="mbe__r"><span class="mbe__m mbe__m--get" data-texture>GET</span>
+              <span class="mbe__p" data-texture>/items/:id</span><i class="mbe__ok"></i></div>
+          </div>
+        </div>
+        <div class="sp__port"><span class="portlbl portlbl--in" data-texture>in</span>
+          <span class="portlbl portlbl--out" data-texture>out</span></div>
+      </div>
+      <div class="sp sp--c" data-station="snap-db" data-role="data">
+        <div class="sp__hd"><p class="sp__t">DB</p><p class="sp__s">real data table</p>
+          <span class="grip"><i></i><i></i><i></i></span></div>
+        <div class="sp__body">
+          <div class="mn mdb">
+            <div class="mn__hd"><b class="mono">items</b><span data-texture>table</span></div>
+            <div class="mdb__c"><b data-texture>name</b><span data-texture>text</span></div>
+            <div class="mdb__c"><b data-texture>amount</b><span data-texture>number</span></div>
+            <div class="mdb__c"><b data-texture>created_at</b><span data-texture>date</span></div>
+            <div class="mdb__data">
+              <div class="mdb__d"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>
+              <div class="mdb__d"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>
+            </div>
+          </div>
+        </div>
+        <div class="sp__port"><span class="portlbl portlbl--in" data-texture>in</span></div>
+      </div>
+      <div class="seamlayer">
+        <span class="socket" style="left:270px"></span>
+        <span class="knob" data-role="client" style="left:270px"></span>
+        <span class="click" style="left:270px"></span>
+        <span class="socket" style="left:540px"></span>
+        <span class="knob" data-role="service" style="left:540px"></span>
+        <span class="click" style="left:540px"></span>
+      </div>
+    </div>
+
+    <!-- station-deploy-responsive (option C2, user's pick): the SAME app on two
+         screens. `.win--deploy` is the shell without the toolbar and WITHOUT
+         ANCHORS -- at this beat the claim is "it is live at an address", not
+         "this is where the data lives". The phone reads as the same app because
+         it carries the same address string and its content is a RE-STACK of the
+         window's own KPI row and first card, nothing invented. -->
+    <div class="win win--deploy" data-station="app-live" data-role="client" style="left:1000px;top:760px">
+      <div class="win__tabs"><span class="win__tab"><i></i>Your app</span><span class="win__plus">+</span></div>
+      <div class="win__addr">
+        <span class="win__nav"><i></i><i></i><i></i></span>
+        <span class="win__url"><i class="lockglyph"></i>my-app.pages.dev</span>
+      </div>
+      <div class="win__body">
+        <div class="win__main webapp-skin--dashboard">
+          <div class="kpi">
+            <div class="kpi__t"><p class="kpi__l">Total items</p><p class="kpi__v">128</p></div>
+            <div class="kpi__t"><p class="kpi__l">This week</p><p class="kpi__v">12</p></div>
+            <div class="kpi__t"><p class="kpi__l">Growth</p><p class="kpi__v">↑ 8%</p></div>
+          </div>
+          <div class="chart">
+            <p class="chart__t">Items per day</p>
+            <div class="chart__plot">
+              <i class="chart__b" style="height:34%"></i>
+              <i class="chart__b" style="height:52%"></i>
+              <i class="chart__b" style="height:41%"></i>
+              <i class="chart__b" style="height:70%"></i>
+              <i class="chart__b" style="height:58%"></i>
+              <i class="chart__b chart__b--hi" style="height:88%"></i>
+            </div>
+            <div class="chart__x"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+          </div>
+          <div class="items">
+            <div class="icard">
+              <i class="icard__img"></i>
+              <span class="icard__x"><p class="icard__t">Item one</p><p class="icard__m">Added today</p></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone phone--mini" data-station="app-phone" data-role="client" style="left:1620px;top:810px">
+      <span class="phone__notch"></span>
+      <div class="phone__screen">
+        <div class="ph__url"><i class="lockglyph"></i>my-app.pages.dev</div>
+        <div class="ph__body">
+          <p class="ph__h">Your app</p>
+          <div class="ph__kpi">
+            <div><p>Total items</p><b>128</b></div>
+            <div><p>This week</p><b>12</b></div>
+            <div><p>Growth</p><b>↑ 8%</b></div>
+          </div>
+          <div class="ph__card"><i></i><span>Item one</span></div>
+          <p class="ph__more">+ 2 more</p>
+        </div>
+      </div>
+      <span class="phone__home"></span>
+    </div>
+
+    <span class="tag" style="left:1478px;top:944px;width:134px;text-align:center">
+      <b>Same app</b><br>narrower screen</span>
+
+    <!-- deploy-url: in this genre a deployable is an ARTIFACT, not a running
+         service. The address is SHORT on purpose -- the first draft wrapped
+         inside the pill, and a broken address does not read as an address.
+         The sub-tag says who the link is FOR. It deliberately makes NO claim
+         about who can reach it: an explainer that says "anyone with the link can
+         open it" has stated an access-control policy it cannot back up. -->
+    <div class="url" data-station="link" data-role="infra" style="left:1258px;top:1180px;width:320px">
+      <i class="lockglyph"></i>my-app.pages.dev<span class="url__live">Live</span>
+    </div>
+    <span class="tag" style="left:1258px;top:1245px;width:320px">your app, live · opens on any phone</span>
+
+    <!-- ===== staged overlays. Every one carries data-window="A,B" (percent of
+         the master) emitted from the same table as its keyframes. =========== -->
+
+    <!-- the verdict banner. It lives INSIDE the stage (and so is dimmed by the b1
+         wash like everything else) but rides the chrome fade, so it is on screen
+         only at the two overview beats -- the finale is where it lands. -->
+    <div class="banner">
+      <p class="banner__t">FE-FIRST ≠ SKIP BACKEND</p>
+      <p class="banner__s">Back-end vẫn phải có — AI chỉ suy ra nó SAU, từ chính màn hình bạn đã chốt.</p>
+    </div>
+
+    <!-- b1: the establishing shot. Everything downstream of the brief is washed
+         back so the eye starts where the work starts. It re-arms for the last
+         0.5s, so frame 100% is byte-identical to frame 0%. -->
+    <div class="stage-dim-b1" data-window="0,12.5 98.6979,100"></div>
+
+    <div class="traffic traffic-b2" data-window="14.0625,23.4375">
+      <span class="pk" style="offset-path:path('M 400 332 H 470');animation-delay:-1200ms"></span>
+      <span class="pk" style="offset-path:path('M 770 332 H 820');animation-delay:-600ms"></span>
+      <span class="pk" style="offset-path:path('M 740 532 H 820');animation-delay:-1800ms"></span>
+    </div>
+
+    <!-- b3: the loop runs TWO laps -- the second packet is the same run at half
+         a cycle's negative offset, so the seam stays closed. -->
+    <div class="traffic traffic-b3" data-window="26.5625,37.5">
+      <span class="pk pk--back"
+            style="offset-path:path('M 1599 195 V 28 H 500 V 290');animation-duration:4800ms;animation-delay:-2400ms"></span>
+      <span class="pk pk--back"
+            style="offset-path:path('M 1599 195 V 28 H 500 V 290');animation-duration:4800ms;animation-delay:-4800ms"></span>
+      <span class="pk" style="offset-path:path('M 770 332 H 820');animation-delay:-1200ms"></span>
+    </div>
+
+    <div class="traffic traffic-b4" data-window="39.0625,48.4375">
+      <span class="pk pk--pull" style="offset-path:path('M 892.8 229 V 245 C 950 245, 1470 432, 1530 432');animation-delay:-2400ms"></span>
+      <span class="pk pk--pull" style="offset-path:path('M 969.2 477 H 1010 C 1180 468, 1360 468, 1530 478');animation-delay:-1600ms"></span>
+      <span class="pk pk--pull" style="offset-path:path('M 1426 552 H 1444 C 1470 552, 1480 524, 1530 524');animation-delay:-800ms"></span>
+      <span class="pk" style="offset-path:path('M 1675 271 H 1730');animation-delay:-1200ms"></span>
+    </div>
+
+    <!-- b5: one packet runs THROUGH all three pieces -- that is the whole claim
+         of the snap block, and it is why the packet lives at stage level
+         (z-index in a station's subtree cannot rise above a sibling station).
+         REV 4: y is DERIVED, not eyeballed -- the port band's centre line is
+         block bottom (760+282) minus 23, i.e. 1019, which is also the centre of
+         every knob. The record therefore passes through the very knob that is
+         plugged into the socket, which is the whole argument for the cartridge.
+         Mid-height would now cross three product interiors and be untraceable. -->
+    <div class="traffic traffic-b5" data-window="51.5625,60.9375">
+      <span class="pk" style="offset-path:path('M 90 1019 H 840');animation-duration:4800ms;animation-delay:-2400ms"></span>
+      <span class="pk" style="offset-path:path('M 90 1019 H 840');animation-duration:4800ms;animation-delay:-4800ms"></span>
+    </div>
+
+    <div class="traffic traffic-b6" data-window="64.0625,73.4375">
+      <span class="pk" style="offset-path:path('M 870 1019 H 1000');animation-delay:-1200ms"></span>
+    </div>
+
+    <!-- ===== spotlight overlay: four corner brackets per subject, pad 12,
+         arm 22, opacity only. Every rect below is cut from a MEASURED
+         getBoundingClientRect, not from the authored left/top plus a guess:
+         the product-first stations' heights are all content-driven. ========= -->
+    <svg class="edges-top" viewBox="0 0 2100 1290" aria-hidden="true">
+      <g class="node__focus focus-b1">
+        <!-- the establishing shot leaves the BRIEF lit; box measured, not authored:
+             the BRD document's height is content-driven (40,140)-(400,519.6). -->
+        <path d="M 50 128 H 28 V 150 M 390 128 H 412 V 150 M 412 509.6 V 531.6 H 390 M 50 531.6 H 28 V 509.6"/>
+      </g>
+      <g class="node__focus focus-b2">
+        <path d="M 50 128 H 28 V 150 M 390 128 H 412 V 150 M 412 509.6 V 531.6 H 390 M 50 531.6 H 28 V 509.6"/>
+        <path d="M 480 278 H 458 V 300 M 760 278 H 782 V 300 M 782 356 V 378 H 760 M 480 378 H 458 V 356"/>
+      </g>
+      <g class="node__focus focus-b3">
+        <!-- the diamond's box is its ROTATED box (a 108px square at rotate(45deg)
+             measures 152.8), so it clears the app bracket by 38.6px -- just over
+             pad+arm (34), the merge threshold.
+             REV 3.1: the note now sits 52.2px above the diamond, i.e. their
+             brackets would stand 28.3px apart -- INSIDE the merge threshold. One
+             bracket around the union is both the rule's answer and the truer
+             read: at this beat the subject is the decision AND the one sentence
+             you send back, which is what the caption says. -->
+        <path d="M 830 38 H 808 V 60 M 1450 38 H 1472 V 60 M 1472 586.4 V 608.4 H 1450 M 830 608.4 H 808 V 586.4"/>
+        <path d="M 1507.5 36.5 H 1485.5 V 58.5 M 1690.5 36.5 H 1712.5 V 58.5 M 1712.5 337.4 V 359.4 H 1690.5 M 1507.5 359.4 H 1485.5 V 337.4"/>
+      </g>
+      <!-- REV 3.2 -- the FOLLOW's destination. Same bracket box as b2's (the AI
+           station has not moved); it fades up ACROSS the travel so the camera
+           lands on a subject that is already named rather than naming it after
+           it arrives. b3's own two brackets stay lit throughout -- the app and
+           the decision are still the beat's subjects, they are just no longer
+           the only thing in frame. -->
+      <g class="node__focus focus-b3b">
+        <path d="M 480 278 H 458 V 300 M 760 278 H 782 V 300 M 782 356 V 378 H 760 M 480 378 H 458 V 356"/>
+      </g>
+      <g class="node__focus focus-b4">
+        <path d="M 830 38 H 808 V 60 M 1450 38 H 1472 V 60 M 1472 586.4 V 608.4 H 1450 M 830 608.4 H 808 V 586.4"/>
+        <path d="M 1540 352 H 1518 V 374 M 1950 352 H 1972 V 374 M 1972 538 V 560 H 1950 M 1540 560 H 1518 V 538"/>
+      </g>
+      <g class="node__focus focus-b5">
+        <path d="M 70 748 H 48 V 770 M 860 748 H 882 V 770 M 882 1032 V 1054 H 860 M 70 1054 H 48 V 1032"/>
+      </g>
+      <g class="node__focus focus-b6">
+        <!-- MERGED: window, phone and address pill sit 8-18px apart, closer than
+             pad+arm, so per-station brackets would interlock. One bracket around
+             the union is also the truer read -- the deploy station IS the pair
+             plus its address. -->
+        <path d="M 1010 748 H 988 V 770 M 1826 748 H 1848 V 770 M 1848 1224 V 1246 H 1826 M 1010 1246 H 988 V 1224"/>
+      </g>
+    </svg>
+
+  </div><!-- /.stage -->
+
+  <!-- ===== caption cards. Placed by the ADJACENCY rule, not a fixed slot:
+       with the camera roaming a 2160x1460 world at k 0.69-1.85, no single world
+       band is inside every frame (camera-beat.md permits adjacency exactly
+       then). Each card sits in the gap under its own beat's subject. ======== -->
+  <div class="beat-caption beat-caption--2 cap-b1" style="left:540px;top:1295px;width:800px">Quy trình là một dây chuyền: bạn cung cấp brief cần thiết, nhận về một app chạy thật.</div>
+  <div class="beat-caption beat-caption--2 cap-b2" style="left:300px;top:690px;width:360px">Bạn soạn một bản brief gọn — mục tiêu, người dùng, luồng chính — rồi giao cho AI.</div>
+  <div class="beat-caption cap-b3" style="left:1150px;top:736px">AI dựng xong màn hình bấm được; nếu thấy chưa ổn, bạn prompt để AI sửa lại.</div>
+  <div class="beat-caption cap-b4" style="left:1200px;top:736px">Từ chính UI, AI suy ra được cấu trúc dữ liệu phù hợp nhất — không cần bạn mô tả bảng.</div>
+  <div class="beat-caption beat-caption--2 cap-b5" style="left:525px;top:800px;width:480px">Từ bảng <code>items</code> vừa suy ra, AI dựng <span style="white-space:nowrap">back-end</span>: UI có trước, rồi DB, rồi BE.</div>
+  <div class="beat-caption beat-caption--2 cap-b6" style="left:1740px;top:1262px;width:300px">Deploy xong là bạn có app chạy thật — mở trên điện thoại vẫn là đúng app đó.</div>
+  <div class="beat-caption beat-caption--2 cap-b7" style="left:540px;top:1295px;width:800px">Front-end đi trước là để chốt ý cho nhanh, không phải để bỏ back-end đi.</div>
+
+</div><!-- /.world -->
+</div><!-- /.camera -->
+
+<figcaption class="narration" data-narration="beats">
+  Nhịp 1 — Toàn cảnh cả dây chuyền, và chỉ mỗi tấm brief là còn sáng: mọi thứ trong quy
+  trình này đều bắt đầu từ bản brief bạn cung cấp, chứ không bắt đầu từ code.
+  Nhịp 2 — Nhìn gần tấm brief: nó là một tài liệu một trang thật, có mục tiêu, có người
+  dùng, có luồng chính gồm ba bước, có màn hình chính, và có cả một dòng gạch đi những thứ
+  chưa làm bây giờ. Bạn chỉ cần soạn đúng một bản như vậy rồi giao cho AI.
+  Nhịp 3 — AI dựng ra một web app chạy được trong khung trình duyệt: có thanh địa chỉ, có
+  bảng số, có biểu đồ, có danh sách. Vì lúc này chưa có cơ sở dữ liệu nào cả, AI cắm thêm
+  một hũ dữ liệu giả bằng json để màn hình có cái mà hiển thị. Bạn mở ra xem rồi trả lời
+  đúng một câu hỏi trên hình thoi: "Looks right?". Nếu thấy chưa ổn, bạn chỉ cần prompt một câu sửa
+  thật cụ thể — ví dụ "fix the main button" — câu đó chạy ngược về AI và AI dựng lại màn
+  hình cho vòng sau; cut này cho xem hai vòng như vậy. Người quyết dừng vòng lặp là bạn.
+  Nhịp 4 — Khi bạn trả lời OK, AI mới suy ngược, và nó đọc chính giao diện chứ không cần
+  một cái form nào: con số tổng trên thẻ đầu tiên thành cột amount, tên của dòng thứ nhất
+  thành cột name, ô ngày của dòng thứ hai thành cột created_at. Ba phần tử đang hiện dữ
+  liệu, ba cột, không thừa cột nào — và đó là chỗ cơ sở dữ liệu sinh ra, sau màn hình chứ
+  không phải trước.
+  Nhịp 5 — Từ chính cái bảng vừa suy ra, AI dựng tiếp khối back-end: phần nhận dữ liệu bạn
+  gửi, kiểm tra hợp lệ, rồi lưu vào bảng. Thứ tự suy luận vì thế là UI có trước, rồi tới
+  DB, rồi mới tới BE — và vì cả ba đều bám vào cùng một bảng nên chúng khớp được vào nhau,
+  một bản ghi đi từ màn hình xuống thẳng tới cơ sở dữ liệu.
+  Nhịp 6 — Deploy nghĩa là đẩy tất cả lên mạng: từ đây app của bạn chạy thật. Vẫn app
+  đó thôi: mở trên trình duyệt thì rộng, mở trên điện thoại thì mấy thẻ số xếp dọc lại cho
+  vừa màn hình hẹp — cùng một địa chỉ, cùng một nội dung.
+  Nhịp 7 — Nhìn lại toàn cảnh và chốt lại điều dễ hiểu nhầm nhất: front-end đi trước là để
+  chốt ý cho nhanh, không phải để bỏ back-end. Back-end vẫn phải có — AI chỉ suy ra nó
+  sau, từ chính màn hình bạn đã duyệt.
+</figcaption>
+</figure>
+
+</body>
+</html>

@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkout request flow — glassmorphic</title>
+
+<!-- =====================================================================
+     STYLE: glassmorphic  (data/styles.csv#glassmorphic)
+     Derived from templates/base/flat-minimal.html. Class names and custom
+     property names are IDENTICAL to that file so templates/snippets/*
+     stays portable; the node/edge geometry below is copied verbatim from
+     templates/snippets/node-shapes.html + connectors.html. Only :root
+     token values, the <defs>, and the glass-specific values on existing
+     rules differ, plus ONE added class (see below).
+
+     WHAT THIS STYLE ADDS TO THE SHARED ARCHITECTURE (the only deviation)
+       .node__sheen   the specular highlight pass. It is a second copy of
+                      the node's own geometry filled with the #glass-sheen
+                      gradient — achromatic white, so it introduces no
+                      palette value. Without it a translucent panel reads
+                      as a flat tint rather than as glass.
+       (.layer-glass is a structural wrapper only; it has no CSS rule.)
+
+     HOW THE FROSTING ACTUALLY WORKS — READ BEFORE EDITING
+     `backdrop-filter: blur()` is the canonical glassmorphism technique and
+     it IS used in this file, on .legend. It is deliberately NOT the
+     mechanism for the node panels, because measured in Chrome
+     `backdrop-filter` is a no-op on SVG elements: the property parses and
+     computes, the backdrop is never blurred. The SVG-native equivalent is
+     used instead and is what you see:
+
+       <use href="#backdrop-art" filter="url(#glass-blur)"
+            clip-path="url(#glass-clip)"/>
+
+     i.e. a second, Gaussian-blurred copy of the backdrop art, clipped to
+     the union of the panel silhouettes and painted directly under them.
+     Same result, works in every renderer, no script.
+
+     BLUR IS GPU-EXPENSIVE — BUDGET IT. There is exactly ONE blurred pass
+     for the whole diagram (one <use> + one feGaussianBlur) and ONE
+     backdrop-filter (the legend bar). Do not put a blur on every element:
+     the cost is per blurred layer and per pixel of its bounding box, and
+     six separate blurred nodes cost roughly six times this file. If you
+     add nodes, extend #glass-clip — do not add another <use>.
+
+     GLASS NEEDS SOMETHING BEHIND IT. The blur is invisible over a smooth
+     gradient; it only reads as frost when the backdrop has high-frequency
+     detail. #backdrop-art therefore carries a hard-edged colour-blob field
+     AND a fine diagonal lattice, both crisp. If you swap the backdrop,
+     keep something with edges in it or the style disappears.
+
+     HOW TO ADAPT THIS FILE
+     1. TOKENS — edit only the :root block and its dark-mode twin. Colours
+        come from data/color-semantics.csv (Style ID glassmorphic); never
+        invent a hex. The page gradient stops are dataset hexes too.
+     2. NODES — add/remove <g class="node"> blocks between NODES:START and
+        NODES:END, geometry copied from node-shapes.html. Each node needs
+        THREE things kept in sync: the .node__shape, a .node__sheen with
+        the same geometry, and a matching entry in #glass-clip (with the
+        node's translate() on it). If the clip entry is missing the panel
+        will not be frosted; if it is a rect while the shape is a hexagon,
+        frost will leak outside the silhouette.
+     3. CONTRAST IS THE RISK IN THIS STYLE. Text sits on a COMPOSITE of
+        page gradient + backdrop art + blur + tint, not on the --fill
+        token. Do not trust the token's verified ratio — sample the
+        rendered pixel under the label and check it against --on-*. At the
+        shipped fill-opacity (.62 light / .82 dark) every role clears AA
+        against the sampled composite — worst measured pair 4.78:1 — and
+        that margin is thin, so re-measure after ANY backdrop change.
+     4. EDGES — add <path class="edge"> between EDGES:START and EDGES:END.
+        Connectors are translucent with a soft drop-shadow so they read as
+        floating above the backdrop but below the panels.
+     5. MOTION classes available here (templates/snippets/motion-blocks.css):
+          .anim-dash-flow  (.anim-dash)      traffic flowing on a connector
+          .anim-packet-travel (.anim-travel) one request in flight
+          .anim-pulse-glow (.anim-pulse)     node is alive and working
+          .anim-queue-fill (.anim-fill)      buffer depth growing
+          .anim-heartbeat                    liveness ping (on .node__body!)
+          .anim-connection-draw-in           a new dependency appearing
+        A packet's offset-path `d` MUST be copied verbatim from its edge.
+        Never animate the blur radius — that re-rasterises every frame.
+     6. ARTIFACT vs LOCAL — css-only, zero <script>. The Google Fonts
+        <link> below is the ONE external host a Claude Artifact permits
+        (fonts.googleapis.com + fonts.gstatic.com), so it ships active and
+        the file is artifact-safe as-is; the --font-* fallback stacks
+        render correctly if the request is blocked.
+     7. Motion is non-interactive by design — no hover, click, or playback
+        controls. Do not add any.
+     ===================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  /* ---- surface ------------------------------------------------------ */
+  /* --bg is the vivid gradient the glass sits on; every stop is a hex that
+     already exists in data/color-semantics.csv. */
+  --bg:
+    radial-gradient(1100px 700px at 10% 6%,  #93c5fd, transparent 62%),
+    radial-gradient(1000px 760px at 92% 12%, #d8b4fe, transparent 62%),
+    radial-gradient(900px 700px at 62% 98%,  #99f6e4, transparent 62%),
+    linear-gradient(150deg, #eff6ff 0%, #faf5ff 52%, #f0fdf4 100%);
+  --surface:#f8fafc;
+  --grid:color-mix(in srgb, #334155 22%, transparent);
+  --ink:#1e293b;
+  --muted:#334155;
+  --stroke:#334155;
+  --stroke-w:1.25px;
+  --radius:20px;
+
+  /* ---- typography --------------------------------------------------- */
+  --font-title:"Inter","SF Pro Text",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-label:"Inter","SF Pro Text",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --fs-title:1.375rem;
+  --fs-label:16px;
+  --fs-sub:13px;
+
+  /* ---- roles: fill / stroke / accent / on-colour -------------------- */
+  /* values verbatim from data/color-semantics.csv (Style ID glassmorphic) */
+  --role-client:#eff6ff;   --ink-client:#3b82f6;   --accent-client:#60a5fa;   --on-client:#1e40af;
+  --role-service:#fff7ed;  --ink-service:#ea580c;  --accent-service:#fb923c;  --on-service:#9a3412;
+  --role-data:#f0fdf4;     --ink-data:#16a34a;     --accent-data:#4ade80;     --on-data:#166534;
+  --role-async:#faf5ff;    --ink-async:#a855f7;    --accent-async:#c084fc;    --on-async:#6b21a8;
+  --role-external:#f9fafb; --ink-external:#6b7280; --accent-external:#9ca3af; --on-external:#1f2937;
+  --role-error:#fef2f2;    --ink-error:#ef4444;    --accent-error:#f87171;    --on-error:#991b1b;
+  --role-infra:#f8fafc;    --ink-infra:#64748b;    --accent-infra:#2dd4bf;    --on-infra:#1e293b;
+
+  /* ---- motion (values from data/motion.csv) ------------------------- */
+  --dur-flow:1200ms;  --dur-pulse:1600ms; --dur-fill:2000ms;
+  --dur-beat:1000ms;  --dur-draw:800ms;
+  --ease-flow:ease-in-out; --ease-pulse:ease-in-out;
+  --stagger:200ms;
+  --dash:8; --dash-gap:6; --dash-cycle:56;
+  --empty:22%;
+  /* the pulse glow is a drop-shadow in currentColor. On an OPAQUE node it only
+     haloes the outside; on a translucent panel it also shows THROUGH the fill
+     and warms the composite behind the label. 6px is the largest radius that
+     still leaves orders-service (the worst case) above AA. */
+  --glow:6px;
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:
+      radial-gradient(1100px 700px at 10% 6%,  #1e40af, transparent 62%),
+      radial-gradient(1000px 760px at 92% 12%, #6b21a8, transparent 62%),
+      radial-gradient(900px 700px at 62% 98%,  #166534, transparent 62%),
+      linear-gradient(150deg, #0f172a 0%, #1e293b 52%, #111827 100%);
+    --surface:#0f172a;
+    /* the lattice has to be stronger in dark mode: the dark panels need a denser
+       tint (see the fill-opacity override below), so less of the backdrop shows
+       through and a faint lattice would leave no visible frost at all */
+    --grid:color-mix(in srgb, #cbd5e1 34%, transparent);
+    --ink:#f1f5f9;
+    --muted:#cbd5e1;
+    --stroke:#cbd5e1;
+    --role-client:#1e40af;   --ink-client:#60a5fa;   --accent-client:#93c5fd;   --on-client:#dbeafe;
+    --role-service:#9a3412;  --ink-service:#fb923c;  --accent-service:#fdba74;  --on-service:#ffedd5;
+    --role-data:#166534;     --ink-data:#4ade80;     --accent-data:#86efac;     --on-data:#dcfce7;
+    --role-async:#6b21a8;    --ink-async:#c084fc;    --accent-async:#d8b4fe;    --on-async:#f3e8ff;
+    --role-external:#374151; --ink-external:#9ca3af; --accent-external:#d1d5db; --on-external:#f3f4f6;
+    --role-error:#991b1b;    --ink-error:#f87171;    --accent-error:#fca5a5;    --on-error:#fee2e2;
+    --role-infra:#1e293b;    --ink-infra:#94a3b8;    --accent-infra:#5eead4;    --on-infra:#f1f5f9;
+  }
+}
+
+/* ===== page ========================================================== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);background-attachment:fixed;
+     color:var(--ink);font-family:var(--font-label);-webkit-text-size-adjust:100%}
+.diagram{max-width:1440px;margin:0 auto;padding:24px 16px 40px}
+.diagram__title{font-family:var(--font-title);font-size:var(--fs-title);font-weight:600;
+                letter-spacing:-.01em;margin:0 0 4px}
+.diagram__subtitle{margin:0 0 18px;color:var(--muted);font-size:.875rem;line-height:1.55}
+/* the canvas is transparent: the page gradient IS the backdrop, and the SVG
+   adds its own crisp blob + lattice detail on top of it so the frost is legible */
+.diagram__canvas{display:block;width:100%;height:auto;background-color:transparent;
+                 border-radius:var(--radius)}
+.diagram__note{margin:16px 0 0;color:var(--muted);font-size:.8125rem;line-height:1.6;max-width:72ch}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+         clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ===== role mapping (the ONLY place a role becomes a colour) ========= */
+[data-role]{--fill:var(--role-external);--line:var(--ink-external);
+            --accent:var(--accent-external);--on:var(--on-external)}
+[data-role="client"]  {--fill:var(--role-client);  --line:var(--ink-client);  --accent:var(--accent-client);  --on:var(--on-client)}
+[data-role="service"] {--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="data"]    {--fill:var(--role-data);    --line:var(--ink-data);    --accent:var(--accent-data);    --on:var(--on-data)}
+[data-role="async"]   {--fill:var(--role-async);   --line:var(--ink-async);   --accent:var(--accent-async);   --on:var(--on-async)}
+[data-role="external"]{--fill:var(--role-external);--line:var(--ink-external);--accent:var(--accent-external);--on:var(--on-external)}
+[data-role="error"]   {--fill:var(--role-error);   --line:var(--ink-error);   --accent:var(--accent-error);   --on:var(--on-error)}
+[data-role="infra"]   {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* ===== nodes ========================================================= */
+.node{color:var(--line)}                     /* currentColor drives the glow */
+.node__body{transform-box:fill-box;transform-origin:center}
+/* fill-opacity .62 is the measured balance point for this style: opaque enough
+   that the composite still clears AA against --on-* over every part of the
+   backdrop, transparent enough that the frost is actually visible. Raise it and
+   the glass turns into a flat sticker; lower it and the labels fail. See
+   header note 3 — check the RENDERED pixel, not the token. */
+.node__shape{fill:var(--fill);fill-opacity:.62;stroke:var(--line);stroke-opacity:.7;
+             stroke-width:var(--stroke-w);stroke-linejoin:round;stroke-linecap:round;
+             filter:drop-shadow(0 6px 14px rgba(15,23,42,.22))}
+.node__sheen{fill:url(#glass-sheen);stroke:none}   /* specular pass, achromatic */
+.node__detail{fill:none;stroke:var(--line);stroke-width:1;opacity:.65;stroke-linecap:round}
+.node__detail--dashed{stroke-dasharray:5 4}
+.node__icon{fill:var(--line);stroke:none;opacity:.9}
+.node__icon .node__detail{opacity:.9}
+.node__icon-glyph{fill:var(--on);font-family:var(--font-title);font-size:17px;
+                  font-weight:600;text-anchor:middle}
+.node__label{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-label);
+             font-weight:600;text-anchor:middle}
+.node__sub{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-sub);
+           text-anchor:middle;opacity:.85}
+.node--primary .node__shape{stroke-width:calc(var(--stroke-w) * 1.6);stroke-opacity:.9}
+/* Dark-mode tint override. It has to live AFTER the base .node__shape rule:
+   same specificity, so source order decides. Putting it up in the :root
+   dark block silently loses the cascade — it did, once.
+   The dark backdrop art sits brighter relative to the dark --role-* fills than
+   it does in light mode, so the panel needs a denser tint to stay AA. */
+@media (prefers-color-scheme: dark){
+  .node__shape{fill-opacity:.82}
+}
+
+/* ===== queue ========================================================= */
+.queue__track{fill:var(--on);opacity:.16;stroke:none}
+.queue__fill{fill:var(--accent);stroke:none}
+.queue .node__detail{stroke:var(--fill);opacity:.9}
+
+/* ===== groups ======================================================== */
+/* the group is the second, larger pane in the layered-glass stack — same
+   frosting pass, weaker tint, so depth reads without a third blur */
+.group__box{fill:var(--fill);fill-opacity:.2;stroke:var(--line);stroke-width:1;
+            stroke-opacity:.5;stroke-dasharray:6 6}
+.group__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+              letter-spacing:.04em;text-anchor:middle}
+
+/* ===== edges ========================================================= */
+.edge{fill:none;stroke:var(--stroke);stroke-opacity:.8;stroke-width:var(--stroke-w);
+      stroke-linecap:round;stroke-linejoin:round;
+      filter:drop-shadow(0 1px 3px rgba(15,23,42,.35))}
+.edge--primary{stroke-width:calc(var(--stroke-w) * 1.8);stroke-opacity:.92}
+.edge--async{stroke:var(--ink-async);stroke-dasharray:10 7}   /* dash = async, not colour alone */
+.edge--error{stroke:var(--ink-error);stroke-dasharray:14 5 4 5}
+.edge__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+             text-anchor:middle}
+.marker{fill:var(--stroke);stroke:none}
+.marker--open{fill:none;stroke:var(--ink-async);stroke-width:1.6;stroke-linecap:round}
+
+/* ===== motion (source: templates/snippets/motion-blocks.css) ========= */
+.anim-dash-flow,.anim-dash{
+  stroke-dasharray:var(--dash) var(--dash-gap);
+  stroke-dashoffset:var(--dash-cycle);
+  animation:dash-flow var(--dur-flow) linear infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes dash-flow{to{stroke-dashoffset:0}}
+
+.packet{fill:var(--line);stroke:var(--surface);stroke-width:2;offset-distance:0%;offset-rotate:auto}
+.anim-packet-travel,.anim-travel{
+  animation:packet-travel var(--dur-flow) var(--ease-flow) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes packet-travel{to{offset-distance:100%}}
+/* !! COPY THESE `d` STRINGS VERBATIM FROM THE MATCHING EDGE PATH !!
+   If they drift, the packet travels a route that does not exist.        */
+.packet--e1{offset-path:path("M 220 180 L 440 180")}
+.packet--e3{offset-path:path("M 980 180 L 1200 180")}
+
+.anim-pulse-glow,.anim-pulse{
+  animation:pulse-glow var(--dur-pulse) var(--ease-pulse) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+/* DELIBERATE DEVIATION from motion-blocks.css: the shared pulse-glow dips the
+   node to opacity .72 at its trough. On a translucent panel that opacity
+   MULTIPLIES the .62/.82 fill-opacity, so the label's composite drops below AA
+   for part of every cycle — invisible in markup, obvious when you sample the
+   pixel. Here the pulse modulates the glow only; the panel opacity is held. */
+@keyframes pulse-glow{
+  0%,100%{filter:drop-shadow(0 0 2px currentColor)}
+  50%{filter:drop-shadow(0 0 var(--glow) currentColor)}
+}
+
+.anim-queue-fill,.anim-fill{
+  clip-path:inset(0 100% 0 0);
+  animation:queue-fill var(--dur-fill) ease-out infinite alternate;
+}
+@keyframes queue-fill{
+  from{clip-path:inset(0 100% 0 0)}
+  to{clip-path:inset(0 var(--empty) 0 0)}
+}
+
+.anim-heartbeat{animation:heartbeat var(--dur-beat) var(--ease-pulse) infinite}
+@keyframes heartbeat{
+  0%,100%{transform:scale(1)}25%{transform:scale(1.06)}
+  40%{transform:scale(1)}55%{transform:scale(1.04)}
+}
+
+.anim-connection-draw-in{
+  stroke-dasharray:var(--draw-len,400);stroke-dashoffset:var(--draw-len,400);
+  animation:connection-draw-in var(--dur-draw) ease-out forwards;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes connection-draw-in{to{stroke-dashoffset:0}}
+
+/* ===== reduced motion: render the INFORMATIVE END STATE ============== */
+@media (prefers-reduced-motion: reduce){
+  .anim-dash-flow,.anim-dash,.anim-connection-draw-in{
+    animation:none !important;stroke-dasharray:none !important;stroke-dashoffset:0 !important}
+  .edge--async{stroke-dasharray:10 7 !important}   /* async must stay dashed */
+  .edge--error{stroke-dasharray:14 5 4 5 !important}
+  .packet,.anim-packet-travel,.anim-travel{
+    animation:none !important;offset-distance:100% !important}   /* parked at destination */
+  .anim-pulse-glow,.anim-pulse{
+    animation:none !important;opacity:1 !important;filter:drop-shadow(0 0 2px currentColor)}
+  .anim-queue-fill,.anim-fill{
+    animation:none !important;clip-path:inset(0 var(--empty) 0 0) !important}  /* at rest */
+  .anim-heartbeat{animation:none !important;transform:none !important}
+}
+
+/* ===== small screens ================================================= */
+@media (max-width:640px){
+  :root{--fs-title:1.125rem}
+  .diagram{padding:16px 12px 32px}
+  .legend{gap:8px 14px}
+}
+
+/* ===== legend ======================================================== */
+/* THE one real backdrop-filter in this file. It works here because .legend is
+   an HTML box over the page gradient; the same declaration on an SVG element
+   computes but never blurs. One blurred layer, not seven. */
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0 0;
+        padding:14px 16px;border-radius:16px;
+        background:color-mix(in srgb, var(--surface) 46%, transparent);
+        border:1px solid color-mix(in srgb, var(--surface) 70%, transparent);
+        box-shadow:0 8px 24px rgba(15,23,42,.16);
+        backdrop-filter:blur(18px) saturate(1.4);
+        -webkit-backdrop-filter:blur(18px) saturate(1.4)}
+@supports not (backdrop-filter: blur(1px)){
+  /* solid-fill fallback for renderers without backdrop-filter */
+  .legend{background:color-mix(in srgb, var(--surface) 93%, transparent)}
+}
+.legend__item{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);
+              min-height:24px}
+.legend__swatch{inline-size:16px;block-size:16px;border-radius:5px;flex:none;
+                background:color-mix(in srgb, var(--fill) 88%, transparent);
+                border:2px solid var(--line);
+                box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+.legend__label{line-height:1.4}
+</style>
+</head>
+
+<body>
+<main class="diagram">
+  <h1 class="diagram__title">Checkout request flow</h1>
+  <p class="diagram__subtitle">glassmorphic style &middot; layered left-to-right &middot; six frosted panels</p>
+
+  <!-- viewBox hugs the measured content box with even padding. Measure with
+       getBoundingClientRect() mapped through svg.getScreenCTM().inverse();
+       getBBox() ignores the parent <g transform> and reports wrong numbers.
+       The backdrop art is excluded from that measurement on purpose — it is
+       an atmosphere layer and is meant to bleed past the content box. -->
+  <svg class="diagram__canvas" viewBox="20 60 1380 440" role="img"
+       aria-labelledby="dgm-title dgm-desc">
+    <title id="dgm-title">Checkout request flow</title>
+    <desc id="dgm-desc">Six components drawn as translucent frosted glass panels over a vivid
+      gradient. A browser sends a checkout request to the api-gateway, which forwards it over HTTP
+      to orders-service. Orders-service reads and writes redis-cache, persists orders to
+      sql-database, and publishes an order-placed event asynchronously to message-queue.
+      Orders-service and redis-cache sit inside a larger, fainter glass pane marking the orders
+      bounded context. Animated dashes on the connectors indicate live traffic, the moving dots are
+      individual in-flight requests, the pulsing orders-service panel is actively processing, and
+      the filling bar inside message-queue shows queue depth growing. The frosting is decoration
+      only and carries no meaning.</desc>
+
+    <defs>
+      <!-- DEFS:START -->
+      <marker id="arrow" class="marker" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10 z" />
+      </marker>
+      <marker id="arrow-open" class="marker marker--open" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10" fill="none" />
+      </marker>
+
+      <!-- the fine lattice that makes the frost visible; keep it crisp -->
+      <pattern id="lattice" width="22" height="22" patternUnits="userSpaceOnUse"
+               patternTransform="rotate(32)">
+        <path d="M 0 0 V 22" style="stroke:var(--grid);stroke-width:2.2;fill:none" />
+      </pattern>
+
+      <!-- blobs are softened once here so they read as atmosphere; the frost
+           pass below then only has the lattice left to visibly smear -->
+      <filter id="blob-soften" x="-25%" y="-25%" width="150%" height="150%"
+              color-interpolation-filters="sRGB">
+        <feGaussianBlur stdDeviation="26" />
+      </filter>
+
+      <!-- ONE blur pass for the whole diagram. stdDeviation is the frost radius. -->
+      <filter id="glass-blur" x="-12%" y="-12%" width="124%" height="124%"
+              color-interpolation-filters="sRGB">
+        <feGaussianBlur stdDeviation="9" />
+      </filter>
+
+      <!-- the union of every glass silhouette. Each entry carries the node's own
+           translate() and matches its .node__shape geometry exactly. -->
+      <clipPath id="glass-clip">
+        <rect x="790" y="100" width="220" height="360" rx="20" ry="20" />
+        <rect transform="translate(60,140)"   x="0" y="0" width="160" height="80" rx="16" ry="16" />
+        <polygon transform="translate(440,140)" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+        <rect transform="translate(820,140)"  x="0" y="0" width="160" height="80" rx="16" ry="16" />
+        <path transform="translate(1200,140)" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z" />
+        <rect transform="translate(820,340)"  x="0" y="0" width="160" height="80" rx="16" ry="16" />
+        <rect transform="translate(1200,340)" x="0" y="0" width="160" height="80" rx="16" ry="16" />
+      </clipPath>
+
+      <!-- achromatic specular highlight: white only, no palette value -->
+      <linearGradient id="glass-sheen" x1="0" y1="0" x2="0.4" y2="1">
+        <!-- falls off inside the top ~30% so it never sits under a label -->
+        <stop offset="0"   stop-color="#ffffff" stop-opacity=".58" />
+        <stop offset=".26" stop-color="#ffffff" stop-opacity=".05" />
+        <stop offset=".58" stop-color="#ffffff" stop-opacity="0" />
+      </linearGradient>
+      <!-- DEFS:END -->
+    </defs>
+
+    <!-- 1. the backdrop the glass has to blur.
+         Two deliberately different frequencies: SOFT colour blobs (pre-blurred,
+         they set the mood) and a CRISP lattice on top (it is the only thing
+         whose smearing you can actually see through a panel). Drop the lattice
+         and the frost becomes invisible no matter how large the blur radius.
+         Blob centres are kept OUT of the panel interiors: the art is painted
+         once here and a second, blurred time inside #glass-clip, so colour
+         under a panel roughly doubles — park a saturated blob under a label
+         and that label loses its AA margin. -->
+    <g class="layer-backdrop" aria-hidden="true">
+      <g id="backdrop-art">
+        <g filter="url(#blob-soften)">
+          <circle cx="150"  cy="400" r="130" style="fill:color-mix(in srgb, var(--accent-client) 65%, var(--surface));opacity:.42" />
+          <circle cx="340"  cy="165" r="100" style="fill:color-mix(in srgb, var(--accent-infra) 65%, var(--surface));opacity:.36" />
+          <circle cx="690"  cy="135" r="95"  style="fill:color-mix(in srgb, var(--accent-async) 65%, var(--surface));opacity:.34" />
+          <circle cx="600"  cy="430" r="125" style="fill:color-mix(in srgb, var(--accent-data) 65%, var(--surface));opacity:.36" />
+          <circle cx="1090" cy="290" r="105" style="fill:color-mix(in srgb, var(--accent-service) 65%, var(--surface));opacity:.36" />
+          <circle cx="1050" cy="470" r="105" style="fill:color-mix(in srgb, var(--accent-async) 65%, var(--surface));opacity:.34" />
+          <circle cx="1420" cy="300" r="95"  style="fill:color-mix(in srgb, var(--accent-infra) 65%, var(--surface));opacity:.34" />
+        </g>
+        <rect x="-120" y="-60" width="1700" height="700" fill="url(#lattice)" />
+      </g>
+    </g>
+
+    <!-- 2. the frost: one blurred, clipped copy of that backdrop -->
+    <g class="layer-glass" aria-hidden="true">
+      <use href="#backdrop-art" filter="url(#glass-blur)" clip-path="url(#glass-clip)" />
+    </g>
+
+    <g class="layer-groups">
+      <!-- GROUPS:START -->
+      <g class="group" data-role="infra">
+        <rect class="group__box" x="790" y="100" width="220" height="360" rx="20" ry="20" />
+        <rect class="node__sheen" x="790" y="100" width="220" height="360" rx="20" ry="20" />
+        <text class="group__label" x="900" y="128">orders bounded context</text>
+      </g>
+      <!-- GROUPS:END -->
+    </g>
+
+    <g class="layer-edges">
+      <!-- EDGES:START -->
+      <path class="edge edge--primary anim-dash-flow" d="M 220 180 L 440 180"
+            marker-end="url(#arrow)"><title>browser calls api-gateway</title></path>
+
+      <g class="edge-group">
+        <path class="edge edge--primary anim-dash-flow" d="M 600 180 L 820 180"
+              marker-end="url(#arrow)"><title>api-gateway calls orders-service over HTTP</title></path>
+        <text class="edge__label" x="710" y="166">HTTP &middot; p99 40ms</text>
+      </g>
+
+      <path class="edge anim-dash-flow" d="M 980 180 L 1200 180"
+            marker-end="url(#arrow)"><title>orders-service writes to sql-database</title></path>
+
+      <g class="edge-group">
+        <path class="edge" d="M 900 220 L 900 340"
+              marker-start="url(#arrow)" marker-end="url(#arrow)"><title>orders-service reads from
+          and writes to redis-cache</title></path>
+        <text class="edge__label" x="866" y="306" style="text-anchor:end">read-through</text>
+      </g>
+
+      <g class="edge-group">
+        <path class="edge edge--async" d="M 940 220 L 940 280 L 1280 280 L 1280 340"
+              marker-end="url(#arrow-open)"><title>orders-service publishes order-placed to
+          message-queue asynchronously</title></path>
+        <text class="edge__label" x="1110" y="268">async &middot; order-placed</text>
+      </g>
+      <!-- EDGES:END -->
+    </g>
+
+    <g class="layer-nodes">
+      <!-- NODES:START -->
+      <g class="node" data-role="client" transform="translate(60,140)">
+        <title>browser — customer web client</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="16" ry="16" />
+          <rect class="node__sheen" x="0" y="0" width="160" height="80" rx="16" ry="16" />
+          <path class="node__detail" d="M 0 20 H 160" />
+          <circle class="node__icon" cx="16" cy="10" r="3" />
+          <circle class="node__icon" cx="28" cy="10" r="3" />
+          <circle class="node__icon" cx="40" cy="10" r="3" />
+        </g>
+        <text class="node__label" x="80" y="50">browser</text>
+        <text class="node__sub" x="80" y="68">checkout SPA</text>
+      </g>
+
+      <g class="node node--primary" data-role="service" transform="translate(440,140)">
+        <title>api-gateway — edge entry point, health-checked every second</title>
+        <g class="node__body anim-heartbeat">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+          <polygon class="node__sheen" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+        </g>
+        <text class="node__label" x="80" y="42">api-gateway</text>
+        <text class="node__sub" x="80" y="60">TLS &middot; authn</text>
+      </g>
+
+      <g class="node node--primary anim-pulse-glow" data-role="service" transform="translate(820,140)">
+        <title>orders-service — application service, currently processing checkout requests</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="16" ry="16" />
+          <rect class="node__sheen" x="0" y="0" width="160" height="80" rx="16" ry="16" />
+          <rect class="node__detail node__detail--dashed" x="10" y="10" width="140" height="60"
+                rx="8" ry="8" />
+        </g>
+        <text class="node__label" x="80" y="42">orders-service</text>
+        <text class="node__sub" x="80" y="60">REST &middot; 2 replicas</text>
+      </g>
+
+      <g class="node" data-role="data" transform="translate(1200,140)">
+        <title>sql-database — primary relational datastore</title>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z" />
+          <path class="node__sheen" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z" />
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14" />
+        </g>
+        <text class="node__label" x="80" y="46">sql-database</text>
+        <text class="node__sub" x="80" y="64">primary</text>
+      </g>
+
+      <g class="node" data-role="data" transform="translate(820,340)">
+        <title>redis-cache — read-through cache with a 60 second time to live</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="16" ry="16" />
+          <rect class="node__sheen" x="0" y="0" width="160" height="80" rx="16" ry="16" />
+          <polygon class="node__icon" points="140,10 128,28 136,28 130,44 146,24 138,24 144,10" />
+        </g>
+        <text class="node__label" x="80" y="46">redis-cache</text>
+        <text class="node__sub" x="80" y="64">TTL 60s</text>
+      </g>
+
+      <g class="node" data-role="async" transform="translate(1200,340)">
+        <title>message-queue — durable buffer; the bar shows queue depth growing</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="16" ry="16" />
+          <rect class="node__sheen" x="0" y="0" width="160" height="80" rx="16" ry="16" />
+          <g class="queue">
+            <rect class="queue__track" x="14" y="52" width="132" height="14" rx="7" ry="7" />
+            <rect class="queue__fill anim-queue-fill" x="14" y="52" width="132" height="14"
+                  rx="7" ry="7" />
+            <path class="node__detail" d="M 47 52 V 66 M 80 52 V 66 M 113 52 V 66" />
+          </g>
+        </g>
+        <text class="node__label" x="80" y="30">message-queue</text>
+        <text class="node__sub" x="80" y="46">depth</text>
+      </g>
+      <!-- NODES:END -->
+    </g>
+
+    <g class="layer-motion">
+      <!-- MOTION:START -->
+      <!-- one dot per in-flight request; offset-path lives in the stylesheet -->
+      <circle class="packet anim-packet-travel packet--e1" data-role="client" r="7" />
+      <circle class="packet anim-packet-travel packet--e3" data-role="data" r="7" style="--i:1" />
+      <!-- MOTION:END -->
+    </g>
+  </svg>
+
+  <!-- LEGEND:START -->
+  <ul class="legend">
+    <li class="legend__item"><span class="legend__swatch" data-role="client"></span>
+      <span class="legend__label">client — browser, mobile, or device</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="service"></span>
+      <span class="legend__label">service — application code we own</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="data"></span>
+      <span class="legend__label">data — database, cache, object store</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="async"></span>
+      <span class="legend__label">async — queue or worker (dashed edge)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="external"></span>
+      <span class="legend__label">external — third party we do not run</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="error"></span>
+      <span class="legend__label">error — failure path (long-short dash)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="infra"></span>
+      <span class="legend__label">infra — platform and observability</span></li>
+  </ul>
+  <!-- LEGEND:END -->
+
+  <p class="diagram__note">Reading the picture: the frosting and the layered panes are decoration —
+    role is carried by the tint <em>plus</em> the legend, the shape and the label, never by colour
+    alone. Reading the motion: marching dashes mean traffic is flowing on that connector, a moving
+    dot is one in-flight request, a pulsing panel is actively processing, and a filling bar is queue
+    depth. With <em>reduced motion</em> enabled every one of those renders as its end state — solid
+    strokes, dots parked at their destination, the queue bar at its resting depth — so nothing here
+    depends on animation to be understood.</p>
+</main>
+</body>
+</html>

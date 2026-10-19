@@ -1,0 +1,156 @@
+<!-- =====================================================================
+     node-shapes-artifacts.html — the ARTIFACTS of the `process` genre
+     ---------------------------------------------------------------------
+     WHY THIS FILE EXISTS
+     An artifact is the WORK ITEM a process moves: a brief, a mock, a URL,
+     a checklist, a note, a diff. It is the genre's data, and in this genre
+     it is also the genre's PACKET — the artifact is what travels between
+     acts (references/genres/process.md → Artifact-passes-as-payload).
+     Drawing a brief as a cylinder ("it's a document, documents are data")
+     says the team keeps a database of briefs, which is a different claim.
+
+     REFERENCED BY data/components.csv rows whose `Genres` cell is `process`
+     (`snippets/node-shapes-artifacts.html#shape-<id>`).
+
+     ROLE MAPPING (references/genres/process.md → Role mapping)
+     artifact -> `data`, with ONE documented exception: the feedback note
+     belongs to the feedback CHANNEL and takes `async` — it arrives out of
+     band, later, and it is the thing that closes the loop. The exception is
+     written down in the guide's mapping table, not invented per diagram.
+     The LEGEND reads "artifact", never "data".
+     Valid roles: client service data async external error infra
+
+     RULES (inherited from node-shapes.html — read its header first)
+     - Nominal box 160 x 80; the caller positions with translate(x,y).
+       Colour via data-role only; never fill=/stroke= presentation attrs.
+     - Unlike the actor family, an artifact's identity is its SILHOUETTE
+       (folded page, browser frame, pill, clipboard, sticky note), so the
+       body fills the nominal box and the labels sit inside it, centred at
+       the origin each block states. Where a fold or a clip occupies part of
+       the box, the label origin is shifted away from it — copy the origin
+       in the block, do not re-centre to x=80 by habit.
+     - Every drawn mark keeps >=3px from EVERY text in its own node,
+       measured on the rendered boxes; the automated containment sweeps
+       check text-vs-shape and text-vs-foreign-node, so a glyph touching its
+       OWN label passes every gate silently and only the eye catches it.
+       Re-measure after any font swap (mono runs ~20% wider than sans).
+     - Any literal text drawn as a GLYPH (the `</>` in shape-code-file) uses
+       the house `node__icon-glyph` class — never a bare fill=/font-size=
+       presentation attribute, which the stylesheet's `.node__detail{fill:none}`
+       would silently win against and render invisible — and it carries
+       font-variant-ligatures:none, because several style forks set a mono or
+       letter-spaced face where `</` ligates and the rendered string stops
+       matching the authored one.
+     - Never icon-only: the label names the artifact the silhouette shows.
+     - An artifact with N copies (12 tickets, 40 applications) IS stacked --
+       node-shapes.html → shape-replica-stack applies unchanged. Only PEOPLE
+       are never stacked.
+     ===================================================================== -->
+
+<!-- snippet: shape-document-page -->
+<!-- document-spec: page with the corner folded down = a written artifact
+     someone authored. Version belongs in the label ("Brief v2"): a process
+     sheet that cannot say which version moved cannot say what changed. -->
+<g class="node" data-role="data" transform="translate(0,0)">
+  <title>Brief v2 — the written spec the build loop starts from</title>
+  <g class="node__body">
+    <path class="node__shape" d="M 0 0 H 128 L 160 32 V 80 H 0 Z" />
+    <path class="node__detail" d="M 128 0 V 32 H 160" />
+  </g>
+  <text class="node__label" x="80" y="52">Brief v2</text>
+  <text class="node__sub" x="80" y="70">3 acceptance criteria</text>
+</g>
+
+<!-- snippet: shape-browser-frame -->
+<!-- prototype-screen: a device frame with WIREFRAME bars in it. Derived
+     from node-shapes.html#shape-device on purpose (a prototype is a screen)
+     and separated from it by the two placeholder bars, which are what say
+     "not built yet". Its ascii degradation is box-device, same as a browser
+     -- the terminal style has one screen.
+     Label origin x=104: the wireframe band owns x 12..56. -->
+<g class="node" data-role="data" transform="translate(0,0)">
+  <title>Checkout screen — low-fidelity prototype, not built yet</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <path class="node__detail" d="M 0 20 H 160" />
+    <circle class="node__icon" cx="14" cy="10" r="3" />
+    <circle class="node__icon" cx="26" cy="10" r="3" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 12 32 H 56 M 12 41 H 42" />
+    </g>
+  </g>
+  <text class="node__label" x="104" y="52">Checkout</text>
+  <text class="node__sub" x="104" y="70">lo-fi mock</text>
+</g>
+
+<!-- snippet: shape-url-pill -->
+<!-- deploy-url: a stadium pill. THE PILL IS THE GLYPH -- a URL is already a
+     link and a chain icon on top of one is decoration. What the shape says
+     is "this is reachable by anyone with the address", which is exactly the
+     fact a deploy step delivers. Put the ENVIRONMENT in the sub-label:
+     "staging" and "production" are different claims about who can see it.
+     Interior narrows toward the ends: keep labels under ~130px wide. -->
+<g class="node" data-role="data" transform="translate(0,0)">
+  <title>staging.acme.dev — the deployed URL anyone on the team can open</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="40" ry="40" />
+  </g>
+  <text class="node__label" x="80" y="46">staging.acme.dev</text>
+  <text class="node__sub" x="80" y="64">staging</text>
+</g>
+
+<!-- snippet: shape-clipboard-checklist -->
+<!-- test-checklist: clip at the top, ticked rows down the left = the
+     acceptance list an act is measured against. The COUNT is the point --
+     "8 checks" is a number the solution sheet owns; "tests" is not.
+     Label origin x=100: the tick column owns x 12..32. -->
+<g class="node" data-role="data" transform="translate(0,0)">
+  <title>Acceptance checklist — eight checks the cut must pass</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <rect class="node__detail" x="64" y="4" width="32" height="10" rx="4" ry="4" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 14 34 l 5 5 l 11 -12" />
+      <path class="node__detail" d="M 14 54 l 5 5 l 11 -12" />
+    </g>
+  </g>
+  <text class="node__label" x="100" y="44">Acceptance</text>
+  <text class="node__sub" x="100" y="62">8 checks</text>
+</g>
+
+<!-- snippet: shape-sticky-note -->
+<!-- feedback-note: a note with the BOTTOM-RIGHT corner turned up -- the
+     mirror of shape-document-page's top-right fold, so a note and a spec
+     never read as the same artifact at overview zoom.
+     data-role="async": feedback arrives out of band and later, and it is
+     the cargo of the loop-closing edge. Label WHO said it and WHAT they
+     ask for -- an unattributed note cannot be argued with, and a loop whose
+     return leg carries no attributable ask teaches nothing per cycle.
+     Label origin x=72: the fold owns x 132..160, y 52..80. -->
+<g class="node" data-role="async" transform="translate(0,0)">
+  <title>Founder feedback — cut step 3, it is not worth the day it costs</title>
+  <g class="node__body">
+    <path class="node__shape" d="M 0 0 H 160 V 52 L 132 80 H 0 Z" />
+    <path class="node__detail" d="M 160 52 H 132 V 80" />
+  </g>
+  <text class="node__label" x="72" y="40">Founder</text>
+  <text class="node__sub" x="72" y="58">"cut step 3"</text>
+</g>
+
+<!-- snippet: shape-code-file -->
+<!-- code-artifact: the change itself -- a branch, a PR, a diff. The `</>`
+     is real <text>, not a path, so it stays crisp at beat zoom, and it is
+     aria-hidden DECORATION: the label carries the meaning (never
+     icon-only). Ligatures OFF -- `</` ligates in several mono faces and the
+     rendered string stops matching the authored one.
+     Name the SCOPE plus the change ("checkout/ · PR #42"), never "code". -->
+<g class="node" data-role="data" transform="translate(0,0)">
+  <title>checkout/ — the change under review, PR #42</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <text class="node__icon-glyph" x="136" y="26" aria-hidden="true"
+          style="font-variant-ligatures:none">&lt;/&gt;</text>
+  </g>
+  <text class="node__label" x="80" y="52">checkout/</text>
+  <text class="node__sub" x="80" y="70">PR #42</text>
+</g>

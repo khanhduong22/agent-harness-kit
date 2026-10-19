@@ -1,0 +1,1359 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>0 → 500K CCU — five architectures, five break points</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#f8fafc; --surface:#ffffff;
+  --grid:color-mix(in srgb, #0f172a 5%, transparent);
+  --ink:#0f172a; --muted:#64748b; --stroke:#475569; --stroke-w:1.8px;
+  --font-title:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-label:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  /* roles: data/color-semantics.csv, Style ID flat-minimal, palette house */
+  --role-client:#dbeafe;  --ink-client:#2563eb;  --accent-client:#3b82f6;
+  --role-service:#ffedd5; --ink-service:#ea580c; --accent-service:#f97316;
+  --role-data:#dcfce7;    --ink-data:#16a34a;    --accent-data:#22c55e;
+  --role-async:#f3e8ff;   --ink-async:#9333ea;   --accent-async:#a855f7;
+  --role-infra:#f1f5f9;   --ink-infra:#475569;   --accent-infra:#14b8a6;
+  --role-error:#fee2e2;   --ink-error:#dc2626;   --accent-error:#ef4444;
+  /* educational-register state tints (state-effects.css -> state-overlay-replica).
+     Custom rows, checked by hand: --ink-warn is 4.80:1 on the canvas and 4.51:1 on
+     its own fill; --muted reads 4.27:1 on the amber replica and 4.35:1 on the
+     degrade replica — at parity with the house role fills. */
+  --role-warn:#fef3c7;    --ink-warn:#b45309;
+  --role-degrade:#fef2f2;
+  /* every ambient loop divides the 48s master: 2400x20, 1600x30, 1200x40, 120x400 */
+  --dur-flow:2400ms; --dur-dash:1200ms; --dur-fill:2400ms; --dur-pulse:1600ms;
+  --ease-flow:ease-in-out; --master:48s;
+}
+html,body{margin:0;background:var(--bg)}
+body{display:grid;place-items:center;min-height:100vh}
+svg{display:block;width:min(100vw,177.8vh);height:auto}
+.world-grid{fill:url(#grid-pat)}
+/* ---- scenery chrome: title + legend, out while the camera is inside an act ---- */
+.layer-chrome{animation-duration:var(--master);animation-timing-function:linear;
+              animation-iteration-count:infinite}
+.title{font:700 34px var(--font-title);fill:var(--ink);text-anchor:middle}
+.subtitle{font:400 16px var(--font-label);fill:var(--muted);text-anchor:middle}
+/* act title card: scenery, so the display treatment is allowed here (a caption is
+   the narrator at the smallest size on screen; this is a chapter heading). It
+   names the ARCHITECTURE MODEL of the act, not only the load band. Fixed slot,
+   top-left, identical in every act — zoning rule 3 applies to chrome too. */
+.act-title{font:700 40px var(--font-title);fill:var(--ink);letter-spacing:.01em}
+.act-title__sub{font:600 16px var(--font-mono);fill:var(--muted);letter-spacing:.08em}
+.verdict-box{fill:var(--ink);opacity:.95}
+.verdict{font:600 13px var(--font-mono);fill:var(--surface);text-anchor:middle;font-variant-ligatures:none}
+/* ---- nodes: flat-minimal skin (light canvas, zero shadow) ---- */
+.node__shape{fill:var(--surface);stroke:var(--stroke);stroke-width:var(--stroke-w);stroke-opacity:.9}
+.node[data-role="client"] .node__shape{fill:var(--role-client);stroke:var(--ink-client)}
+.node[data-role="service"] .node__shape{fill:var(--role-service);stroke:var(--ink-service)}
+.node[data-role="data"] .node__shape{fill:var(--role-data);stroke:var(--ink-data)}
+.node[data-role="async"] .node__shape{fill:var(--role-async);stroke:var(--ink-async)}
+.node[data-role="infra"] .node__shape{fill:var(--role-infra);stroke:var(--ink-infra)}
+/* ============ THE ACT-WEIGHT LADDER (trialled principle 1) =================
+   flat-minimal ships exactly ONE stroke step: `.node--primary` = calc(--stroke-w
+   * 1.4). This cut walks that same x1.4 step in BOTH directions instead of
+   inventing a second visual language.
+     new      3.2px   — carried verbatim from the frozen golden's .node--new
+     base     1.8px   — --stroke-w
+     veteran  1.286px — calc(--stroke-w / 1.4), one step DOWN the same ladder
+   The opacity step is flat-minimal's own `.node__detail` tier (.65) — one step
+   back from ink, and well clear of the `.is-idle` floor (.35), because a veteran
+   is still running, not idle. Opacity rides `.node__body` only, exactly as
+   `.is-idle` does, so the veteran's LABEL keeps full ink and stays AA-legible. */
+.node--new .node__shape{stroke-width:3.2px;stroke-opacity:1}
+.node--veteran .node__shape{stroke-width:calc(var(--stroke-w) / 1.4)}
+.node--veteran .node__body{opacity:.65}
+/* retired-component ghost: the ONE farewell window a removed component gets, on the
+   first act after its removal. Outline only -- a filled ghost reads as a component
+   still running, and acts/retired-ghost-missing refuses one. It is NOT class="node"
+   and carries NO data-node-id: it is the memory of a component, not the component,
+   and giving it the id would put app-monolith back into act 2's id set. */
+.is-ghost{opacity:.38}
+.is-ghost .node__shape{fill:none;stroke:var(--muted);stroke-width:1.286px;
+  stroke-dasharray:7 6}
+.node-ghost__label{font:500 14px var(--font-label);fill:var(--muted);text-anchor:middle;
+  letter-spacing:.02em}
+.node-ghost__note{font:400 12px var(--font-mono);fill:var(--muted);text-anchor:middle;
+  font-variant-ligatures:none}
+.node__ghost--1{--ghost:.3}
+.node__ghost--2{--ghost:.5}
+.node--veteran .node__ghost--1{--ghost:.2}   /* .3 x .65 */
+.node--veteran .node__ghost--2{--ghost:.33}  /* .5 x .65 */
+/* compress (trialled principle 2): a solved lesson keeps its slot but drops to
+   flat-minimal's OWN base type sizes (--fs-label 16 / --fs-sub 13) at the
+   supporting 0.85 box SKILL.md already defines, on top of the veteran ladder.
+   No new value is introduced — detail follows the CURRENT act's lesson. */
+.node--compress .node__label{font-size:16px}
+.node--compress .node__sub{font-size:13px}
+.node__label{font:600 18px var(--font-label);fill:var(--ink);text-anchor:middle}
+.node__sub{font:400 15px var(--font-label);fill:var(--muted);text-anchor:middle}
+.node--support .node__label{font-size:16px}
+.node__sub,.edge__label--mono,.verdict,.state-chip{font-variant-ligatures:none}
+/* ---- node detail art (device chrome bar, pipe lanes, glyph badges) ---- */
+.node__detail{fill:none;stroke-width:1;opacity:.65;stroke-linecap:round}
+.node[data-role="client"] .node__detail{stroke:var(--ink-client)}
+.node[data-role="service"] .node__detail{stroke:var(--ink-service)}
+.node[data-role="data"] .node__detail{stroke:var(--ink-data)}
+.node[data-role="async"] .node__detail{stroke:var(--ink-async)}
+.node[data-role="infra"] .node__detail{stroke:var(--ink-infra)}
+.node__detail--dashed{stroke-dasharray:5 4}
+.node__icon{stroke:none;opacity:.9}
+.node[data-role="client"] .node__icon{fill:var(--ink-client)}
+.node[data-role="data"] .node__icon{fill:var(--ink-data)}
+.queue__track{fill:var(--ink);opacity:.16;stroke:none}
+.queue__fill{fill:var(--accent-async);stroke:none}
+.queue .node__detail{stroke:var(--role-async);opacity:.9}
+/* ---- edges: house weights, quiet by default, async dashed ---- */
+.edge{fill:none;stroke:var(--stroke);stroke-width:2px;stroke-opacity:.55;
+      stroke-linecap:round;stroke-linejoin:round;marker-end:url(#v-arrow)}
+.edge--async{stroke:var(--ink-async);stroke-opacity:.8;stroke-dasharray:12 9;marker-end:url(#v-arrow-open)}
+.edge--idle{stroke-opacity:.3}
+.anim-dash-flow{animation:dash-flow var(--dur-dash) linear infinite}
+@keyframes dash-flow{to{stroke-dashoffset:-42}}
+.edge__label{font:500 13px var(--font-label);fill:var(--muted)}
+/* the load-ratio labels: mono, inked, so `read x10` vs `write x1` reads as DATA
+   on the edge rather than as prose. Numbers come from the sheet's NUMBERS block. */
+.edge__label--mono{font:500 12.5px var(--font-mono);fill:var(--ink)}
+.marker{fill:var(--stroke);stroke:none}
+.marker--open{fill:none;stroke:var(--ink-async);stroke-width:1.6;stroke-linecap:round}
+/* ---- states (data/states.csv) drawn as OVERLAYS, never node mutations ---- */
+.state-chip-box{fill:var(--ink-error)}
+.state-chip-box--sync{fill:var(--ink-async)}
+.state-chip{font:600 11px var(--font-label);fill:#ffffff;text-anchor:middle;letter-spacing:.04em}
+.load-track{fill:var(--muted);opacity:.15}
+.load-bar{fill:var(--accent-error);opacity:.55}
+.anim-queue-fill{clip-path:inset(0 100% 0 0);animation:queue-fill var(--dur-fill) ease-out infinite alternate}
+@keyframes queue-fill{from{clip-path:inset(0 40% 0 0)}to{clip-path:inset(0 var(--empty,3%) 0 0)}}
+.state-degrade-ring{fill:none;stroke:var(--ink-error);stroke-width:2.6;stroke-dasharray:6 3;
+  animation:ring-pulse var(--dur-pulse) ease-in-out infinite alternate}
+@keyframes ring-pulse{from{opacity:.6}to{opacity:1}}
+.state-sync-line{fill:none;stroke:var(--ink-async);stroke-width:2;stroke-dasharray:10 4;
+  animation:sync-drift var(--dur-dash) linear infinite}
+@keyframes sync-drift{to{stroke-dashoffset:-28}}
+/* is-selected (states.csv): role-accent stroke at +1px weight on the chosen
+   node — two channels, never colour alone — paired with the routing label
+   `hash 7c` on the edge. Its Motion Ref is pulse-glow, but pulse-glow carries a
+   drop-shadow FILTER and SKILL.md forbids a filter on an element that animates
+   under a moving camera, so the intensity rides the same opacity-only
+   `ring-pulse` every other state overlay in this cut uses. */
+.state-select-ring{fill:none;stroke:var(--accent-data);stroke-width:5px;
+  animation:ring-pulse var(--dur-pulse) ease-in-out infinite alternate}
+/* the COLORED REPLICA (state-effects.css -> state-overlay-replica): a full copy of
+   the node's shape in the STATE's tokens, inside the state's overlay group. The
+   window's opacity recolours the node without the base paint ever being animated. */
+.state-replica{stroke-width:3.4px}
+.state-replica--warn{fill:var(--role-warn);stroke:var(--ink-warn)}
+.state-replica--error{fill:var(--role-degrade);stroke:var(--ink-error);stroke-dasharray:6 3}
+.state-replica__detail{fill:none;stroke-width:1;opacity:.65;stroke-linecap:round}
+.state-replica__detail--warn{stroke:var(--ink-warn)}
+.state-replica__detail--error{stroke:var(--ink-error)}
+/* shake-stress: 120ms divides the 48s master 400 times, so the loop seam is closed
+   without a delay. Amplitude capped at 1.5px so the label underneath stays readable. */
+.anim-shake-stress{animation:shake-stress 120ms linear infinite}
+@keyframes shake-stress{0%,100%{transform:translate(-1.5px,0)}25%{transform:translate(1.2px,-.6px)}
+  50%{transform:translate(-1.1px,.6px)}75%{transform:translate(1.5px,0)}}
+/* ---- packets: payload glyphs (packet-glyphs.html consumer CSS) ---- */
+.packet--cargo{color:var(--stroke);offset-distance:0%;offset-rotate:0deg}
+.packet--request{offset-rotate:auto}
+.packet--event{color:var(--ink-async)}
+.packet--binary-stream{color:var(--ink-async)}
+.packet__halo{fill:var(--surface);stroke:var(--surface);stroke-width:3;stroke-linejoin:round}
+.anim-packet{animation:pkt var(--dur-flow) var(--ease-flow) infinite}
+@keyframes pkt{0%{offset-distance:0%;opacity:0}8%{opacity:1}42%{offset-distance:100%;opacity:1}
+               50%,100%{offset-distance:100%;opacity:0}}
+.legend text{font:400 13px var(--font-label);fill:var(--ink)}
+.legend .k{font-weight:600}
+/* ---- camera: one hold per act (constant k inside the tier band, so growth is
+       read as boxes APPEARING in fixed slots), plus one read-gate zoom on the
+       T5 write path, plus the overview for the intro and the five recaps ---- */
+.camera{transform-origin:0 0;animation:beats var(--master) linear infinite}
+@keyframes beats{
+  0%,3.3333%{transform:none;animation-timing-function:ease-in-out}
+  5%,13.75%{transform:translate(-364px,-115px) scale(1.4388);animation-timing-function:ease-in-out}
+  15%,23.75%{transform:translate(-364px,-115px) scale(1.4388);animation-timing-function:ease-in-out}
+  25%,55.4167%{transform:translate(-430px,-72px) scale(1.3431);animation-timing-function:ease-in-out}
+  56.6667%,65.8333%{transform:translate(-984px,-412px) scale(1.8083);animation-timing-function:ease-in-out}
+  67.0833%,73.75%{transform:translate(-430px,-72px) scale(1.3431);animation-timing-function:ease-in-out}
+  75%,100%{transform:none}
+}
+
+/* ================= timeline, emitted by scripts/emit_timeline.py from
+       tests/fixtures/progressive-500k-5tier.timeline.tsv (master 48000ms, beat 4800ms)
+       — do not hand-edit ========= */
+/* ---- acts: temporal tiers. One act owns the whole canvas; the canvas clears
+       by window handoff. A hidden act is parked off-stage so it contributes no
+       geometry to any render-side sweep. ---- */
+.act{opacity:0;animation-duration:var(--master);animation-timing-function:linear;
+     animation-iteration-count:infinite}
+.act-1{transform:translate(0px,-2400px)}
+.act-2{transform:translate(0px,-4800px)}
+.act-3{transform:translate(0px,-7200px)}
+.act-4{transform:translate(0px,-9600px)}
+.act-5{transform:none}
+/* ---- staged states: overlays on the same master, windows from the sheet ---- */
+.stage{opacity:0;animation-duration:var(--master);animation-timing-function:linear;
+       animation-iteration-count:infinite}
+/* ---- act spotlight: corner brackets, opacity only (house idiom) ---- */
+.node__focus{fill:none;stroke:var(--ink);stroke-width:3px;stroke-linecap:square;opacity:0;
+  animation-duration:var(--master);animation-timing-function:linear;animation-iteration-count:infinite}
+/* ---- captions: continuous wipe, narrator-card polarity ---- */
+.beat-caption{opacity:0;clip-path:inset(-6% 101% -6% -1%);
+  animation-duration:var(--master);animation-timing-function:linear;animation-iteration-count:infinite}
+.caption-box{fill:var(--ink);stroke:none;opacity:.97}
+.beat-caption text{fill:var(--surface);font-family:var(--font-label);font-weight:600;
+                   text-anchor:middle;font-variant-ligatures:none}
+.cap-a1 text,.cap-a2 text,.cap-a3a text,.cap-a3b text,.cap-a4a text,.cap-a4b text,
+.cap-a5a text,.cap-a5b text{font-size:15px}
+.cap-r text{font-size:24px}
+/* .layer-chrome -> data-window="0,3.3333 75,100" */
+.layer-chrome{animation-name:chrome-fade}
+@keyframes chrome-fade{0%,3.3333%{opacity:1}4.5833%,73.75%{opacity:0}75%,100%{opacity:1}}
+/* .act-1 -> data-window="5,15 75,80" */
+.act-1{animation-name:act1}
+@keyframes act1{0%,3.74%{opacity:0;transform:translate(0px,-2400px)}3.75%{opacity:0;transform:none}5%,15%{opacity:1;transform:none}16.25%{opacity:0;transform:none}16.26%,73.74%{opacity:0;transform:translate(0px,-2400px)}73.75%{opacity:0;transform:none}75%,80%{opacity:1;transform:none}81.25%{opacity:0;transform:none}81.26%,100%{opacity:0;transform:translate(0px,-2400px)}}
+/* .act-2 -> data-window="15,25 80,85" */
+.act-2{animation-name:act2}
+@keyframes act2{0%,13.74%{opacity:0;transform:translate(0px,-4800px)}13.75%{opacity:0;transform:none}15%,25%{opacity:1;transform:none}26.25%{opacity:0;transform:none}26.26%,78.74%{opacity:0;transform:translate(0px,-4800px)}78.75%{opacity:0;transform:none}80%,85%{opacity:1;transform:none}86.25%{opacity:0;transform:none}86.26%,100%{opacity:0;transform:translate(0px,-4800px)}}
+/* .act-3 -> data-window="25,41.6667 85,90" */
+.act-3{animation-name:act3}
+@keyframes act3{0%,23.74%{opacity:0;transform:translate(0px,-7200px)}23.75%{opacity:0;transform:none}25%,41.6667%{opacity:1;transform:none}42.9167%{opacity:0;transform:none}42.9267%,83.74%{opacity:0;transform:translate(0px,-7200px)}83.75%{opacity:0;transform:none}85%,90%{opacity:1;transform:none}91.25%{opacity:0;transform:none}91.26%,100%{opacity:0;transform:translate(0px,-7200px)}}
+/* .act-4 -> data-window="41.6667,56.6667 90,95" */
+.act-4{animation-name:act4}
+@keyframes act4{0%,40.4067%{opacity:0;transform:translate(0px,-9600px)}40.4167%{opacity:0;transform:none}41.6667%,56.6667%{opacity:1;transform:none}57.9167%{opacity:0;transform:none}57.9267%,88.74%{opacity:0;transform:translate(0px,-9600px)}88.75%{opacity:0;transform:none}90%,95%{opacity:1;transform:none}96.25%{opacity:0;transform:none}96.26%,100%{opacity:0;transform:translate(0px,-9600px)}}
+/* .act-5 -> data-window="56.6667,75 95,100" */
+.act-5{animation-name:act5}
+@keyframes act5{0%{opacity:1;transform:none}3.3333%{opacity:0;transform:none}3.3433%,55.4067%{opacity:0;transform:translate(0px,-12000px)}55.4167%{opacity:0;transform:none}56.6667%,75%{opacity:1;transform:none}76.25%{opacity:0;transform:none}76.26%,93.74%{opacity:0;transform:translate(0px,-12000px)}93.75%{opacity:0;transform:none}95%,100%{opacity:1;transform:none}}
+/* .stage-a1 -> data-window="8.5833,15 75,80" */
+.stage-a1{animation-name:stg-a1}
+@keyframes stg-a1{0%,7.3333%{opacity:0}8.5833%,15%{opacity:1}16.25%,73.75%{opacity:0}75%,80%{opacity:1}81.25%,100%{opacity:0}}
+/* .stage-a2 -> data-window="18.5833,25 80,85" */
+.stage-a2{animation-name:stg-a2}
+@keyframes stg-a2{0%,17.3333%{opacity:0}18.5833%,25%{opacity:1}26.25%,78.75%{opacity:0}80%,85%{opacity:1}86.25%,100%{opacity:0}}
+/* .stage-a3 -> data-window="29.1667,41.6667 85,90" */
+.stage-a3{animation-name:stg-a3}
+@keyframes stg-a3{0%,27.9167%{opacity:0}29.1667%,41.6667%{opacity:1}42.9167%,83.75%{opacity:0}85%,90%{opacity:1}91.25%,100%{opacity:0}}
+/* .stage-a4 -> data-window="50.4167,56.6667 90,95" */
+.stage-a4{animation-name:stg-a4}
+@keyframes stg-a4{0%,49.1667%{opacity:0}50.4167%,56.6667%{opacity:1}57.9167%,88.75%{opacity:0}90%,95%{opacity:1}96.25%,100%{opacity:0}}
+/* .stage-a5 -> data-window="59.1667,75 95,100" */
+.stage-a5{animation-name:stg-a5}
+@keyframes stg-a5{0%,57.9167%{opacity:0}59.1667%,75%{opacity:1}76.25%,93.75%{opacity:0}95%,100%{opacity:1}}
+.focus-a1{animation-name:focus-a1}
+@keyframes focus-a1{0%,7.3333%{opacity:0}8.5833%,13.75%{opacity:1}15%,100%{opacity:0}}
+.focus-a2{animation-name:focus-a2}
+@keyframes focus-a2{0%,17.3333%{opacity:0}18.5833%,23.75%{opacity:1}25%,100%{opacity:0}}
+.focus-a3a{animation-name:focus-a3a}
+@keyframes focus-a3a{0%,27.75%{opacity:0}29%,34.1667%{opacity:1}35.4167%,100%{opacity:0}}
+.focus-a3b{animation-name:focus-a3b}
+@keyframes focus-a3b{0%,35.25%{opacity:0}36.5%,40.4167%{opacity:1}41.6667%,100%{opacity:0}}
+.focus-a4a{animation-name:focus-a4a}
+@keyframes focus-a4a{0%,44.4167%{opacity:0}45.6667%,49.1667%{opacity:1}50.4167%,100%{opacity:0}}
+.focus-a4b{animation-name:focus-a4b}
+@keyframes focus-a4b{0%,50.6667%{opacity:0}51.9167%,55.4167%{opacity:1}56.6667%,100%{opacity:0}}
+.focus-a5a{animation-name:focus-a5a}
+@keyframes focus-a5a{0%,59.4167%{opacity:0}60.6667%,65.8333%{opacity:1}67.0833%,100%{opacity:0}}
+.focus-a5b{animation-name:focus-a5b}
+@keyframes focus-a5b{0%,67.75%{opacity:0}69%,73.75%{opacity:1}75%,100%{opacity:0}}
+.cap-a1{animation-name:cap-a1}
+@keyframes cap-a1{0%,7.0833%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}7.1033%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}8.5833%,13.75%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}15%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+.cap-a2{animation-name:cap-a2}
+@keyframes cap-a2{0%,17.0833%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}17.1033%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}18.5833%,23.75%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}25%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+.cap-a3a{animation-name:cap-a3a}
+@keyframes cap-a3a{0%,27.5%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}27.52%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}29%,34.1667%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}35.4167%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+.cap-a3b{animation-name:cap-a3b}
+@keyframes cap-a3b{0%,35%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}35.02%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}36.5%,40.4167%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}41.6667%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+.cap-a4a{animation-name:cap-a4a}
+@keyframes cap-a4a{0%,44.1667%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}44.1867%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}45.6667%,49.1667%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}50.4167%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+.cap-a4b{animation-name:cap-a4b}
+@keyframes cap-a4b{0%,50.4167%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}50.4367%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}51.9167%,55.4167%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}56.6667%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+.cap-a5a{animation-name:cap-a5a}
+@keyframes cap-a5a{0%,59.1667%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}59.1867%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}60.6667%,65.8333%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}67.0833%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+.cap-a5b{animation-name:cap-a5b}
+@keyframes cap-a5b{0%,67.5%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}67.52%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}69%,73.75%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}75%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+.cap-r{animation-name:cap-r}
+@keyframes cap-r{0%,76.25%{opacity:0;clip-path:inset(-6% 101% -6% -1%)}76.27%{opacity:1;clip-path:inset(-6% 101% -6% -1%)}77.75%,84.1667%{opacity:1;clip-path:inset(-6% -1% -6% -1%)}85.4167%,100%{opacity:0;clip-path:inset(-6% -1% -6% -1%)}}
+@media (prefers-reduced-motion: reduce){
+  .camera{animation:none !important;transform:none !important}
+  .layer-chrome{animation:none !important;opacity:1 !important}
+  /* the informative end state is the FINISHED architecture, act 5 alone */
+  .act{animation:none !important;opacity:0 !important}
+  .act-1{transform:translate(0px,-2400px) !important}
+  .act-2{transform:translate(0px,-4800px) !important}
+  .act-3{transform:translate(0px,-7200px) !important}
+  .act-4{transform:translate(0px,-9600px) !important}
+  .act-5{opacity:1 !important;transform:none !important}
+  /* act 5 is healthy, so no failure state is the resting truth here — but the
+     ROUTED shard is: `is-selected` is the end state of a write that already
+     chose its owner, so stage-a5 stays lit with its pulse stopped, exactly as
+     states.csv's reduced-motion cell for that row asks. */
+  .stage{animation:none !important;opacity:0 !important}
+  .stage-a5{opacity:1 !important}
+  .state-select-ring{animation:none !important;opacity:1 !important}
+  .beat-caption{animation:none !important;opacity:0 !important}
+  .node__focus{animation:none !important;opacity:0 !important}
+  .anim-dash-flow,.state-sync-line,.state-degrade-ring{animation:none !important}
+  .anim-shake-stress{animation:none !important;transform:none !important}
+  .edge--async{stroke-dasharray:12 9 !important}
+  .packet,.anim-packet{animation:none !important;offset-distance:100% !important;opacity:1 !important}
+  .anim-queue-fill{animation:none !important;clip-path:inset(0 var(--empty,3%) 0 0) !important}
+}
+</style></head><body>
+<svg viewBox="0 0 1920 1080" role="img" aria-labelledby="t d">
+  <title id="t">Scaling one system from 0 to 500K concurrent users across five architectures</title>
+  <desc id="d">One system, five architectures; what broke decided every boundary, and the traffic
+  mix is ten reads per write throughout — about one operation per user every fifteen seconds, so
+  one write for every eleven operations. Act 1, MONOLITH, to 1K concurrent users: browsers reach one
+  four-vCPU monolith which opens a read path at ten units and a write path at one unit into a single
+  Postgres primary; sixty-seven operations a second at one and a half seconds each keep a hundred
+  requests in flight, the pool is full, and Postgres turns amber and trembles behind a 100 of 100
+  connections chip. Act 2, HORIZONTAL SCALE-OUT, to 10K: an application load balancer, six app
+  replicas and a Redis cache with a ninety percent hit rate clear the pool — reads at ten units hit
+  Redis and only the one-unit miss reaches Postgres — but sixty-one cache misses and sixty-one writes
+  a second now share one box, so half of the primary's work is reads and it goes amber again behind a
+  READS 50% chip. Act 3, READ / WRITE SPLIT, to 100K: a CDN fronts static and API traffic, three read
+  replicas take the cache misses behind a 1.8 second lag chip, and a queue holds emails and exports
+  which four workers drain one job per worker. Nothing on this tier is saturated — the boundary out
+  of it is the only one in the story that is not a load number: one deployable still owns auth,
+  catalog and orders, so one release and one crash cover all three. Act 4, MICROSERVICES, to 300K:
+  one API gateway routes by path to three domain services — auth, catalog and orders — auth owning
+  its own private database; because the services can no longer call each other, the order service
+  publishes one order.created event to a pub/sub stream that fans out to two subscribers, the catalog
+  service which invalidates its cached stock and the workers which send the receipt. But the split
+  moved the code, not the write path: every order write still lands on ONE Postgres primary, and at
+  300K that is one thousand eight hundred writes a second against its roughly two thousand a second
+  ceiling, so the primary ends the act carrying both a HOT ROW and a 2K WPS chip. Act 5, SHARD THE
+  WRITES, to 500K: a shard router takes the primary's old slot and picks the owning shard from the
+  hash of the shard key; this write hashes to 7c, which falls in range 56 to aa, so it travels to shard
+  2 of 3 alone and the other two shards stay idle for it. Three thousand writes a second spread over
+  three primaries is about one thousand each, roughly half of each shard's ceiling. The solved auth
+  and catalog lesson is drawn small and faded here, and the three read replicas remain, still serving
+  catalog reads. The five acts then replay in order and the loop parks on act 5. These five are the
+  BASIC patterns — the standard baseline of scaling, taught here in their simplest form; real systems
+  diverge, and this ladder is not the answer to every problem.</desc>
+  <defs>
+    <pattern id="grid-pat" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--grid)" stroke-width="1"/>
+    </pattern>
+    <marker id="v-arrow" class="marker" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M 0 0 L 10 5 L 0 10 z"/></marker>
+    <marker id="v-arrow-open" class="marker marker--open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M 0 0 L 10 5 L 0 10" fill="none"/></marker>
+  </defs>
+
+  <g class="camera">
+    <rect class="world-grid" x="-400" y="-400" width="2720" height="1880"/>
+
+    <!-- ============ persistent scenery: title band + shared legend ============ -->
+    <g class="layer-chrome" data-window="0,3.3333 75,100">
+      <g aria-hidden="true">
+        <text class="title" x="960" y="54">0 → 500K CCU · THE BASIC PATTERNS</text>
+        <text class="subtitle" x="960" y="86">monolith · scale-out · read/write split · microservices · 3 shards</text>
+      </g>
+      <g class="legend">
+        <rect x="150" y="926" width="18" height="18" rx="4" fill="var(--role-client)" stroke="var(--ink-client)" stroke-width="1.8"/>
+        <text data-legend-role="client" x="176" y="940">client ×1 <tspan class="k">users</tspan></text>
+        <rect x="300" y="926" width="18" height="18" rx="4" fill="var(--role-service)" stroke="var(--ink-service)" stroke-width="1.8"/>
+        <text data-legend-role="service" x="326" y="940">service ×6 <tspan class="k">gateway · services · workers · router</tspan></text>
+        <rect x="700" y="926" width="18" height="18" rx="4" fill="var(--role-data)" stroke="var(--ink-data)" stroke-width="1.8"/>
+        <text data-legend-role="data" x="726" y="940">data ×6 <tspan class="k">auth-db · shards · replicas · redis</tspan></text>
+        <rect x="1090" y="926" width="18" height="18" rx="4" fill="var(--role-async)" stroke="var(--ink-async)" stroke-width="1.8"/>
+        <text data-legend-role="async" x="1116" y="940">async ×2 <tspan class="k">queue · stream</tspan></text>
+        <rect x="1320" y="926" width="18" height="18" rx="4" fill="var(--role-infra)" stroke="var(--ink-infra)" stroke-width="1.8"/>
+        <text data-legend-role="infra" x="1346" y="940">infra ×1 <tspan class="k">cdn</tspan></text>
+
+        <!-- the weight ladder, stated: new / veteran / compressed -->
+        <rect x="150" y="962" width="18" height="18" rx="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="3.2"/>
+        <text x="176" y="976">thicker outline = <tspan class="k">new in this act</tspan></text>
+        <rect x="430" y="962" width="18" height="18" rx="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.286" opacity=".65"/>
+        <text x="456" y="976">thinner + faded = <tspan class="k">already solved, still running</tspan></text>
+        <rect x="820" y="965" width="13" height="13" rx="3" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.286" opacity=".65"/>
+        <text x="846" y="976">smaller = <tspan class="k">lesson compressed</tspan></text>
+
+        <line x1="150" y1="1008" x2="196" y2="1008" stroke="var(--stroke)" stroke-width="2" opacity=".55"/>
+        <text x="204" y="1012">request path</text>
+        <line x1="320" y1="1008" x2="366" y2="1008" stroke="var(--ink-async)" stroke-width="2" stroke-dasharray="12 9" opacity=".8"/>
+        <text x="374" y="1012">async path</text>
+        <g transform="translate(480,1008)" color="var(--stroke)"><circle r="5" fill="currentColor"/></g>
+        <text x="495" y="1012">request</text>
+        <g transform="translate(580,1008)" color="var(--ink-async)"><circle r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle r="3.2" fill="currentColor"/></g>
+        <text x="595" y="1012">event</text>
+        <g transform="translate(670,1008)" color="var(--ink-async)"><rect x="-7.5" y="-5.5" width="15" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><text x="0" y="0" fill="currentColor" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="7" text-anchor="middle" dominant-baseline="central" style="font-variant-ligatures:none">101</text></g>
+        <text x="690" y="1012">binary-stream</text>
+        <text x="820" y="1012" style="font:500 12.5px var(--font-mono);fill:var(--ink);font-variant-ligatures:none">read ×10</text>
+        <text x="890" y="1012">/</text>
+        <text x="905" y="1012" style="font:500 12.5px var(--font-mono);fill:var(--ink);font-variant-ligatures:none">write ×1</text>
+        <text x="975" y="1012">= load ratio on that edge</text>
+
+        <!-- the educational register's second state channel: the node's own body is
+             recoloured for the window it is in, so a state reads from across the room -->
+        <rect x="150" y="1032" width="20" height="20" rx="5" fill="var(--role-warn)" stroke="var(--ink-warn)" stroke-width="2.4"/>
+        <text x="178" y="1048">amber body + shake = <tspan class="k">overloaded</tspan></text>
+        <rect x="420" y="1032" width="20" height="20" rx="5" fill="var(--role-degrade)" stroke="var(--ink-error)" stroke-width="2.4" stroke-dasharray="6 3"/>
+        <text x="448" y="1048">red dashed body = <tspan class="k">degraded</tspan></text>
+        <rect x="670" y="1032" width="20" height="20" rx="5" fill="none" stroke="var(--accent-data)" stroke-width="5"/>
+        <text x="700" y="1048">accent outline = <tspan class="k">shard the router chose</tspan></text>
+        <rect x="1010" y="1034" width="78" height="20" rx="10" fill="var(--ink-async)"/>
+        <text x="1049" y="1048" text-anchor="middle" style="font:600 11px var(--font-label);fill:#fff;letter-spacing:.04em">LAG 1.8s</text>
+        <text x="1096" y="1048">replica lag</text>
+        <rect x="1200" y="1034" width="64" height="20" rx="10" fill="var(--ink-error)"/>
+        <text x="1232" y="1048" text-anchor="middle" style="font:600 11px var(--font-label);fill:#fff;letter-spacing:.04em">2K WPS</text>
+        <text x="1272" y="1048">write ceiling</text>
+        <rect x="1380" y="1034" width="71" height="20" rx="10" fill="var(--ink-error)"/>
+        <text x="1415.5" y="1048" text-anchor="middle" style="font:600 11px var(--font-label);fill:#fff;letter-spacing:.04em">HOT ROW</text>
+        <text x="1459" y="1048">one row serializes every write</text>
+      </g>
+    </g>
+
+    <!-- =================================================================
+         ACT 1 — T1 · 0–1K CCU : MONOLITH — one box, one Postgres
+         Foreground at full weight: 3 (users, app-monolith, postgres).
+         ================================================================= -->
+    <g class="act act-1" data-act="1" data-window="5,15 75,80">
+      <text class="act-title" x="350" y="140">MONOLITH</text>
+      <text class="act-title__sub" x="350" y="166">T1 · 0–1K CCU</text>
+      <rect class="verdict-box" x="350" y="180" width="141" height="28" rx="14"/>
+      <text class="verdict" x="420.5" y="199">1K CCU · 1 box</text>
+
+      <path class="edge" data-from="users" data-to="app-monolith" d="M 486 290 L 830 290"><title>Users send requests straight to the monolith</title></path>
+      <path class="edge" data-from="app-monolith" data-to="postgres" d="M 900 330 L 1350 500"><title>The monolith reads from Postgres: ten read units for every write unit</title></path>
+      <path class="edge" data-from="app-monolith" data-to="postgres" d="M 1000 330 L 1470 500"><title>The monolith writes to the same Postgres primary: one write unit</title></path>
+      <text class="edge__label" x="658" y="278" text-anchor="middle">request</text>
+      <text class="edge__label--mono" x="1125" y="455" text-anchor="middle">read ×10</text>
+      <text class="edge__label--mono" x="1300" y="405" text-anchor="middle">write ×1</text>
+
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 486 290 L 830 290')">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 900 330 L 1350 500');animation-delay:-800ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1000 330 L 1470 500');animation-delay:-1600ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+
+      <!-- users — components.csv browser -> shape-device (supporting: 0.85 box) -->
+      <g class="node node--new node--support" data-node-id="users" data-role="client" transform="translate(350,256)">
+        <title>Users — browser clients, 1K concurrent, about one operation each per fifteen seconds</title>
+        <g class="node__body"><g transform="scale(0.85)">
+          <rect class="node__shape" vector-effect="non-scaling-stroke" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <path class="node__detail" vector-effect="non-scaling-stroke" d="M 0 20 H 160"/>
+          <circle class="node__icon" cx="14" cy="10" r="3"/>
+          <circle class="node__icon" cx="26" cy="10" r="3"/>
+          <circle class="node__icon" cx="38" cy="10" r="3"/>
+        </g></g>
+        <text class="node__label" x="68" y="40">users</text>
+        <text class="node__sub" x="68" y="58">1K CCU</text>
+      </g>
+      <!-- monolith -> shape-monolith-frame -->
+      <g class="node node--new" data-node-id="app-monolith" data-role="service" transform="translate(830,250)">
+        <title>App monolith — one deployable owning every domain, four vCPU</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <rect class="node__detail" x="6" y="6" width="148" height="68" rx="5" ry="5"/>
+        </g>
+        <text class="node__label" x="80" y="42">app-monolith</text>
+        <text class="node__sub" x="80" y="60">4 vCPU</text>
+      </g>
+      <!-- postgres -> shape-cylinder -->
+      <g class="node node--new" data-node-id="postgres" data-role="data" transform="translate(1330,500)">
+        <title>Postgres — the single primary datastore, one connection pool for reads and writes</title>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <!-- is-overloaded, educational register: the amber replica sits UNDER the
+             node's own text so the label keeps its contrast, and trembles on the
+             same window as the chip above it -->
+        <g class="stage stage-a1" data-window="8.5833,15 75,80">
+          <g class="anim-shake-stress">
+            <path class="state-replica state-replica--warn" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+            <path class="state-replica__detail state-replica__detail--warn" d="M 0 14 A 80 14 0 0 0 160 14"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="46">postgres</text>
+        <text class="node__sub" x="80" y="64">1 primary</text>
+        <!-- staged state: pool exhaustion (is-overloaded, states.csv) -->
+        <g class="stage stage-a1" data-window="8.5833,15 75,80">
+          <g class="anim-shake-stress">
+            <rect class="load-track" x="10" y="20" width="140" height="7" rx="3.5"/>
+            <rect class="load-bar anim-queue-fill" style="--empty:3%" x="10" y="20" width="140" height="7" rx="3.5"/>
+            <rect class="state-chip-box" x="0" y="-34" width="114" height="20" rx="10"/>
+            <text class="state-chip" x="57" y="-20">100/100 CONNS</text>
+          </g>
+        </g>
+      </g>
+      <path class="node__focus focus-a1" d="M 840 238 H 818 V 260 M 980 238 H 1002 V 260 M 1002 320 V 342 H 980 M 840 342 H 818 V 320"/>
+      <path class="node__focus focus-a1" d="M 1340 454 H 1318 V 476 M 1480 454 H 1502 V 476 M 1502 570 V 592 H 1480 M 1340 592 H 1318 V 570"/>
+    </g>
+
+    <!-- =================================================================
+         ACT 2 — T2 · 1K–10K CCU : HORIZONTAL SCALE-OUT — ALB + app x6 + Redis
+         Foreground at full weight: 3 new (alb, app, redis). Veterans receded: 2.
+         ================================================================= -->
+    <g class="act act-2" data-act="2" data-window="15,25 80,85">
+      <text class="act-title" x="350" y="140">HORIZONTAL SCALE-OUT</text>
+      <text class="act-title__sub" x="350" y="166">T2 · 1K–10K CCU</text>
+      <rect class="verdict-box" x="350" y="180" width="165" height="28" rx="14"/>
+      <text class="verdict" x="432.5" y="199">10K CCU · 8 boxes</text>
+
+      <!-- RETIRED: app-monolith, removed at the T1->T2 boundary. Its one farewell
+           window (references/multi-pane.md: "Retired components never reappear").
+           One row BELOW its old C3/R1 slot, because alb stands in that slot now. -->
+      <g class="node-ghost is-ghost" data-ghost-of="app-monolith" transform="translate(830,375)" aria-hidden="true">
+        <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+        <text class="node-ghost__label" x="80" y="42">app-monolith</text>
+        <text class="node-ghost__note" x="80" y="60">retired at T2</text>
+      </g>
+      <path class="edge" data-from="users" data-to="alb" d="M 486 290 L 830 290"><title>Users reach the load balancer</title></path>
+      <path class="edge" data-from="alb" data-to="app" d="M 990 290 L 1070 290"><title>The load balancer spreads requests across the app replicas</title></path>
+      <path class="edge" data-from="app" data-to="redis" d="M 1230 290 L 1330 290"><title>App replicas read through the Redis cache: ten read units per write unit</title></path>
+      <path class="edge" data-from="redis" data-to="postgres" d="M 1410 330 L 1410 500"><title>Only the ten percent that misses the cache reaches Postgres: sixty-one reads a second</title></path>
+      <path class="edge" data-from="app" data-to="postgres" d="M 1170 330 L 1370 500"><title>Writes still land on the one Postgres primary: sixty-one writes a second</title></path>
+      <text class="edge__label" x="658" y="278" text-anchor="middle">request</text>
+      <text class="edge__label--mono" x="1280" y="278" text-anchor="middle">read ×10</text>
+      <text class="edge__label--mono" x="1424" y="420">miss ×1</text>
+      <text class="edge__label--mono" x="1255" y="435" text-anchor="end">write ×1</text>
+
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 486 290 L 830 290')">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 990 290 L 1070 290');animation-delay:-600ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1230 290 L 1330 290');animation-delay:-1200ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1410 330 L 1410 500');animation-delay:-1800ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1170 330 L 1370 500');animation-delay:-1200ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+
+      <g class="node node--veteran node--support" data-node-id="users" data-role="client" transform="translate(350,256)">
+        <title>Users — browser clients, 10K concurrent, 667 operations a second</title>
+        <g class="node__body"><g transform="scale(0.85)">
+          <rect class="node__shape" vector-effect="non-scaling-stroke" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <path class="node__detail" vector-effect="non-scaling-stroke" d="M 0 20 H 160"/>
+          <circle class="node__icon" cx="14" cy="10" r="3"/>
+          <circle class="node__icon" cx="26" cy="10" r="3"/>
+          <circle class="node__icon" cx="38" cy="10" r="3"/>
+        </g></g>
+        <text class="node__label" x="68" y="40">users</text>
+        <text class="node__sub" x="68" y="58">10K CCU</text>
+      </g>
+      <!-- load-balancer -> shape-lb-fork (NEW in this act) -->
+      <g class="node node--new" data-node-id="alb" data-role="service" transform="translate(830,250)">
+        <title>Application load balancer — distributes traffic across the app replicas</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40"/>
+          <path class="node__detail" d="M 80 7 V 14 M 66 25 L 80 14 L 94 25 M 80 14 V 25"/>
+        </g>
+        <text class="node__label" x="80" y="50">alb</text>
+        <text class="node__sub" x="80" y="70">load balancer</text>
+      </g>
+      <!-- microservice -> shape-rounded-rect, count via shape-replica-stack ghosts -->
+      <g class="node node--new" data-node-id="app" data-role="service" transform="translate(1070,250)">
+        <title>App — six identical replicas acting as one pool</title>
+        <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+        <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/></g>
+        <text class="node__label" x="80" y="42">app</text>
+        <text class="node__sub" x="80" y="60">x6 replicas</text>
+      </g>
+      <!-- cache -> shape-cache (NEW in this act) -->
+      <g class="node node--new" data-node-id="redis" data-role="data" transform="translate(1330,250)">
+        <title>Redis cache — read-through cache absorbing ninety percent of the read traffic</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <polygon class="node__icon" points="140,8 128,26 136,26 130,42 146,22 138,22 144,8"/>
+        </g>
+        <text class="node__label" x="80" y="46">redis</text>
+        <text class="node__sub" x="80" y="64">90% hit</text>
+      </g>
+      <g class="node node--veteran" data-node-id="postgres" data-role="data" transform="translate(1330,500)">
+        <title>Postgres — still one primary, now doing sixty-one cache misses and sixty-one writes a second</title>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <!-- is-overloaded again, one tier up: same amber replica, same tremble.
+             A receded veteran is promoted back to full attention by its STATE
+             overlay, never by the act-weight ladder — that is the point of
+             keeping the two channels separate. -->
+        <g class="stage stage-a2" data-window="18.5833,25 80,85">
+          <g class="anim-shake-stress">
+            <path class="state-replica state-replica--warn" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+            <path class="state-replica__detail state-replica__detail--warn" d="M 0 14 A 80 14 0 0 0 160 14"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="46">postgres</text>
+        <text class="node__sub" x="80" y="64">1 primary</text>
+        <!-- staged state: half the primary's work is reads (is-overloaded) -->
+        <g class="stage stage-a2" data-window="18.5833,25 80,85">
+          <g class="anim-shake-stress">
+            <rect class="load-track" x="10" y="20" width="140" height="7" rx="3.5"/>
+            <rect class="load-bar anim-queue-fill" style="--empty:3%" x="10" y="20" width="140" height="7" rx="3.5"/>
+            <rect class="state-chip-box" x="0" y="-34" width="86" height="20" rx="10"/>
+            <text class="state-chip" x="43" y="-20">READS 50%</text>
+          </g>
+        </g>
+      </g>
+      <path class="node__focus focus-a2" d="M 1066 238 H 1044 V 260 M 1218 238 H 1242 V 260 M 1242 334 V 356 H 1218 M 1066 356 H 1044 V 334"/>
+      <path class="node__focus focus-a2" d="M 1340 238 H 1318 V 260 M 1480 238 H 1502 V 260 M 1502 320 V 342 H 1480 M 1340 342 H 1318 V 320"/>
+      <path class="node__focus focus-a2" d="M 1340 454 H 1318 V 476 M 1480 454 H 1502 V 476 M 1502 570 V 592 H 1480 M 1340 592 H 1318 V 570"/>
+    </g>
+
+    <!-- =================================================================
+         ACT 3 — T3 · 10K–100K CCU : READ / WRITE SPLIT — +CDN +queue +3 replicas
+         Foreground at full weight: 4 new (cdn, replicas, queue, workers).
+         Veterans receded: 5 (users, alb, app, redis, postgres).
+         The break out of this tier is the ONLY one in the story that is not a
+         load number — see the sheet's TIER BOUNDARIES table.
+         ================================================================= -->
+    <g class="act act-3" data-act="3" data-window="25,41.6667 85,90">
+      <text class="act-title" x="350" y="140">READ / WRITE SPLIT</text>
+      <text class="act-title__sub" x="350" y="166">T3 · 10K–100K CCU</text>
+      <rect class="verdict-box" x="350" y="180" width="211" height="28" rx="14"/>
+      <text class="verdict" x="455.5" y="199">100K CCU · 1 deployable</text>
+
+      <path class="edge" data-from="users" data-to="cdn" d="M 486 290 L 590 290"><title>Users hit the CDN first</title></path>
+      <path class="edge" data-from="cdn" data-to="alb" d="M 750 290 L 830 290"><title>CDN misses fall through to the load balancer</title></path>
+      <path class="edge" data-from="alb" data-to="app" d="M 990 290 L 1070 290"><title>The load balancer spreads requests across the app replicas</title></path>
+      <path class="edge" data-from="app" data-to="redis" d="M 1230 290 L 1330 290"><title>App replicas read through the Redis cache: ten read units per write unit</title></path>
+      <path class="edge" data-from="redis" data-to="read-replicas" d="M 1490 305 L 1560 385"><title>The one read unit that misses the cache is served by the three read replicas</title></path>
+      <path class="edge" data-from="app" data-to="postgres" d="M 1170 330 L 1370 500"><title>Writes still land on the one Postgres primary: 606 writes a second at 100K</title></path>
+      <path class="edge" data-from="postgres" data-to="read-replicas" d="M 1490 520 L 1560 455"><title>Postgres ships its write stream to the three read replicas</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="app" data-to="queue" d="M 1070 330 L 990 500"><title>App replicas enqueue async work instead of doing it on the request path</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="queue" data-to="workers" d="M 830 540 L 710 540"><title>Workers drain the queue: each job goes to exactly one worker</title></path>
+      <text class="edge__label" x="538" y="278" text-anchor="middle">request</text>
+      <text class="edge__label" x="790" y="278" text-anchor="middle">miss</text>
+      <text class="edge__label--mono" x="1280" y="278" text-anchor="middle">read ×10</text>
+      <text class="edge__label--mono" x="1500" y="352" text-anchor="end">miss ×1</text>
+      <text class="edge__label--mono" x="1255" y="435" text-anchor="end">write ×1</text>
+      <text class="edge__label" x="1572" y="492">replica sync</text>
+      <text class="edge__label" x="1005" y="415" text-anchor="end">enqueue</text>
+      <text class="edge__label" x="770" y="528" text-anchor="middle">1 job → 1 worker</text>
+
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 486 290 L 590 290')">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 750 290 L 830 290');animation-delay:-600ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 990 290 L 1070 290');animation-delay:-1200ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1230 290 L 1330 290');animation-delay:-1800ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1490 305 L 1560 385');animation-delay:-600ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1170 330 L 1370 500');animation-delay:-1800ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--binary-stream anim-packet" aria-hidden="true" style="offset-path:path('M 1490 520 L 1560 455');animation-delay:-600ms">
+        <rect class="packet__halo" x="-8" y="-8" width="16" height="16" rx="5"/>
+        <rect class="packet__glyph" x="-7.5" y="-5.5" width="15" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1"/>
+        <text class="packet__glyph" x="0" y="0" fill="currentColor" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="7" text-anchor="middle" dominant-baseline="central" style="font-variant-ligatures:none">101</text></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 1070 330 L 990 500');animation-delay:-1800ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 830 540 L 710 540');animation-delay:-1200ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+
+      <g class="node node--veteran node--support" data-node-id="users" data-role="client" transform="translate(350,256)">
+        <title>Users — browser clients, 100K concurrent, 6.7 thousand operations a second</title>
+        <g class="node__body"><g transform="scale(0.85)">
+          <rect class="node__shape" vector-effect="non-scaling-stroke" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <path class="node__detail" vector-effect="non-scaling-stroke" d="M 0 20 H 160"/>
+          <circle class="node__icon" cx="14" cy="10" r="3"/>
+          <circle class="node__icon" cx="26" cy="10" r="3"/>
+          <circle class="node__icon" cx="38" cy="10" r="3"/>
+        </g></g>
+        <text class="node__label" x="68" y="40">users</text>
+        <text class="node__sub" x="68" y="58">100K CCU</text>
+      </g>
+      <!-- cdn -> shape-cdn-globe (NEW in this act) -->
+      <g class="node node--new" data-node-id="cdn" data-role="infra" transform="translate(590,250)">
+        <title>CDN — serves static and API cache hits from edge locations</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40"/>
+          <g class="node__icon">
+            <circle class="node__detail" cx="80" cy="14.5" r="9"/>
+            <path class="node__detail" d="M 71 14.5 H 89 M 80 5.5 C 74.5 10 74.5 19 80 23.5 C 85.5 19 85.5 10 80 5.5"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="48">cdn</text>
+        <text class="node__sub" x="80" y="68">static · API</text>
+      </g>
+      <g class="node node--veteran" data-node-id="alb" data-role="service" transform="translate(830,250)">
+        <title>Application load balancer — distributes traffic across the app replicas</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40"/>
+          <path class="node__detail" d="M 80 7 V 14 M 66 25 L 80 14 L 94 25 M 80 14 V 25"/>
+        </g>
+        <text class="node__label" x="80" y="50">alb</text>
+        <text class="node__sub" x="80" y="70">load balancer</text>
+      </g>
+      <g class="node node--veteran" data-node-id="app" data-role="service" transform="translate(1070,250)">
+        <title>App — twelve identical replicas, but still one deployable owning auth, catalog and orders</title>
+        <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+        <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/></g>
+        <text class="node__label" x="80" y="42">app</text>
+        <text class="node__sub" x="80" y="60">x12 · one deploy</text>
+      </g>
+      <g class="node node--veteran" data-node-id="redis" data-role="data" transform="translate(1330,250)">
+        <title>Redis cache — read-through cache absorbing ninety percent of the read traffic</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <polygon class="node__icon" points="140,8 128,26 136,26 130,42 146,22 138,22 144,8"/>
+        </g>
+        <text class="node__label" x="80" y="46">redis</text>
+        <text class="node__sub" x="80" y="64">90% hit</text>
+      </g>
+      <!-- read-replica -> shape-cylinder + replica-stack ghosts (NEW in this act) -->
+      <g class="node node--new" data-node-id="read-replicas" data-role="data" transform="translate(1560,375)">
+        <title>Read replicas — three followers serving the cache misses, catching up on the write stream</title>
+        <path class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" transform="translate(-14,14)" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+        <path class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" transform="translate(-7,7)" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <text class="node__label" x="80" y="46">read replicas</text>
+        <text class="node__sub" x="80" y="64">x3 · reads</text>
+        <!-- staged state: replicas catching up (is-syncing). The double line rides
+             the SYNC EDGE side (states.csv), parallel to the replication wire
+             arriving from the primary at the node's lower-left. -->
+        <g class="stage stage-a3" data-window="29.1667,41.6667 85,90">
+          <path class="state-sync-line" d="M -40 110 L -8 80"/>
+          <path class="state-sync-line" d="M -48 100 L -16 70"/>
+          <rect class="state-chip-box state-chip-box--sync" x="0" y="-12" width="78" height="20" rx="10"/>
+          <text class="state-chip" x="39" y="2">LAG 1.8s</text>
+        </g>
+      </g>
+      <!-- worker -> shape-gear (NEW in this act). The queue's consumer: without it
+           the queue is a buffer with no other end, and its work has no name. Role
+           service per components.csv — the queue is the async plumbing, the worker
+           is compute that drains it. Count N -> replica-stack ghosts. -->
+      <g class="node node--new" data-node-id="workers" data-role="service" transform="translate(550,500)">
+        <title>Workers — four background job processors draining the queue, one job per worker</title>
+        <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+        <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <!-- shape-gear's badge at 0.8 about its own centre so the gear's left
+               tooth clears the "workers" label -->
+          <g class="node__icon" transform="translate(27.2,4) scale(0.8)">
+            <circle class="node__detail" vector-effect="non-scaling-stroke" cx="136" cy="20" r="9"/>
+            <circle class="node__detail" vector-effect="non-scaling-stroke" cx="136" cy="20" r="3.5"/>
+            <path class="node__detail" vector-effect="non-scaling-stroke" d="M 136 8 V 4 M 136 36 V 32 M 124 20 H 120 M 152 20 H 148
+                                          M 127.5 11.5 L 124.7 8.7 M 144.5 28.5 L 147.3 31.3
+                                          M 144.5 11.5 L 147.3 8.7 M 127.5 28.5 L 124.7 31.3"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="48">workers</text>
+        <text class="node__sub" x="80" y="66">x4 consumers</text>
+      </g>
+      <!-- message-queue -> shape-pipe (NEW in this act) -->
+      <g class="node node--new" data-node-id="queue" data-role="async" transform="translate(830,500)">
+        <title>Queue — durable buffer holding the emails and exports off the request path</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6"/>
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="136" height="14" rx="4" ry="4"/>
+            <rect class="queue__fill anim-queue-fill" style="--empty:45%" x="12" y="52" width="136" height="14" rx="4" ry="4"/>
+            <path class="node__detail" d="M 46 52 V 66 M 80 52 V 66 M 114 52 V 66"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="30">queue</text>
+        <text class="node__sub" x="80" y="46">emails · exports</text>
+      </g>
+      <g class="node node--veteran" data-node-id="postgres" data-role="data" transform="translate(1330,500)">
+        <title>Postgres — one primary, now carrying only writes: 606 a second at 100K, against a ceiling near 2000</title>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <text class="node__label" x="80" y="46">postgres</text>
+        <text class="node__sub" x="80" y="64">1 primary · writes</text>
+      </g>
+      <!-- spotlight a3a: the read path the caption names (cdn, redis, replicas).
+           redis + replicas sit 70px apart, inside bracket pad+arm on both sides,
+           sit 70px apart — MORE than pad(12)+arm(22) each side — so the merge
+           rule does not apply and each takes its own overlay. -->
+      <path class="node__focus focus-a3a" d="M 600 238 H 578 V 260 M 740 238 H 762 V 260 M 762 320 V 342 H 740 M 600 342 H 578 V 320"/>
+      <path class="node__focus focus-a3a" d="M 1340 238 H 1318 V 260 M 1480 238 H 1502 V 260 M 1502 320 V 342 H 1480 M 1340 342 H 1318 V 320"/>
+      <path class="node__focus focus-a3a" d="M 1556 363 H 1534 V 385 M 1710 363 H 1732 V 385 M 1732 459 V 481 H 1710 M 1556 481 H 1534 V 459"/>
+      <!-- spotlight a3b: the async pair the caption names (queue, workers) -->
+      <path class="node__focus focus-a3b" d="M 560 488 H 538 V 510 M 980 488 H 1002 V 510 M 1002 570 V 592 H 980 M 560 592 H 538 V 570"/>
+    </g>
+
+    <!-- =================================================================
+         ACT 4 — T4 · 100K–300K CCU : MICROSERVICES
+         Foreground: 6 new, but ≤5 per BEAT — beat a4a teaches gateway +
+         auth-svc + auth-db + catalog-svc + order-svc (5); beat a4b teaches the
+         event rail (1) and re-lights the primary through its state overlay.
+         The pub/sub stream is introduced HERE because decoupled services are
+         what create the need for events — that causality is the act's lesson.
+         ================================================================= -->
+    <g class="act act-4" data-act="4" data-window="41.6667,56.6667 90,95">
+      <text class="act-title" x="350" y="140">MICROSERVICES</text>
+      <text class="act-title__sub" x="350" y="166">T4 · 100K–300K CCU</text>
+      <rect class="verdict-box" x="350" y="180" width="196" height="28" rx="14"/>
+      <text class="verdict" x="448" y="199">300K CCU · 3 services</text>
+
+      <!-- RETIRED: alb and app, both removed at the T3->T4 boundary -- one deployable
+           behind one load balancer became a gateway and three services, which is a
+           removal plus an addition, never a rename. Their one farewell window, in the
+           empty band under the client column: their old C2/R1 and C3/R1 slots are taken
+           by api-gateway and auth-svc now. -->
+      <g class="node-ghost is-ghost" data-ghost-of="alb" transform="translate(350,375)" aria-hidden="true">
+        <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+        <text class="node-ghost__label" x="80" y="42">alb</text>
+        <text class="node-ghost__note" x="80" y="60">retired at T4</text>
+      </g>
+      <g class="node-ghost is-ghost" data-ghost-of="app" transform="translate(590,375)" aria-hidden="true">
+        <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+        <text class="node-ghost__label" x="80" y="42">app</text>
+        <text class="node-ghost__note" x="80" y="60">retired at T4</text>
+      </g>
+
+      <path class="edge" data-from="users" data-to="cdn" d="M 486 290 L 590 290"><title>Users hit the CDN first</title></path>
+      <path class="edge" data-from="cdn" data-to="api-gateway" d="M 750 290 L 830 290"><title>CDN misses fall through to the API gateway</title></path>
+      <path class="edge" data-from="api-gateway" data-to="auth-svc" d="M 990 290 L 1070 290"><title>The gateway routes the auth path to the auth service</title></path>
+      <path class="edge" data-from="api-gateway" data-to="catalog-svc" d="M 950 330 L 1090 375"><title>The gateway routes the catalog path to the catalog service</title></path>
+      <path class="edge" data-from="api-gateway" data-to="order-svc" d="M 910 330 L 1070 505"><title>The gateway routes the orders path to the order service</title></path>
+      <path class="edge" data-from="auth-svc" data-to="auth-db" d="M 1230 290 L 1330 290"><title>The auth service writes only to its own auth database</title></path>
+      <path class="edge" data-from="catalog-svc" data-to="redis" d="M 1230 415 L 1330 415"><title>The catalog service reads through Redis: ten read units per write unit</title></path>
+      <path class="edge" data-from="redis" data-to="read-replicas" d="M 1490 415 L 1560 415"><title>The one read unit that misses the cache is served by the three read replicas</title></path>
+      <path class="edge" data-from="order-svc" data-to="postgres" d="M 1230 540 L 1330 540"><title>Every order write still lands on the one Postgres primary: 1.8 thousand a second at 300K</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="order-svc" data-to="queue" d="M 1070 540 L 990 540"><title>The order service enqueues emails and exports</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="queue" data-to="workers" d="M 830 540 L 710 540"><title>Workers drain the queue: each job goes to exactly one worker</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="order-svc" data-to="pubsub-stream" d="M 1090 580 L 1010 640"><title>The order service publishes one order.created event to the stream</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="pubsub-stream" data-to="catalog-svc" d="M 1005 640 L 1070 455"><title>The stream fans that one publish out to the catalog service, which invalidates its cached stock</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="pubsub-stream" data-to="workers" d="M 830 670 L 710 570"><title>The same publish also reaches the workers, which send the receipt</title></path>
+      <text class="edge__label" x="538" y="278" text-anchor="middle">request</text>
+      <text class="edge__label" x="790" y="278" text-anchor="middle">miss</text>
+      <text class="edge__label" x="1030" y="278" text-anchor="middle">/auth</text>
+      <text class="edge__label" x="1060" y="398" text-anchor="end">/catalog</text>
+      <text class="edge__label" x="945" y="435" text-anchor="end">/orders</text>
+      <text class="edge__label" x="1280" y="278" text-anchor="middle">writes</text>
+      <text class="edge__label--mono" x="1280" y="403" text-anchor="middle">read ×10</text>
+      <text class="edge__label--mono" x="1525" y="403" text-anchor="middle">miss ×1</text>
+      <text class="edge__label--mono" x="1280" y="528" text-anchor="middle">write ×1</text>
+      <text class="edge__label" x="1020" y="508" text-anchor="middle">enqueue</text>
+      <text class="edge__label" x="770" y="528" text-anchor="middle">1 job → 1 worker</text>
+      <text class="edge__label" x="1005" y="606" text-anchor="end">order.created</text>
+      <text class="edge__label" x="1085" y="482">invalidate cache</text>
+      <text class="edge__label" x="730" y="642">send receipt</text>
+
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 486 290 L 590 290')">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 750 290 L 830 290');animation-delay:-600ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 910 330 L 1070 505');animation-delay:-1200ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1230 290 L 1330 290');animation-delay:-800ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1230 415 L 1330 415');animation-delay:-600ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1490 415 L 1560 415');animation-delay:-1800ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1230 540 L 1330 540');animation-delay:-1800ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 1070 540 L 990 540');animation-delay:-1800ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 830 540 L 710 540');animation-delay:-1200ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 1090 580 L 1010 640');animation-delay:-600ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 1005 640 L 1070 455');animation-delay:-1800ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 830 670 L 710 570');animation-delay:-1800ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+
+      <g class="node node--veteran node--support" data-node-id="users" data-role="client" transform="translate(350,256)">
+        <title>Users — browser clients, 300K concurrent, 20 thousand operations a second</title>
+        <g class="node__body"><g transform="scale(0.85)">
+          <rect class="node__shape" vector-effect="non-scaling-stroke" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <path class="node__detail" vector-effect="non-scaling-stroke" d="M 0 20 H 160"/>
+          <circle class="node__icon" cx="14" cy="10" r="3"/>
+          <circle class="node__icon" cx="26" cy="10" r="3"/>
+          <circle class="node__icon" cx="38" cy="10" r="3"/>
+        </g></g>
+        <text class="node__label" x="68" y="40">users</text>
+        <text class="node__sub" x="68" y="58">300K CCU</text>
+      </g>
+      <g class="node node--veteran" data-node-id="cdn" data-role="infra" transform="translate(590,250)">
+        <title>CDN — serves static and API cache hits from edge locations</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40"/>
+          <g class="node__icon">
+            <circle class="node__detail" cx="80" cy="14.5" r="9"/>
+            <path class="node__detail" d="M 71 14.5 H 89 M 80 5.5 C 74.5 10 74.5 19 80 23.5 C 85.5 19 85.5 10 80 5.5"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="48">cdn</text>
+        <text class="node__sub" x="80" y="68">static · API</text>
+      </g>
+      <!-- api-gateway -> shape-hexagon (NEW in this act). It stands in the alb's
+           slot: one front door for every domain service behind it. -->
+      <g class="node node--new" data-node-id="api-gateway" data-role="service" transform="translate(830,250)">
+        <title>API gateway — one front door, routing each path prefix to its domain service</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40"/>
+        </g>
+        <text class="node__label" x="80" y="44">api-gateway</text>
+        <text class="node__sub" x="80" y="64">routes by path</text>
+      </g>
+      <!-- microservice -> shape-rounded-rect, one per domain (NEW in this act).
+           Decomposition SPLIT the pool, it did not replace replication: each
+           service keeps the T2 replica-stack idiom and its own xN. -->
+      <g class="node node--new" data-node-id="auth-svc" data-role="service" transform="translate(1070,250)">
+        <title>Auth service — four replicas; owns sessions and tokens, and its own database</title>
+        <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+        <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/></g>
+        <text class="node__label" x="80" y="42">auth-svc</text>
+        <text class="node__sub" x="80" y="60">x4 · sessions</text>
+      </g>
+      <!-- sql-database -> shape-cylinder (NEW in this act): auth-svc's private store -->
+      <g class="node node--new" data-node-id="auth-db" data-role="data" transform="translate(1330,250)">
+        <title>Auth database — private to the auth service, no other service reads it</title>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <text class="node__label" x="80" y="46">auth-db</text>
+        <text class="node__sub" x="80" y="64">auth-svc only</text>
+      </g>
+      <g class="node node--new" data-node-id="catalog-svc" data-role="service" transform="translate(1070,375)">
+        <title>Catalog service — thirty replicas; owns the read-heavy catalog domain</title>
+        <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+        <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/></g>
+        <text class="node__label" x="80" y="42">catalog-svc</text>
+        <text class="node__sub" x="80" y="60">x30 · read-heavy</text>
+      </g>
+      <!-- redis holds column C5 in every act; it steps from row R1 to R2 here
+           because its reader is now catalog-svc. Zone kept, row follows the client. -->
+      <g class="node node--veteran" data-node-id="redis" data-role="data" transform="translate(1330,375)">
+        <title>Redis cache — read-through cache absorbing ninety percent of the read traffic</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <polygon class="node__icon" points="140,8 128,26 136,26 130,42 146,22 138,22 144,8"/>
+        </g>
+        <text class="node__label" x="80" y="46">redis</text>
+        <text class="node__sub" x="80" y="64">90% hit</text>
+      </g>
+      <g class="node node--veteran" data-node-id="read-replicas" data-role="data" transform="translate(1560,375)">
+        <title>Read replicas — the same three followers, now serving the catalog service's cache misses</title>
+        <path class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" transform="translate(-14,14)" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+        <path class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" transform="translate(-7,7)" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <text class="node__label" x="80" y="46">read replicas</text>
+        <text class="node__sub" x="80" y="64">x3 · catalog reads</text>
+      </g>
+      <g class="node node--veteran" data-node-id="workers" data-role="service" transform="translate(550,500)">
+        <title>Workers — four background job processors: they drain the queue one job each, and they subscribe to the stream</title>
+        <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+        <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <g class="node__icon" transform="translate(27.2,4) scale(0.8)">
+            <circle class="node__detail" vector-effect="non-scaling-stroke" cx="136" cy="20" r="9"/>
+            <circle class="node__detail" vector-effect="non-scaling-stroke" cx="136" cy="20" r="3.5"/>
+            <path class="node__detail" vector-effect="non-scaling-stroke" d="M 136 8 V 4 M 136 36 V 32 M 124 20 H 120 M 152 20 H 148
+                                          M 127.5 11.5 L 124.7 8.7 M 144.5 28.5 L 147.3 31.3
+                                          M 144.5 11.5 L 147.3 8.7 M 127.5 28.5 L 124.7 31.3"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="48">workers</text>
+        <text class="node__sub" x="80" y="66">x4 consumers</text>
+      </g>
+      <g class="node node--veteran" data-node-id="queue" data-role="async" transform="translate(830,500)">
+        <title>Queue — durable buffer holding the emails and exports off the request path</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6"/>
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="136" height="14" rx="4" ry="4"/>
+            <rect class="queue__fill anim-queue-fill" style="--empty:45%" x="12" y="52" width="136" height="14" rx="4" ry="4"/>
+            <path class="node__detail" d="M 46 52 V 66 M 80 52 V 66 M 114 52 V 66"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="30">queue</text>
+        <text class="node__sub" x="80" y="46">emails · exports</text>
+      </g>
+      <g class="node node--new" data-node-id="order-svc" data-role="service" transform="translate(1070,500)">
+        <title>Order service — four replicas; owns the order domain and every order write, and emits exactly one order.created per order</title>
+        <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+        <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/></g>
+        <text class="node__label" x="80" y="42">order-svc</text>
+        <text class="node__sub" x="80" y="60">x4 · order writes</text>
+      </g>
+      <g class="node node--veteran" data-node-id="postgres" data-role="data" transform="translate(1330,500)">
+        <title>Postgres — still ONE primary for every order write: 1.8 thousand a second at 300K, against a ceiling near 2000</title>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <!-- END-OF-ACT SEED: the split moved the code, not the write path. Two
+             chips at once — the row that serializes, and the rate that has now
+             caught the ceiling. This is what T5 answers. -->
+        <g class="stage stage-a4" data-window="50.4167,56.6667 90,95">
+          <path class="state-replica state-replica--error" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="state-replica__detail state-replica__detail--error" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <text class="node__label" x="80" y="46">postgres</text>
+        <text class="node__sub" x="80" y="64">1 primary</text>
+        <g class="stage stage-a4" data-window="50.4167,56.6667 90,95">
+          <path class="state-degrade-ring" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <rect class="load-track" x="10" y="20" width="140" height="7" rx="3.5"/>
+          <rect class="load-bar anim-queue-fill" style="--empty:10%" x="10" y="20" width="140" height="7" rx="3.5"/>
+          <rect class="state-chip-box" x="0" y="-34" width="71" height="20" rx="10"/>
+          <text class="state-chip" x="35.5" y="-20">HOT ROW</text>
+          <rect class="state-chip-box" x="79" y="-34" width="64" height="20" rx="10"/>
+          <text class="state-chip" x="111" y="-20">2K WPS</text>
+        </g>
+      </g>
+      <!-- pubsub-topic -> shape-pipe (NEW in this act). 200 wide, not the house 160:
+           the sub names what one publish does, and that string does not fit 160 at
+           the sub's size. -->
+      <g class="node node--new" data-node-id="pubsub-stream" data-role="async" transform="translate(830,640)">
+        <title>Pub/sub stream — one publish is delivered to every subscriber; two subscribe here</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="200" height="80" rx="6" ry="6"/>
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="176" height="14" rx="4" ry="4"/>
+            <rect class="queue__fill anim-queue-fill" style="--empty:30%" x="12" y="52" width="176" height="14" rx="4" ry="4"/>
+            <path class="node__detail" d="M 56 52 V 66 M 100 52 V 66 M 144 52 V 66"/>
+          </g>
+        </g>
+        <text class="node__label" x="100" y="30">pub/sub stream</text>
+        <text class="node__sub" x="100" y="46">1 publish → 2 subs</text>
+      </g>
+
+      <!-- spotlight a4a: the gateway, the three domain services, the private store -->
+      <path class="node__focus focus-a4a" d="M 840 238 H 818 V 260 M 980 238 H 1002 V 260 M 1002 320 V 342 H 980 M 840 342 H 818 V 320"/>
+      <path class="node__focus focus-a4a" d="M 1080 238 H 1058 V 260 M 1220 238 H 1242 V 260 M 1242 570 V 592 H 1220 M 1080 592 H 1058 V 570"/>
+      <path class="node__focus focus-a4a" d="M 1340 238 H 1318 V 260 M 1480 238 H 1502 V 260 M 1502 320 V 342 H 1480 M 1340 342 H 1318 V 320"/>
+      <!-- spotlight a4b: the event rail, and the primary that the split did not fix -->
+      <path class="node__focus focus-a4b" d="M 840 628 H 818 V 650 M 1020 628 H 1042 V 650 M 1042 710 V 732 H 1020 M 840 732 H 818 V 710"/>
+      <path class="node__focus focus-a4b" d="M 1340 454 H 1318 V 476 M 1480 454 H 1502 V 476 M 1502 570 V 592 H 1480 M 1340 592 H 1318 V 570"/>
+    </g>
+
+    <!-- =================================================================
+         ACT 5 — T5 · 300K–500K CCU : SHARD THE WRITES
+         Foreground: 4 new (shard-router + 3 shards). order-svc stays at BASE
+         weight as the shard client. auth-svc / auth-db / catalog-svc COMPRESS —
+         a solved lesson keeps its slot and loses its detail. Replicas persist,
+         receded, still serving catalog reads.
+         ================================================================= -->
+    <g class="act act-5" data-act="5" data-window="56.6667,75 95,100">
+      <text class="act-title" x="350" y="140">SHARD THE WRITES</text>
+      <text class="act-title__sub" x="350" y="166">T5 · 300K–500K CCU</text>
+      <rect class="verdict-box" x="350" y="180" width="180" height="28" rx="14"/>
+      <text class="verdict" x="440" y="199">500K CCU · 3 shards</text>
+
+      <!-- RETIRED: postgres, removed at the T4->T5 boundary -- the single primary is
+           gone, its work split across pg-shard 1/3..3/3. Same farewell band as act 4;
+           its old C3/R2 slot is where shard-router stands now. -->
+      <g class="node-ghost is-ghost" data-ghost-of="postgres" transform="translate(350,375)" aria-hidden="true">
+        <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+        <text class="node-ghost__label" x="80" y="42">postgres</text>
+        <text class="node-ghost__note" x="80" y="60">retired at T5</text>
+      </g>
+
+      <path class="edge" data-from="users" data-to="cdn" d="M 486 290 L 590 290"><title>Users hit the CDN first</title></path>
+      <path class="edge" data-from="cdn" data-to="api-gateway" d="M 750 290 L 830 290"><title>CDN misses fall through to the API gateway</title></path>
+      <path class="edge" data-from="api-gateway" data-to="auth-svc" d="M 990 290 L 1070 284"><title>The gateway routes the auth path to the auth service</title></path>
+      <path class="edge" data-from="api-gateway" data-to="catalog-svc" d="M 950 330 L 1090 375"><title>The gateway routes the catalog path to the catalog service</title></path>
+      <path class="edge" data-from="api-gateway" data-to="order-svc" d="M 910 330 L 1070 505"><title>The gateway routes the orders path to the order service</title></path>
+      <path class="edge" data-from="auth-svc" data-to="auth-db" d="M 1206 284 L 1330 284"><title>The auth service writes only to its own auth database — solved in the previous act</title></path>
+      <path class="edge" data-from="catalog-svc" data-to="redis" d="M 1206 409 L 1330 415"><title>The catalog service reads through Redis: ten read units per write unit</title></path>
+      <path class="edge" data-from="redis" data-to="read-replicas" d="M 1490 415 L 1560 415"><title>The one read unit that misses the cache is still served by the three read replicas</title></path>
+      <path class="edge" data-from="order-svc" data-to="shard-router" d="M 1230 540 L 1330 540"><title>Every order write goes to the shard router first: 3 thousand a second at 500K</title></path>
+      <path class="edge edge--idle" data-from="shard-router" data-to="pg-shard-1" d="M 1370 580 L 1170 640"><title>Shard 1 of 3 owns hash range 00 to 55 and is idle for this write</title></path>
+      <path class="edge" data-from="shard-router" data-to="pg-shard-2" d="M 1410 580 L 1410 640"><title>This write hashes to 7c, so the router sends it to shard 2 of 3 and to no other shard</title></path>
+      <path class="edge edge--idle" data-from="shard-router" data-to="pg-shard-3" d="M 1450 580 L 1640 640"><title>Shard 3 of 3 owns hash range ab to ff and is idle for this write</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="order-svc" data-to="queue" d="M 1070 540 L 990 540"><title>The order service enqueues emails and exports</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="queue" data-to="workers" d="M 830 540 L 710 540"><title>Workers drain the queue: each job goes to exactly one worker</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="order-svc" data-to="pubsub-stream" d="M 1090 580 L 1010 640"><title>The order service publishes one order.created event to the stream</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="pubsub-stream" data-to="catalog-svc" d="M 1005 640 L 1070 435"><title>The stream fans that one publish out to the catalog service, which invalidates its cached stock</title></path>
+      <path class="edge edge--async anim-dash-flow" data-from="pubsub-stream" data-to="workers" d="M 830 670 L 710 570"><title>The same publish also reaches the workers, which send the receipt</title></path>
+      <text class="edge__label" x="538" y="278" text-anchor="middle">request</text>
+      <text class="edge__label" x="790" y="278" text-anchor="middle">miss</text>
+      <text class="edge__label" x="1030" y="272" text-anchor="middle">/auth</text>
+      <text class="edge__label" x="1060" y="398" text-anchor="end">/catalog</text>
+      <text class="edge__label" x="945" y="435" text-anchor="end">/orders</text>
+      <text class="edge__label" x="1268" y="272" text-anchor="middle">writes</text>
+      <text class="edge__label--mono" x="1268" y="398" text-anchor="middle">read ×10</text>
+      <text class="edge__label--mono" x="1525" y="403" text-anchor="middle">miss ×1</text>
+      <text class="edge__label--mono" x="1280" y="528" text-anchor="middle">write ×1</text>
+      <text class="edge__label--mono" x="1424" y="614">hash 7c</text>
+      <text class="edge__label" x="1020" y="508" text-anchor="middle">enqueue</text>
+      <text class="edge__label" x="770" y="528" text-anchor="middle">1 job → 1 worker</text>
+      <text class="edge__label" x="1005" y="606" text-anchor="end">order.created</text>
+      <text class="edge__label" x="1085" y="470">invalidate cache</text>
+      <text class="edge__label" x="730" y="642">send receipt</text>
+
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 486 290 L 590 290')">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 750 290 L 830 290');animation-delay:-600ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 910 330 L 1070 505');animation-delay:-1200ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1206 409 L 1330 415');animation-delay:-600ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1490 415 L 1560 415');animation-delay:-1800ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1230 540 L 1330 540');animation-delay:-1800ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <!-- ONE routed packet: it enters shard 2/3 and no other. The other two shard
+           paths carry no packet at all — that silence is the point of the beat. -->
+      <g class="packet packet--cargo packet--request anim-packet" aria-hidden="true" style="offset-path:path('M 1410 580 L 1410 640');animation-delay:-1200ms">
+        <circle class="packet__halo" r="5"/><circle class="packet__glyph" r="5" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 1070 540 L 990 540');animation-delay:-1800ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 830 540 L 710 540');animation-delay:-1200ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 1090 580 L 1010 640');animation-delay:-600ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 1005 640 L 1070 435');animation-delay:-1800ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+      <g class="packet packet--cargo packet--event anim-packet" aria-hidden="true" style="offset-path:path('M 830 670 L 710 570');animation-delay:-1800ms">
+        <circle class="packet__halo" r="6.8"/><circle class="packet__glyph" r="6.8" opacity="0.55" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="packet__glyph" r="3.2" fill="currentColor"/></g>
+
+      <g class="node node--veteran node--support" data-node-id="users" data-role="client" transform="translate(350,256)">
+        <title>Users — browser clients, 500K concurrent, 33 thousand operations a second</title>
+        <g class="node__body"><g transform="scale(0.85)">
+          <rect class="node__shape" vector-effect="non-scaling-stroke" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <path class="node__detail" vector-effect="non-scaling-stroke" d="M 0 20 H 160"/>
+          <circle class="node__icon" cx="14" cy="10" r="3"/>
+          <circle class="node__icon" cx="26" cy="10" r="3"/>
+          <circle class="node__icon" cx="38" cy="10" r="3"/>
+        </g></g>
+        <text class="node__label" x="68" y="40">users</text>
+        <text class="node__sub" x="68" y="58">500K CCU</text>
+      </g>
+      <g class="node node--veteran" data-node-id="cdn" data-role="infra" transform="translate(590,250)">
+        <title>CDN — serves static and API cache hits from edge locations</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40"/>
+          <g class="node__icon">
+            <circle class="node__detail" cx="80" cy="14.5" r="9"/>
+            <path class="node__detail" d="M 71 14.5 H 89 M 80 5.5 C 74.5 10 74.5 19 80 23.5 C 85.5 19 85.5 10 80 5.5"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="48">cdn</text>
+        <text class="node__sub" x="80" y="68">static · API</text>
+      </g>
+      <g class="node node--veteran" data-node-id="api-gateway" data-role="service" transform="translate(830,250)">
+        <title>API gateway — one front door, routing each path prefix to its domain service</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40"/>
+        </g>
+        <text class="node__label" x="80" y="44">api-gateway</text>
+        <text class="node__sub" x="80" y="64">routes by path</text>
+      </g>
+      <!-- COMPRESSED: the auth lesson was taught in T4 and is not this act's subject.
+           The stack and the xN ride the SAME 0.85 box: compression drops detail,
+           never a lesson — a service redrawn as one plain box here would say the
+           replicas went away. -->
+      <g class="node node--veteran node--compress" data-node-id="auth-svc" data-role="service" transform="translate(1070,250)">
+        <title>Auth service — six replicas; owns sessions and tokens, and its own database; solved in the previous act</title>
+        <g transform="scale(0.85)">
+          <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" vector-effect="non-scaling-stroke" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+          <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" vector-effect="non-scaling-stroke" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        </g>
+        <g class="node__body"><g transform="scale(0.85)">
+          <rect class="node__shape" vector-effect="non-scaling-stroke" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+        </g></g>
+        <text class="node__label" x="68" y="38">auth-svc</text>
+        <text class="node__sub" x="68" y="55">x6 · sessions</text>
+      </g>
+      <g class="node node--veteran node--compress" data-node-id="auth-db" data-role="data" transform="translate(1330,250)">
+        <title>Auth database — private to the auth service, no other service reads it</title>
+        <g class="node__body"><g transform="scale(0.85)">
+          <path class="node__shape" vector-effect="non-scaling-stroke" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" vector-effect="non-scaling-stroke" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g></g>
+        <text class="node__label" x="68" y="40">auth-db</text>
+        <text class="node__sub" x="68" y="56">auth-svc only</text>
+      </g>
+      <g class="node node--veteran node--compress" data-node-id="catalog-svc" data-role="service" transform="translate(1070,375)">
+        <title>Catalog service — fifty replicas; owns the read-heavy catalog domain; solved in the previous act</title>
+        <g transform="scale(0.85)">
+          <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" vector-effect="non-scaling-stroke" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+          <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" vector-effect="non-scaling-stroke" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        </g>
+        <g class="node__body"><g transform="scale(0.85)">
+          <rect class="node__shape" vector-effect="non-scaling-stroke" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+        </g></g>
+        <text class="node__label" x="68" y="38">catalog-svc</text>
+        <text class="node__sub" x="68" y="55">x50 · read-heavy</text>
+      </g>
+      <g class="node node--veteran" data-node-id="redis" data-role="data" transform="translate(1330,375)">
+        <title>Redis cache — read-through cache absorbing ninety percent of the read traffic</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <polygon class="node__icon" points="140,8 128,26 136,26 130,42 146,22 138,22 144,8"/>
+        </g>
+        <text class="node__label" x="80" y="46">redis</text>
+        <text class="node__sub" x="80" y="64">90% hit</text>
+      </g>
+      <!-- read-replica -> KEPT from T3, same slot, receded: sharding split the
+           WRITES, it did not remove the read path. -->
+      <g class="node node--veteran" data-node-id="read-replicas" data-role="data" transform="translate(1560,375)">
+        <title>Read replicas — the same three followers, still serving the catalog service's cache misses</title>
+        <path class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" transform="translate(-14,14)" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+        <path class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" transform="translate(-7,7)" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <text class="node__label" x="80" y="46">read replicas</text>
+        <text class="node__sub" x="80" y="64">x3 · catalog reads</text>
+      </g>
+      <g class="node node--veteran" data-node-id="workers" data-role="service" transform="translate(550,500)">
+        <title>Workers — four background job processors: they drain the queue one job each, and they subscribe to the stream</title>
+        <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+        <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/>
+          <g class="node__icon" transform="translate(27.2,4) scale(0.8)">
+            <circle class="node__detail" vector-effect="non-scaling-stroke" cx="136" cy="20" r="9"/>
+            <circle class="node__detail" vector-effect="non-scaling-stroke" cx="136" cy="20" r="3.5"/>
+            <path class="node__detail" vector-effect="non-scaling-stroke" d="M 136 8 V 4 M 136 36 V 32 M 124 20 H 120 M 152 20 H 148
+                                          M 127.5 11.5 L 124.7 8.7 M 144.5 28.5 L 147.3 31.3
+                                          M 144.5 11.5 L 147.3 8.7 M 127.5 28.5 L 124.7 31.3"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="48">workers</text>
+        <text class="node__sub" x="80" y="66">x4 consumers</text>
+      </g>
+      <g class="node node--veteran" data-node-id="queue" data-role="async" transform="translate(830,500)">
+        <title>Queue — durable buffer holding the emails and exports off the request path</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6"/>
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="136" height="14" rx="4" ry="4"/>
+            <rect class="queue__fill anim-queue-fill" style="--empty:45%" x="12" y="52" width="136" height="14" rx="4" ry="4"/>
+            <path class="node__detail" d="M 46 52 V 66 M 80 52 V 66 M 114 52 V 66"/>
+          </g>
+        </g>
+        <text class="node__label" x="80" y="30">queue</text>
+        <text class="node__sub" x="80" y="46">emails · exports</text>
+      </g>
+      <!-- order-svc stays at BASE weight: not this act's new lesson, but the
+           shard client the whole beat is about — it must not recede. -->
+      <g class="node" data-node-id="order-svc" data-role="service" transform="translate(1070,500)">
+        <title>Order service — six replicas; owns every order write and hands each one to the shard router</title>
+        <rect class="node__shape node__ghost--1" style="fill:none;opacity:var(--ghost)" x="-14" y="14" width="160" height="80" rx="8" ry="8"/>
+        <rect class="node__shape node__ghost--2" style="fill:none;opacity:var(--ghost)" x="-7" y="7" width="160" height="80" rx="8" ry="8"/>
+        <g class="node__body"><rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8"/></g>
+        <text class="node__label" x="80" y="42">order-svc</text>
+        <text class="node__sub" x="80" y="60">x6 · order writes</text>
+      </g>
+      <!-- shard-router -> shape-hexagon (NEW). It stands in the single primary's
+           old slot: the ceiling that was one box is now a routing decision. -->
+      <g class="node node--new" data-node-id="shard-router" data-role="service" transform="translate(1330,500)">
+        <title>Shard router — picks the owning shard from the hash of the shard key</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40"/>
+        </g>
+        <text class="node__label" x="80" y="44">shard-router</text>
+        <text class="node__sub" x="80" y="64">by hash(key)</text>
+      </g>
+      <g class="node node--veteran" data-node-id="pubsub-stream" data-role="async" transform="translate(830,640)">
+        <title>Pub/sub stream — one publish is delivered to every subscriber; two subscribe here</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="200" height="80" rx="6" ry="6"/>
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="176" height="14" rx="4" ry="4"/>
+            <rect class="queue__fill anim-queue-fill" style="--empty:30%" x="12" y="52" width="176" height="14" rx="4" ry="4"/>
+            <path class="node__detail" d="M 56 52 V 66 M 100 52 V 66 M 144 52 V 66"/>
+          </g>
+        </g>
+        <text class="node__label" x="100" y="30">pub/sub stream</text>
+        <text class="node__sub" x="100" y="46">1 publish → 2 subs</text>
+      </g>
+      <!-- db-shard -> shape-cylinder, one node per shard (NEW). Never a replica
+           stack: three shards are three DIFFERENT key ranges, not N copies. -->
+      <g class="node node--new" data-node-id="pg-shard-1" data-role="data" transform="translate(1090,640)">
+        <title>Postgres shard 1 of 3 — owns hash range 00 to 55; idle for this write</title>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <text class="node__label" x="80" y="46">pg-shard 1/3</text>
+        <text class="node__sub" x="80" y="64">hash 00–55</text>
+      </g>
+      <g class="node node--new" data-node-id="pg-shard-2" data-role="data" transform="translate(1330,640)">
+        <title>Postgres shard 2 of 3 — owns hash range 56 to aa, the range this write lands in</title>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <!-- is-selected (states.csv): role-accent stroke at +1px weight on the
+             chosen shard, paired with the routing label `hash 7c` on the edge -->
+        <g class="stage stage-a5" data-window="59.1667,75 95,100">
+          <path class="state-select-ring" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+        </g>
+        <text class="node__label" x="80" y="46">pg-shard 2/3</text>
+        <text class="node__sub" x="80" y="64">hash 56–aa</text>
+      </g>
+      <g class="node node--new" data-node-id="pg-shard-3" data-role="data" transform="translate(1560,640)">
+        <title>Postgres shard 3 of 3 — owns hash range ab to ff; idle for this write</title>
+        <g class="node__body">
+          <path class="node__shape" d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z"/>
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14"/>
+        </g>
+        <text class="node__label" x="80" y="46">pg-shard 3/3</text>
+        <text class="node__sub" x="80" y="64">hash ab–ff</text>
+      </g>
+
+      <!-- spotlight a5a (read gate): the router and the ONE shard it chose.
+           45px apart, inside bracket pad+arm, so they take one merged overlay. -->
+      <path class="node__focus focus-a5a" d="M 1340 488 H 1318 V 510 M 1480 488 H 1502 V 510 M 1502 710 V 732 H 1480 M 1340 732 H 1318 V 710"/>
+      <!-- spotlight a5b: the three primaries, and the replicas that stayed -->
+      <path class="node__focus focus-a5b" d="M 1100 628 H 1078 V 650 M 1710 628 H 1732 V 650 M 1732 710 V 732 H 1710 M 1100 732 H 1078 V 710"/>
+      <path class="node__focus focus-a5b" d="M 1556 363 H 1534 V 385 M 1710 363 H 1732 V 385 M 1732 459 V 481 H 1710 M 1556 481 H 1534 V 459"/>
+    </g>
+
+    <!-- ================= captions (narrator layer, one card per beat) ================= -->
+    <g class="beat-caption cap-a1">
+      <rect class="caption-box" x="653.1" y="767.6" width="613.7" height="35.2" rx="8" ry="8" data-cap="a1" />
+      <text x="960" y="790">One box takes every request; ten reads per write share one 100-connection pool.</text>
+    </g>
+    <g class="beat-caption cap-a2">
+      <rect class="caption-box" x="667.1" y="767.6" width="585.8" height="35.2" rx="8" ry="8" data-cap="a2" />
+      <text x="960" y="790">Six replicas and a 90% cache clear the pool; half the primary's work is reads.</text>
+    </g>
+    <g class="beat-caption cap-a3a">
+      <rect class="caption-box" x="684.3" y="767.6" width="551.4" height="35.2" rx="8" ry="8" data-cap="a3a" />
+      <text x="960" y="790">Reads leave the primary: CDN first, then cache, then three read replicas.</text>
+    </g>
+    <g class="beat-caption cap-a3b">
+      <rect class="caption-box" x="716.7" y="767.6" width="486.6" height="35.2" rx="8" ry="8" data-cap="a3b" />
+      <text x="960" y="790">Slow work leaves too — one queue, four workers, one job each.</text>
+    </g>
+    <g class="beat-caption cap-a4a">
+      <rect class="caption-box" x="716.8" y="767.6" width="486.4" height="35.2" rx="8" ry="8" data-cap="a4a" />
+      <text x="960" y="790">One gateway routes to three services; each owns its own store.</text>
+    </g>
+    <g class="beat-caption cap-a4b">
+      <rect class="caption-box" x="714.6" y="767.6" width="490.8" height="35.2" rx="8" ry="8" data-cap="a4b" />
+      <text x="960" y="790">They publish instead of calling — but writes still hit one primary.</text>
+    </g>
+    <g class="beat-caption cap-a5a">
+      <rect class="caption-box" x="684.9" y="767.6" width="550.1" height="35.2" rx="8" ry="8" data-cap="a5a" />
+      <text x="960" y="790">hash(shard key) picks the owner: this write is 7c, so only shard 2 sees it.</text>
+    </g>
+    <g class="beat-caption cap-a5b">
+      <rect class="caption-box" x="643.3" y="767.6" width="633.4" height="35.2" rx="8" ry="8" data-cap="a5b" />
+      <text x="960" y="790">Three primaries, about 1K writes each per second; replicas still serve catalog reads.</text>
+    </g>
+    <g class="beat-caption cap-r">
+      <rect class="caption-box" x="508.2" y="758" width="903.6" height="45.2" rx="8" ry="8" data-cap="r" />
+      <text x="960" y="790">One system, five architectures — and one boundary was coupling, not load.</text>
+    </g>
+  </g>
+</svg>
+</body></html>

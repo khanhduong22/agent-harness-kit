@@ -1,0 +1,31 @@
+element	kind	keyframe	windows	lead	tail	wipe	park	seam	text	source
+.act-1	act	act1	0ms:26400ms	600ms	600ms		translate(0px,-2400px)			layouts:layered-tb
+.act-2	act	act2	27000ms:100%	600ms			translate(0px,-4800px)			layouts:layered-tb
+.frost	act	frost	0ms:2000ms	600ms	400ms		translate(0px,-4800px)			motion:camera-beat
+.t0-wash	state	t0-wash	0ms:2000ms:0ms:400ms							
+.edge__label	state	t0-labels	2400ms:100%:100ms							
+.stage-overload	state	w-overload	18000ms:20400ms							states:is-overloaded
+.focus-b2	spotlight	focus-b2	8400ms:10800ms							motion:camera-beat
+.focus-b3	spotlight	focus-b3	13200ms:15600ms							motion:camera-beat
+.focus-b4	spotlight	focus-b4	18000ms:20400ms							motion:camera-beat
+.focus-b5	spotlight	focus-b5	22800ms:25200ms							motion:camera-beat
+.focus-b7	spotlight	focus-b7	32400ms:34800ms							motion:camera-beat
+.focus-b8	spotlight	focus-b8	37200ms:39600ms							motion:camera-beat
+.focus-b9	spotlight	focus-b9	42000ms:44400ms							motion:camera-beat
+.focus-b10	spotlight	focus-b10	46800ms:49200ms							motion:camera-beat
+.focus-b11	spotlight	focus-b11	51600ms:54000ms							motion:camera-beat
+.focus-b12	spotlight	focus-b12	56400ms:58800ms							motion:camera-beat
+.cap-t0	caption	cap-t0	0ms:2000ms	600ms	400ms	0ms			Kiến trúc hệ thống AI Agents without Jev vs with Jev	motion:camera-beat
+.cap-b1	caption	cap-b1	3000ms:6000ms	600ms	432ms	408ms			Một ticket vào: giao cho agent nào? Chưa có Jev, câu này phải hỏi LLM.	motion:camera-beat
+.cap-b2	caption	cap-b2	7800ms:10800ms	600ms	432ms	408ms			Code chỉ cần một chữ sales, nhưng LLM vẫn phải sinh từng token.	motion:camera-beat
+.cap-b3	caption	cap-b3	12600ms:15600ms	600ms	432ms	408ms			Agent chạy nhiều bước: những lần chờ nhỏ ở mỗi lựa chọn cứ thế cộng dồn.	motion:camera-beat
+.cap-b4	caption	cap-b4	17400ms:20400ms	600ms	432ms	408ms			Giả sử 50K ticket mỗi ngày: giờ cao điểm LLM phải gánh khoảng 34 call cùng lúc.	motion:camera-beat
+.cap-b5	caption	cap-b5	22200ms:25200ms	600ms	432ms	408ms			Chỉ có nhãn, xác suất thì không đáng tin. Giao nhầm agent, code cũng không biết.	motion:camera-beat
+.cap-b6	caption	cap-b6	27600ms:30000ms	600ms	432ms	408ms			Thêm Jev: model chỉ chọn, không sinh text.	motion:camera-beat
+.cap-b7	caption	cap-b7	31800ms:34800ms	600ms	432ms	408ms			Một call, chấm 3 câu hỏi song song: khoảng 70–500 ms, có kèm xác suất.	motion:camera-beat
+.cap-b8	caption	cap-b8	36600ms:39600ms	600ms	432ms	408ms			Code so xác suất với threshold: đủ cao thì giao thẳng cho agent đó.	motion:camera-beat
+.cap-b9	caption	cap-b9	41400ms:44400ms	600ms	432ms	408ms			Khách nhắn thêm lúc code đang quyết? State cũ thì dựng lại rồi mới giao.	motion:camera-beat
+.cap-b10	caption	cap-b10	46200ms:49200ms	600ms	432ms	408ms			Lưng chừng, hoặc Jev không trả lời kịp thì để triage LLM chọn agent.	motion:camera-beat
+.cap-b11	caption	cap-b11	51000ms:54000ms	600ms	432ms	408ms			Khiếu nại nặng, hoặc action rủi ro như refund thì luôn phải qua người duyệt.	motion:camera-beat
+.cap-b12	caption	cap-b12	55800ms:58800ms	600ms	432ms	408ms			Agent trả ticket về là một lần giao nhầm. Lấy log ra so, lệch thì siết threshold.	motion:camera-beat
+.cap-b13	caption	cap-b13	60600ms:63600ms	600ms	432ms	408ms			Việc của agent thì để agent làm. Chọn agent là Jev, luật giao việc ở code.	motion:camera-beat

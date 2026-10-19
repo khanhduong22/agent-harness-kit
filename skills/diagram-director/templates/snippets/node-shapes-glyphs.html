@@ -1,0 +1,454 @@
+<!-- =====================================================================
+     node-shapes-glyphs.html — identity glyphs for crowd-shape components
+     ---------------------------------------------------------------------
+     WHY THIS FILE EXISTS
+     The audit of 2026-08-26 found eleven components sharing a bare
+     rounded-rect and ten sharing an identical hexagon — a chat diagram's
+     websocket-server read as "generic service" (user-caught). Each block
+     below is the base shape PLUS a small category-true glyph, following
+     the badge convention shape-gear and shape-cache established: rect
+     shapes badge the TOP-RIGHT (around cx 136, cy 20), hexagons badge the
+     TOP-CENTRE (y 6-29, clear of the y-42 label line).
+
+     RULES (inherited from node-shapes.html — read its header first)
+     - Glyphs are <=3 elements, classes node__detail / node__icon only,
+       inside the nominal 160 x 80 box, inside <g class="node__body">.
+     - A glyph keeps >=3px from EVERY text in its own node, measured on
+       the rendered boxes — the containment sweeps check text-vs-shape and
+       text-vs-foreign-node, so glyph-vs-own-label passes every gate
+       silently (user-caught: a payment card touching "stripe", shoulders
+       touching "auth0"; the numeric sweep then found four hexagon badges
+       within 0-2px that the eye had missed). Cramped interiors (clouds,
+       hexagons) fit the glyph to the free band; never crowd the label.
+     - A glyph never carries meaning alone: the label restates it
+       (no icon-only encoding), so a glyph never replaces a label.
+     - The un-glyphed base shapes stay valid: api-gateway KEEPS the bare
+       hexagon (it is the archetypal pass-through); the components here
+       were the impostors that made it ambiguous. microservice keeps the
+       bare rounded-rect for the same reason.
+     - blueprint / ascii-terminal shape-hint variants are unchanged —
+       glyphs are default-mode detail; ascii draws its identity in text.
+     ===================================================================== -->
+
+<!-- snippet: shape-ws-duplex -->
+<!-- websocket-server: two opposing arrows = one held-open duplex pipe. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>WebSocket server — holds persistent duplex connections to clients</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 118 14 H 148 M 142 9 L 148 14 L 142 19" />
+      <path class="node__detail" d="M 148 26 H 118 M 124 21 L 118 26 L 124 31" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="50">ws-1</text>
+  <text class="node__sub" x="80" y="68">50K connections</text>
+</g>
+
+<!-- snippet: shape-grpc-chevrons -->
+<!-- grpc-service: framing chevrons = binary-framed RPC contract. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>gRPC service — protobuf contract over HTTP/2</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 126 10 L 118 20 L 126 30" />
+      <path class="node__detail" d="M 138 10 L 146 20 L 138 30" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="50">orders-rpc</text>
+  <text class="node__sub" x="80" y="68">proto v3</text>
+</g>
+
+<!-- snippet: shape-monolith-frame -->
+<!-- monolith: doubled wall = one thick single deployable. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Monolith — single deployable owning every domain</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <rect class="node__detail" x="6" y="6" width="148" height="68" rx="5" ry="5" />
+  </g>
+  <text class="node__label" x="80" y="42">app-monolith</text>
+  <text class="node__sub" x="80" y="60">all domains</text>
+</g>
+
+<!-- snippet: shape-lb-fork -->
+<!-- load-balancer: one line forking into three = traffic distribution. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Load balancer — distributes traffic across replicas</title>
+  <g class="node__body">
+    <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+    <path class="node__detail" d="M 80 7 V 14 M 66 25 L 80 14 L 94 25 M 80 14 V 25" />
+  </g>
+  <text class="node__label" x="80" y="42">alb</text>
+  <text class="node__sub" x="80" y="60">round-robin</text>
+</g>
+
+<!-- snippet: shape-waf-shield -->
+<!-- waf: shield outline = filters before anything passes. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>WAF — filters hostile traffic at the edge</title>
+  <g class="node__body">
+    <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+    <path class="node__detail" d="M 80 5 L 90 8.5 V 14.5 Q 90 20.5 80 24 Q 70 20.5 70 14.5 V 8.5 Z" />
+  </g>
+  <text class="node__label" x="80" y="42">waf</text>
+  <text class="node__sub" x="80" y="60">OWASP rules</text>
+</g>
+
+<!-- snippet: shape-rate-valve -->
+<!-- rate-limiter: bowtie valve = flow deliberately pinched. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Rate limiter — admits a bounded request rate</title>
+  <g class="node__body">
+    <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+    <polygon class="node__icon" points="72,8 80,16 72,24" />
+    <polygon class="node__icon" points="88,8 80,16 88,24" />
+  </g>
+  <text class="node__label" x="80" y="42">rate-limiter</text>
+  <text class="node__sub" x="80" y="60">100 req/s per IP</text>
+</g>
+
+<!-- snippet: shape-breaker-switch -->
+<!-- circuit-breaker: a blade lifted off the line + pivot = openable circuit. -->
+<g class="node" data-role="error" transform="translate(0,0)">
+  <title>Circuit breaker — opens the circuit after repeated failures</title>
+  <g class="node__body">
+    <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+    <path class="node__detail" d="M 64 22 H 72 M 72 22 L 85 11 M 87 22 H 96" />
+    <circle class="node__icon" cx="72" cy="22" r="2" />
+  </g>
+  <text class="node__label" x="80" y="42">breaker</text>
+  <text class="node__sub" x="80" y="60">trips at 50% err</text>
+</g>
+
+<!-- snippet: shape-cdn-globe -->
+<!-- cdn: globe = the same content close to everyone. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>CDN — serves cached content from edge locations</title>
+  <g class="node__body">
+    <polygon class="node__shape" points="20,0 140,0 160,40 140,80 20,80 0,40" />
+    <g class="node__icon">
+      <circle class="node__detail" cx="80" cy="14.5" r="9" />
+      <path class="node__detail" d="M 71 14.5 H 89 M 80 5.5 C 74.5 10 74.5 19 80 23.5 C 85.5 19 85.5 10 80 5.5" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="42">cdn</text>
+  <text class="node__sub" x="80" y="60">240 edge PoPs</text>
+</g>
+
+<!-- snippet: shape-cron-clock -->
+<!-- cron-job: clock badge where worker wears the gear = fires on a schedule. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Cron job — runs on a fixed schedule, not on demand</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <circle class="node__detail" cx="136" cy="20" r="10" />
+      <path class="node__detail" d="M 136 20 V 12 M 136 20 L 142 24" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="50">report-cron</text>
+  <text class="node__sub" x="80" y="68">daily 02:00</text>
+</g>
+
+<!-- snippet: shape-search-magnifier -->
+<!-- search-index: magnifier where cache wears the lightning = built to be queried. -->
+<g class="node" data-role="data" transform="translate(0,0)">
+  <title>Search index — inverted index answering full-text queries</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <circle class="node__detail" cx="134" cy="17" r="7" />
+      <path class="node__detail" d="M 139 22 L 146 29" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="50">search-idx</text>
+  <text class="node__sub" x="80" y="68">product catalog</text>
+</g>
+
+<!-- =====================================================================
+     TRANCHE 2 (2026-08-26): container-box, cloud-external and gauge crowds.
+     Archetypes stay bare on purpose: region (the outermost boundary),
+     third-party-api (the archetypal cloud), metrics-collector (the gauge
+     IS metrics). Badge zones: container-box badges INSIDE the dashed
+     frame top-right (~cx 134, cy 20); cloud badges the right lobe
+     (~x 96-122, y 24-42); gauge-crowd rects badge top-right like gear.
+     ===================================================================== -->
+
+<!-- snippet: shape-k8s-wheel -->
+<!-- kubernetes-cluster: six-spoke wheel = the helm. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Kubernetes cluster — orchestrates the pods inside it</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+    <g class="node__icon">
+      <circle class="node__detail" cx="134" cy="20" r="9" />
+      <path class="node__detail" d="M 134 11 V 29 M 126.2 15.5 L 141.8 24.5 M 141.8 15.5 L 126.2 24.5" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="46">prod-cluster</text>
+  <text class="node__sub" x="80" y="62">3 node pools</text>
+</g>
+
+<!-- snippet: shape-container-bricks -->
+<!-- container: stacked bricks = image layers. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Container — one deployable image</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+    <g class="node__icon">
+      <rect x="122" y="13" width="10" height="7" rx="1" />
+      <rect x="134" y="13" width="10" height="7" rx="1" />
+      <rect x="128" y="22" width="10" height="7" rx="1" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="46">orders-ctr</text>
+  <text class="node__sub" x="80" y="62">image v42</text>
+</g>
+
+<!-- snippet: shape-vm-chip -->
+<!-- vm-instance: chip with pins = the machine itself. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>VM instance — a whole virtual machine</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+    <g class="node__icon">
+      <rect class="node__detail" x="126" y="12" width="16" height="16" rx="2" />
+      <path class="node__detail" d="M 130 12 V 9 M 138 12 V 9 M 130 28 V 31 M 138 28 V 31
+                                    M 126 16 H 123 M 126 24 H 123 M 142 16 H 145 M 142 24 H 145" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="46">app-vm</text>
+  <text class="node__sub" x="80" y="62">4 vCPU · 16GB</text>
+</g>
+
+<!-- snippet: shape-subnet-brackets -->
+<!-- vpc-subnet: bracket pair = an address range you carve out. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>VPC subnet — private address range</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+    <path class="node__detail" d="M 128 10 H 122 V 28 H 128 M 140 10 H 146 V 28 H 140" />
+  </g>
+  <text class="node__label" x="80" y="46">private-subnet</text>
+  <text class="node__sub" x="80" y="62">10.0.1.0/24</text>
+</g>
+
+<!-- snippet: shape-az-pin -->
+<!-- availability-zone: map pin = a place; region (the archetype) stays bare. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Availability zone — one isolated location inside the region</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 134 12 a 7 7 0 0 1 7 7 c 0 5 -7 11 -7 11 c 0 0 -7 -6 -7 -11 a 7 7 0 0 1 7 -7 Z" />
+      <circle class="node__detail" cx="134" cy="19" r="2.4" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="46">zone-a</text>
+  <text class="node__sub" x="80" y="62">isolated failure domain</text>
+</g>
+
+<!-- snippet: shape-mesh-net -->
+<!-- service-mesh: netted diamond = every hop woven together. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Service mesh — sidecar network weaving every service call</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+    <path class="node__detail" d="M 124 20 L 134 12 L 144 20 L 134 28 Z M 124 20 H 144 M 134 12 V 28" />
+  </g>
+  <text class="node__label" x="80" y="46">istio-mesh</text>
+  <text class="node__sub" x="80" y="62">mTLS everywhere</text>
+</g>
+
+<!-- snippet: shape-autoscale-arrows -->
+<!-- autoscaling-group: arrows pushing outward = capacity that stretches. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Autoscaling group — adds and removes instances with load</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+    <path class="node__detail" d="M 131 20 H 120 M 123 16 L 119 20 L 123 24
+                                  M 137 20 H 148 M 145 16 L 149 20 L 145 24" />
+  </g>
+  <text class="node__label" x="80" y="46">asg-web</text>
+  <text class="node__sub" x="80" y="62">2..20 instances</text>
+</g>
+
+<!-- snippet: shape-config-sliders -->
+<!-- config-server: two sliders = tunable settings served centrally. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Config server — central source of runtime settings</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 120 15 H 148 M 120 25 H 148" />
+      <circle cx="128" cy="15" r="2.6" />
+      <circle cx="140" cy="25" r="2.6" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="46">config-svc</text>
+  <text class="node__sub" x="80" y="62">flags · limits</text>
+</g>
+
+<!-- snippet: shape-secret-key -->
+<!-- secret-manager: a key = credentials issued, never stored beside code. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Secret manager — issues credentials and keys at runtime</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+    <g class="node__icon">
+      <circle class="node__detail" cx="125" cy="17" r="5" />
+      <path class="node__detail" d="M 130 20 L 146 20 M 139 20 V 26 M 146 20 V 25" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="46">vault</text>
+  <text class="node__sub" x="80" y="62">rotated hourly</text>
+</g>
+
+<!-- snippet: shape-gpu-grid -->
+<!-- gpu-accelerator: chip with an inner grid = thousands of small cores. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>GPU accelerator — massively parallel compute device</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="4" ry="4" />
+    <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64" rx="2" ry="2" />
+    <g class="node__icon">
+      <rect class="node__detail" x="124" y="12" width="20" height="16" rx="2" />
+      <path class="node__detail" d="M 130.6 12 V 28 M 137.3 12 V 28 M 124 20 H 144" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="46">8x H100</text>
+  <text class="node__sub" x="80" y="62">80GB VRAM each</text>
+</g>
+
+<!-- snippet: shape-payment-card -->
+<!-- payment-provider: a card = money moves here; third-party-api keeps the bare cloud. -->
+<g class="node" data-role="external" transform="translate(0,0)">
+  <title>Payment provider — external processor handling the charge</title>
+  <g class="node__body">
+    <path class="node__shape" d="M 40 66 A 22 22 0 0 1 42 24 A 28 28 0 0 1 94 18
+                                 A 24 24 0 0 1 130 34 A 18 18 0 0 1 126 66 Z" />
+    <g class="node__icon">
+      <rect class="node__detail" x="100" y="19.5" width="16" height="8" rx="1.5" />
+      <path class="node__detail" d="M 100 22.5 H 116" />
+    </g>
+  </g>
+  <text class="node__label" x="83" y="46">stripe</text>
+  <text class="node__sub" x="83" y="62">charge · refund</text>
+</g>
+
+<!-- snippet: shape-idp-person -->
+<!-- identity-provider: head and shoulders = who the user is. -->
+<g class="node" data-role="external" transform="translate(0,0)">
+  <title>Identity provider — external authority on who the user is</title>
+  <g class="node__body">
+    <path class="node__shape" d="M 40 66 A 22 22 0 0 1 42 24 A 28 28 0 0 1 94 18
+                                 A 24 24 0 0 1 130 34 A 18 18 0 0 1 126 66 Z" />
+    <g class="node__icon">
+      <circle class="node__detail" cx="106" cy="20.5" r="2.8" />
+      <path class="node__detail" d="M 101 29 a 5.5 4.2 0 0 1 10 0" />
+    </g>
+  </g>
+  <text class="node__label" x="83" y="46">auth0</text>
+  <text class="node__sub" x="83" y="62">OIDC tokens</text>
+</g>
+
+<!-- snippet: shape-email-envelope -->
+<!-- email-service: envelope. -->
+<g class="node" data-role="external" transform="translate(0,0)">
+  <title>Email service — external transactional mail sender</title>
+  <g class="node__body">
+    <path class="node__shape" d="M 40 66 A 22 22 0 0 1 42 24 A 28 28 0 0 1 94 18
+                                 A 24 24 0 0 1 130 34 A 18 18 0 0 1 126 66 Z" />
+    <g class="node__icon">
+      <rect class="node__detail" x="100" y="19" width="16" height="9" rx="1.5" />
+      <path class="node__detail" d="M 100 19 L 108 25 L 116 19" />
+    </g>
+  </g>
+  <text class="node__label" x="83" y="46">ses</text>
+  <text class="node__sub" x="83" y="62">receipts · resets</text>
+</g>
+
+<!-- snippet: shape-sms-bubble -->
+<!-- sms-gateway: speech bubble with a tail. -->
+<g class="node" data-role="external" transform="translate(0,0)">
+  <title>SMS gateway — external text-message delivery</title>
+  <g class="node__body">
+    <path class="node__shape" d="M 40 66 A 22 22 0 0 1 42 24 A 28 28 0 0 1 94 18
+                                 A 24 24 0 0 1 130 34 A 18 18 0 0 1 126 66 Z" />
+    <g class="node__icon">
+      <rect class="node__detail" x="100" y="19" width="16" height="8" rx="3" />
+      <path class="node__detail" d="M 104 27 L 103 28.8 L 107.5 27" />
+    </g>
+  </g>
+  <text class="node__label" x="83" y="46">twilio</text>
+  <text class="node__sub" x="83" y="62">OTP codes</text>
+</g>
+
+<!-- snippet: shape-log-lines -->
+<!-- log-aggregator: ragged text lines = the raw stream of what happened. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Log aggregator — collects every service's log stream</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <path class="node__detail" d="M 120 13 H 150 M 120 20 H 141 M 120 27 H 147" />
+  </g>
+  <text class="node__label" x="80" y="52">loki</text>
+  <text class="node__sub" x="80" y="70">30d retention</text>
+</g>
+
+<!-- snippet: shape-trace-spans -->
+<!-- tracing-backend: waterfall spans = one request's time, nested. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Tracing backend — stores request traces as span waterfalls</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <rect x="118" y="12" width="24" height="4" rx="1" />
+      <rect x="124" y="19" width="18" height="4" rx="1" />
+      <rect x="130" y="26" width="12" height="4" rx="1" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="52">jaeger</text>
+  <text class="node__sub" x="80" y="70">p99 breakdown</text>
+</g>
+
+<!-- snippet: shape-alert-bell -->
+<!-- alerting: a bell = wakes a human. -->
+<g class="node" data-role="infra" transform="translate(0,0)">
+  <title>Alerting — pages the on-call when thresholds break</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 128 25 a 8 8 0 0 1 16 0 l 2.5 5 H 125.5 Z" />
+      <circle class="node__detail" cx="136" cy="33.5" r="2" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="52">pagerduty</text>
+  <text class="node__sub" x="80" y="70">SLO burn alerts</text>
+</g>
+
+<!-- snippet: shape-batch-play -->
+<!-- batch-scheduler: play button = runs the batch when it decides to. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Batch scheduler — groups work and runs it on its own clock</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <circle class="node__detail" cx="135" cy="20" r="10" />
+      <polygon points="132,15 132,25 142,20" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="52">batcher</text>
+  <text class="node__sub" x="80" y="70">continuous batching</text>
+</g>

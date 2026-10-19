@@ -1,0 +1,519 @@
+/* =====================================================================
+   process-stations.css — the STATION BODIES of the `process` genre
+   ---------------------------------------------------------------------
+   PROVENANCE
+   Distilled from the element sampler v2, user-approved 2026-08-26; the board
+   itself is gone — this file IS the distillation, and the worked example is
+   examples/vibe-code-voi-ai.html (the genre's frozen golden). Load AFTER
+   process-stage-and-edges.css (tokens + role mapping live there).
+   Doctrine and the WHY: references/genres/process.md.
+
+   WHAT A STATION IS
+   A box ON THE RAIL with an input side and an output side — never a
+   mascot, never a poster, and (doctrine) never a human figure. Its title
+   carries a VERB where the station ACTS: "AI · dựng ra UI", not "AI".
+   Every station is absolutely positioned inside a .stage at z-index 2, so
+   the edge overlay beneath it is occluded rather than clipped.
+
+   RULES THAT BIND EVERY BLOCK HERE
+   - Colour enters ONLY through data-role. Never a literal hex in markup.
+   - Body text floor is 15px. The ONE exemption is TEXTURE-CLASS text —
+     the JSON in a jar, mono rows in a code card, the mini button on a
+     strip phone — which is read as pattern, not as words, and is allowed
+     down to 12px. Anything a viewer is expected to READ stays >= 15px.
+   - No handwriting font anywhere (Vietnamese stacked diacritics).
+   - Nothing here knows about connectors; geometry stays in the overlay.
+   ===================================================================== */
+
+/* snippet: css-station-role-chip */
+/* THE NO-ACTORS ESCAPE HATCH. When a source insists on naming a person or
+   a team, the answer is a labelled CHIP, not a silhouette: a role word, an
+   optional count, and nothing that looks like a body. See
+   references/genres/process.md → Object-vignette doctrine. */
+.chip-role{position:absolute;z-index:2;display:inline-flex;align-items:center;gap:11px;
+           padding:10px 16px;background:var(--fill);color:var(--on);
+           border:var(--shape-bw) solid var(--line);border-radius:var(--chip-radius);
+           box-shadow:var(--node-shadow)}
+.chip-role__tag{align-self:flex-start;padding:2px 8px;border-radius:var(--pill-radius);
+                font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+                color:var(--on);opacity:.7;border:1px solid var(--line)}
+.chip-role__txt{min-width:0}
+.chip-role__t{margin:0;font-family:var(--font-title);font-size:17px;font-weight:700;
+              color:var(--on);line-height:1.15}
+.chip-role__s{margin:3px 0 0;font-size:15px;color:var(--on);opacity:.82;line-height:1.3}
+/* the COUNT rides its own slot and is always a NUMBER — never repeated
+   glyphs. Three copies of anything reads "three identical things", which
+   is a claim no process sheet makes. */
+.chip-role__n{margin-left:auto;flex:0 0 auto;min-width:28px;height:28px;padding:0 7px;
+              display:grid;place-items:center;border-radius:var(--pill-radius);
+              background:var(--line);color:var(--surface);
+              font-family:var(--font-title);font-size:15px;font-weight:700}
+
+/* snippet: css-station-brief-sheet */
+/* A one-page brief: tab + paper. Deliberately SHORT and NARROW so it sits
+   on the rail as a station; a full-height sheet reads as a poster. */
+.brd{position:absolute;z-index:2;width:314px;color:var(--line)}
+.brd__tab{margin:0 0 -1px 16px;display:inline-block;padding:4px 13px;font-size:15px;
+          font-weight:600;color:var(--on);background:var(--fill);
+          border:var(--shape-bw) solid var(--line);border-bottom:0;border-radius:6px 6px 0 0}
+.brd__paper{background:var(--paper-fill);border:var(--shape-bw) solid var(--line);
+            border-radius:var(--paper-radius);box-shadow:var(--paper-shadow);
+            padding:14px 16px 13px}
+.brd__h{margin:0 0 10px;font-family:var(--font-title);font-size:18px;
+        font-weight:var(--fw-title);color:var(--ink);line-height:1.2}
+.brd__line{margin:0 0 7px;font-size:15px;line-height:1.4;color:var(--ink)}
+.brd__line b{color:var(--muted);font-weight:600}
+.brd__rule{margin:11px 0 9px;height:0;border-top:1px dashed var(--dash-ink);opacity:.75}
+.brd__line--out{margin:0;opacity:.6;text-decoration:line-through;text-decoration-thickness:1px}
+
+/* snippet: css-station-brd-doc */
+/* The PRODUCT-FIRST cut of the brief: a real one-page document rather than a
+   labelled box. Descends from css-station-brief-sheet (tab + paper + struck
+   scope line, all kept); what is new is the DOCUMENT GRID — a label column and
+   a value column — because only a grid lets the far LOD tier skeletonise the
+   values while the section names still read as structure. Needs
+   css-process-lod. Height is IDENTICAL at both tiers: only opacity moves. */
+.doc{position:absolute;z-index:2;width:360px;color:var(--line)}
+.doc__tab{margin:0 0 -1px 18px;display:inline-block;padding:4px 14px;font-size:15px;
+          font-weight:600;color:var(--on);background:var(--fill);
+          border:var(--shape-bw) solid var(--line);border-bottom:0;border-radius:6px 6px 0 0}
+.doc__paper{background:var(--paper-fill);border:var(--shape-bw) solid var(--line);
+            border-radius:var(--paper-radius);box-shadow:var(--paper-shadow);
+            padding:15px 17px 14px}
+/* the header row is what makes it read as a DOCUMENT rather than as a card */
+.doc__hd{display:flex;align-items:baseline;gap:10px;padding-bottom:10px;
+         border-bottom:var(--shape-bw) solid var(--line)}
+.doc__h{margin:0;font-family:var(--font-title);font-size:19px;font-weight:var(--fw-title);
+        letter-spacing:var(--ls-title);color:var(--ink);line-height:1.15}
+.doc__v{margin:0 0 0 auto;font-size:15px;color:var(--muted);white-space:nowrap}
+/* label column always paints (structure); the value column is the LOD slot */
+.doc__r{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:start;
+        padding:9px 0 8px;border-bottom:1px solid color-mix(in srgb,var(--line) 18%,transparent)}
+.doc__r:last-of-type{border-bottom:0}
+.doc__k{margin:0;font-size:15px;font-weight:700;color:var(--on);line-height:1.35}
+.doc__val{min-width:0;min-height:21px}
+.doc__val p{margin:0;font-size:15px;line-height:1.4;color:var(--ink)}
+.doc__val .lod__far{gap:7px}   /* 3 short bars for the core-flow list, not 3 long ones */
+/* the numbered core flow — the close tier's real payload, not a restatement */
+.doc__flow{margin:0;padding:0;list-style:none}
+.doc__flow li{display:flex;align-items:baseline;gap:8px;margin-bottom:5px;
+              font-size:15px;line-height:1.35;color:var(--ink)}
+.doc__flow li:last-child{margin-bottom:0}
+.doc__flow li b{flex:0 0 auto;width:19px;height:19px;display:grid;place-items:center;
+                border-radius:50%;background:var(--fill);color:var(--on);
+                font-family:var(--font-title);font-size:15px;font-weight:700;line-height:1}
+/* the struck scope line, verbatim from css-station-brief-sheet's .brd__line--out.
+   NOTE the opacity here is OUTSIDE any LOD subtree — inside one it would be the
+   cascade collision css-process-lod rule 2 bans. */
+.doc__cut{margin:11px 0 0;padding-top:10px;border-top:1px dashed var(--dash-ink);
+          font-size:15px;line-height:1.4;color:var(--ink);opacity:.62;
+          text-decoration:line-through;text-decoration-thickness:1px}
+.doc__cut b{font-weight:700;color:var(--on)}
+
+/* snippet: css-station-ai-spark */
+/* The recurring worker station. THREE SIZES, one glyph: full (rail hero),
+   --sm (inside a busy beat), --xs (the process strip). The glyph is a
+   clip-path star, not an icon font — it is an OBJECT, which is why the
+   no-human-figures doctrine allows it. */
+.ai{position:absolute;z-index:2;display:flex;align-items:center;gap:14px;
+    padding:14px 20px 14px 16px;background:var(--fill);
+    border:var(--shape-bw) solid var(--line);border-radius:10px;
+    box-shadow:var(--node-shadow)}
+.ai__glyph{position:relative;flex:0 0 auto;width:var(--sz,46px);height:var(--sz,46px)}
+.ai__glyph i{position:absolute;background:var(--line);
+             clip-path:polygon(50% 0%,60% 40%,100% 50%,60% 60%,50% 100%,
+                               40% 60%,0% 50%,40% 40%)}
+.ai__glyph i:nth-child(1){left:0;top:0;width:74%;height:74%}
+.ai__glyph i:nth-child(2){right:0;bottom:2%;width:42%;height:42%;opacity:.62}
+.ai__txt{min-width:0}
+.ai__t{margin:0;font-family:var(--font-title);font-size:20px;letter-spacing:.02em;
+       font-weight:700;color:var(--on);line-height:1.1}
+.ai__s{margin:4px 0 0;font-size:15px;color:var(--on);opacity:.82;line-height:1.3}
+.ai--sm{gap:10px;padding:10px 14px 10px 12px;--sz:28px}
+.ai--sm .ai__t{font-size:17px}
+.ai--sm .ai__s{font-size:15px;margin-top:1px}
+.ai--xs{gap:8px;padding:7px 13px 7px 10px;--sz:20px;border-radius:var(--pill-radius)}
+/* below ~26px the companion star degrades into a "+" — drop it, grow the first */
+.ai--xs .ai__glyph i:nth-child(2){display:none}
+.ai--xs .ai__glyph i:nth-child(1){width:100%;height:100%}
+.ai--xs .ai__t{font-size:16px}
+
+/* snippet: css-station-screen */
+/* LO-FI WIREFRAME ONLY — superseded for real app screens by
+   process-webapp-templates.css -> css-station-webapp (+ a skin), which draws
+   browser chrome, an address and SEMANTIC ANCHORS. Keep this one for a source
+   that really is describing a wireframe, and for the .field / .cta vocabulary
+   a form still needs: chrome bar + paper body + skeleton rows + one real CTA.
+   A form is now only ONE possible source of derivation anchors, never the
+   required one (template contract v2). */
+.scr{position:absolute;z-index:2;color:var(--line)}
+.scr__bar{display:flex;gap:6px;align-items:center;padding:8px 11px;background:var(--fill);
+          border:var(--shape-bw) solid var(--line);border-bottom:0;border-radius:8px 8px 0 0}
+.scr__bar i{width:8px;height:8px;border-radius:50%;background:var(--line);opacity:.5}
+.scr__bar span{margin-left:6px;font-size:15px;color:var(--on);opacity:.75}
+.scr__body{background:var(--paper-fill);border:var(--shape-bw) solid var(--line);
+           border-radius:0 0 8px 8px;box-shadow:var(--paper-shadow);padding:14px 15px 15px}
+.scr__h{margin:0 0 12px;font-family:var(--font-title);font-size:17px;
+        font-weight:var(--fw-title);color:var(--ink)}
+.line{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.line__box{flex:0 0 auto;width:22px;height:22px;border-radius:5px;
+           background:var(--fill);border:1px solid var(--line)}
+.line__txt{flex:1;min-width:0;font-size:15px;color:var(--ink)}
+.line--ghost{opacity:.35}
+.bar{display:block;height:6px;margin-top:5px;border-radius:3px;background:var(--skel)}
+.bar--s{width:38%}.bar--m{width:62%}.bar--l{width:84%}
+.field{display:flex;align-items:center;justify-content:space-between;gap:10px;
+       margin-bottom:12px;padding:8px 11px;border-radius:7px;
+       background:color-mix(in srgb,var(--accent) 12%,transparent);
+       border:1px solid var(--line)}
+.field b{font-size:15px;font-weight:600;color:var(--on)}
+.field span{font-size:15px;color:var(--muted)}
+.cta{display:block;width:100%;margin-top:12px;padding:9px 10px;font:inherit;font-size:15px;
+     font-weight:600;font-family:var(--font-title);color:#f8fafc;background:#2563eb;
+     cursor:pointer;border:var(--shape-bw) solid #2563eb;border-radius:7px;
+     box-shadow:0 2px 6px -1px color-mix(in srgb,#2563eb 45%,transparent)}
+
+/* snippet: css-station-data-jar */
+/* Fake / seed data as an OBJECT: lid, neck, body, a liquid line and a few
+   mono rows. The jar's rows are TEXTURE-class (12px, exempt from the 15px
+   floor) — nobody reads them, they say "json lives here". */
+.jar{position:absolute;z-index:2;width:180px;color:var(--line)}
+.jar__lid{width:108px;height:16px;margin:0 auto;border-radius:5px;
+          background:var(--fill);border:var(--shape-bw) solid var(--line)}
+.jar__neck{width:86px;height:11px;margin:-1px auto 0;background:var(--fill);
+           border-left:var(--shape-bw) solid var(--line);
+           border-right:var(--shape-bw) solid var(--line)}
+.jar__body{position:relative;height:132px;padding:12px 13px;overflow:hidden;
+           border:var(--shape-bw) solid var(--line);border-radius:8px 8px 16px 16px;
+           background:var(--paper-fill);box-shadow:var(--paper-shadow)}
+.jar__liquid{position:absolute;left:0;right:0;bottom:0;height:56%;
+             background:var(--fill);opacity:.8}
+.jar__code{position:relative;display:block;margin-bottom:8px;font-family:var(--font-mono);
+           font-size:12px;color:var(--on);white-space:nowrap;letter-spacing:-.01em}
+.jar__code--dim{opacity:.45}
+.jar__label{margin:10px 0 0;text-align:center;font-family:var(--font-title);
+            font-size:15px;font-weight:var(--fw-title);color:var(--on)}
+
+/* snippet: css-station-decision-diamond */
+/* rotate(45deg) on a bordered SQUARE keeps the 1.5px stroke crisp; a
+   clip-path diamond throws the border away. The label counter-rotates and
+   is sized 1.28x the square so a two-word Vietnamese question fits. */
+.dia{position:absolute;z-index:2;width:var(--d,108px);height:var(--d,108px);
+     transform:rotate(45deg);background:var(--fill);
+     border:var(--shape-bw) solid var(--line);border-radius:8px;box-shadow:var(--node-shadow)}
+.dia__in{position:absolute;left:50%;top:50%;width:calc(var(--d,108px)*1.28);
+         translate:-50% -50%;transform:rotate(-45deg);text-align:center;
+         font-family:var(--font-title);font-size:16px;font-weight:700;
+         color:var(--on);line-height:1.22}
+.dia--sm{--d:88px}
+.dia--sm .dia__in{font-size:15px}
+
+/* snippet: css-station-sticky-note */
+/* The note that rides the return arc: what CHANGES on the next lap. Its
+   rotate(-2deg) is baked into the pulse keyframes (transform-origin is
+   element-local — see process-stage-and-edges.css → css-process-motion-floor). */
+.sticky{position:absolute;z-index:4;padding:11px 14px;max-width:210px;
+        background:#ffedd5;border:var(--shape-bw) solid #ea580c;border-radius:3px;
+        box-shadow:0 2px 4px rgba(30,41,59,.10),0 10px 20px -14px rgba(154,52,18,.7);
+        color:#9a3412;font-size:16px;font-weight:600;line-height:1.3;
+        transform:rotate(-2deg);transform-origin:center}
+.sticky em{display:block;margin-top:3px;font-style:normal;font-weight:500;
+           font-size:15px;opacity:.85}
+.sticky--pulse{animation:stickyPulse 2.8s ease-in-out infinite}
+.sticky--sm{padding:7px 11px;font-size:15px;max-width:180px}
+
+/* snippet: css-station-schema-table */
+/* Where a derivation LANDS: one row per column, mono names, a role dot at
+   the right so the eye can pair a row with the pull-line that reached it. */
+.tbl{position:absolute;z-index:2;background:var(--paper-fill);
+     border:var(--shape-bw) solid var(--line);border-radius:8px;
+     box-shadow:var(--node-shadow);overflow:hidden}
+.tbl__h{display:flex;align-items:center;gap:9px;height:44px;padding:0 15px;
+        background:var(--fill);border-bottom:var(--shape-bw) solid var(--line)}
+.tbl__h b{font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--on)}
+.tbl__h span{margin-left:auto;font-size:15px;color:var(--on);opacity:.75}
+.tbl__r{display:flex;align-items:center;height:46px;padding:0 15px;gap:10px;
+        border-bottom:1px solid color-mix(in srgb,var(--line) 22%,transparent)}
+.tbl__r:last-child{border-bottom:0}
+.tbl__r b{flex:0 0 150px;font-family:var(--font-mono);font-size:16px;
+          font-weight:600;color:var(--ink)}
+.tbl__r span{font-size:15px;color:var(--muted)}
+.tbl__r i{margin-left:auto;width:9px;height:9px;border-radius:50%;
+          background:var(--accent);opacity:.85}
+
+/* snippet: css-station-list-card */
+/* One shell, two jobs (this is why it is HARVESTED rather than invented —
+   rule of two): the back-end block "what runs here" and the acceptance
+   checklist "what must be true". Square bullet = a line item, nothing more. */
+.lst{position:absolute;z-index:2;padding:14px 18px 15px;background:var(--fill);
+     border:var(--shape-bw) solid var(--line);border-radius:10px;box-shadow:var(--node-shadow)}
+.lst__t{margin:0 0 10px;font-family:var(--font-title);font-size:18px;
+        font-weight:var(--fw-title);color:var(--on)}
+.lst__l{margin:0 0 8px;display:flex;align-items:center;gap:9px;font-size:15px;color:var(--on)}
+.lst__l:last-child{margin-bottom:0}
+.lst__l i{flex:0 0 auto;width:8px;height:8px;border-radius:2px;background:var(--line)}
+.lst__l--done i{border-radius:50%;background:var(--accent)}
+.lst__l--todo i{background:none;border:1.5px solid var(--line)}
+.lst__n{float:right;font-size:15px;font-weight:600;color:var(--on);opacity:.75}
+
+/* snippet: css-station-code-card */
+/* A code change as a work ITEM. Built from the twice-proven mono-texture
+   row (jar json + schema table names): a paper card whose body is mono
+   texture, one row marked as the change. TEXTURE-class, 13px, unread. */
+.code{position:absolute;z-index:2;background:var(--paper-fill);color:var(--line);
+      border:var(--shape-bw) solid var(--line);border-radius:8px;
+      box-shadow:var(--paper-shadow);overflow:hidden}
+.code__h{display:flex;align-items:center;gap:9px;padding:9px 14px;background:var(--fill);
+         border-bottom:var(--shape-bw) solid var(--line);
+         font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--on)}
+.code__h span{margin-left:auto;font-family:var(--font-title);font-size:15px;opacity:.75}
+.code__b{padding:11px 14px 13px}
+.code__r{display:block;margin-bottom:6px;font-family:var(--font-mono);font-size:13px;
+         color:var(--muted);white-space:nowrap}
+.code__r--add{color:var(--on-data);background:color-mix(in srgb,#22c55e 14%,transparent);
+              margin-inline:-14px;padding:1px 14px}
+.code__r--dim{opacity:.45}
+
+/* snippet: css-station-snap-cartridge */
+/* CARTRIDGE MODULES — three pieces BUILT SEPARATELY that snap together, with
+   ONE record running through all three.
+   PROVENANCE: the V2 snap-block enrichment board, user-approved 2026-08-27
+   ("V2 ổn"). It REPLACES css-station-snap-seam (three flush rects plus a
+   rotated seam key), which was sampler-v2 vocabulary authored before the
+   product-first pivot: once the pieces carry product interiors, a 30px diamond
+   floating over a mini dashboard reads as a defect, and at the overview hold it
+   has all but vanished. The idiom is named in references/genres/process.md →
+   *Vocabulary — mộng / ổ / port band*; that entry is what LEGALISES it. A
+   one-off metaphor with no doctrine entry is banned by the same section.
+
+   TWO CLAIMS, ONE OBJECT EACH — and they share a centre line:
+   - mộng / ổ (KNOB / SOCKET). Each piece carries a jigsaw knob on its right
+     edge, already seated in the next piece's socket. The knob wears the LEFT
+     piece's role colour, because the record LEAVES that piece and the next one
+     receives it. A knob deforms the piece's own silhouette, so "snap" survives
+     to the overview where a seam key does not.
+   - PORT BAND (the packet THROAT). A full-bleed groove across the bottom of
+     every piece. Full-bleed on purpose: side padding would break the groove
+     into three, and three grooves say "three wires", not "one run".
+   The knob sits DEAD-CENTRE on the port band, so the interlock and the throat
+   the record passes through are the SAME object. That is the whole argument for
+   this shape over a refined seam — one detail carries both claims at once.
+
+   GEOMETRY CONTRACT — a cut DERIVES its packet path from this, never guesses:
+     piece height   --sp-h    default 282px
+     port band      --port-h  default 46px (seats a 34px knob with clearance)
+     packet line    = block BOTTOM − 23px  — the port band's centre, which is
+                      also the knob's centre. A packet run at mid-height crosses
+                      three rich interiors and is untraceable.
+     piece width    --sp-w    default 270px  (3 × 270 = an 810px block)
+   The packet is NOT drawn here. In a beats cut it lives at STAGE level: a
+   z-index inside a station's subtree can never rise above a sibling station
+   (process.md build trap). The band OWNS the groove, not the stage — three
+   pieces each drawing their own edge-to-edge segment, joined into one run. Do
+   not also draw a stage-level rail, or the block gets a seam in its own groove.
+
+   Interiors are the three MINIATURE modules: css-webapp-miniature (`.mui`),
+   css-station-mini-api-card (`.mbe`), css-station-mini-items-table (`.mdb`),
+   all over css-station-mini-base (`.mn`). Shell + module, exactly the way the
+   webapp station is shell + skin. */
+.snapset{position:absolute;z-index:2;display:flex;align-items:stretch}
+.sp{position:relative;flex:0 0 var(--sp-w,270px);min-width:0;height:var(--sp-h,282px);
+    display:flex;flex-direction:column;background:var(--paper-fill);
+    border:var(--shape-bw) solid var(--line);box-shadow:var(--node-shadow)}
+.sp--a{border-radius:11px 0 0 11px}
+.sp--b{border-radius:0}
+.sp--c{border-radius:0 11px 11px 0}
+.sp__hd{position:relative;display:flex;align-items:baseline;gap:11px;padding:10px 15px 11px;
+        background:var(--fill);border-bottom:var(--shape-bw) solid var(--line)}
+.sp__t{margin:0;font-family:var(--font-title);font-size:20px;font-weight:700;
+       letter-spacing:.01em;line-height:1.1;color:var(--on)}
+/* no self-opacity anywhere in this block: a dim tone is a color-mix, so the
+   whole shell can be dropped inside an LOD subtree without colliding with
+   --lodc (process.md build trap: [LOD-LEAK]). */
+.sp__s{margin:0;font-size:15px;line-height:1.25;
+       color:color-mix(in srgb,var(--on) 84%,var(--fill))}
+.sp__body{flex:1;min-height:0;padding:12px 13px}
+.sp__port{position:relative;flex:0 0 var(--port-h,46px);overflow:visible;
+          background:var(--surface);
+          border-top:1px solid color-mix(in srgb,var(--line) 32%,transparent)}
+.sp__port::before{content:"";position:absolute;left:0;right:0;top:50%;height:10px;
+          margin-top:-5px;background:color-mix(in srgb,var(--stroke) 7%,transparent);
+          box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--stroke) 15%,transparent)}
+/* the joint overlay — one layer over the whole set, so a knob can cross the
+   boundary between two pieces without either piece clipping it */
+.seamlayer{position:absolute;left:0;top:0;right:0;bottom:0;z-index:5;pointer-events:none}
+/* the socket belongs to the piece on the RIGHT of the seam */
+.socket{position:absolute;bottom:23px;width:48px;height:46px;translate:-50% 50%;
+        border-radius:15px;background:var(--surface);z-index:4;
+        box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--stroke) 30%,transparent)}
+/* the knob carries data-role = the LEFT piece's role, never a literal hex */
+.knob{position:absolute;bottom:23px;width:34px;height:34px;translate:-50% 50%;
+      border-radius:11px;background:var(--fill);border:var(--shape-bw) solid var(--line);
+      z-index:5}
+.knob::after{content:"";position:absolute;left:-1.5px;right:-1.5px;top:50%;height:8px;
+      margin-top:-4px;background:color-mix(in srgb,var(--stroke) 9%,transparent)}
+/* the SEATED tick: two short marks above the joint. The flat-minimal way of
+   saying it CLICKED rather than merely touching — no glow, no motion needed. */
+.click{position:absolute;bottom:54px;width:24px;height:11px;translate:-50% 0;z-index:5}
+.click::before,.click::after{content:"";position:absolute;top:0;width:2px;height:11px;
+      border-radius:2px;background:color-mix(in srgb,var(--accent-infra) 70%,transparent)}
+.click::before{left:1px;rotate:-26deg}
+.click::after{right:1px;rotate:26deg}
+/* grip ridges — a module you could pick up */
+.grip{position:absolute;right:13px;top:50%;translate:0 -50%;display:flex;gap:3px}
+.grip i{width:2px;height:13px;border-radius:2px;
+        background:color-mix(in srgb,var(--on) 30%,var(--fill))}
+/* out / in — texture-class, and the ONLY place the block states direction in
+   words. Held clear of the socket (24px half-width) AND above the groove: a
+   label the packet trail runs through is a label nobody reads. */
+.portlbl{position:absolute;top:6px;font-size:12px;line-height:1;letter-spacing:.06em;
+         text-transform:uppercase;color:color-mix(in srgb,var(--on) 58%,var(--surface))}
+.portlbl--in{left:34px}
+.portlbl--out{right:34px}
+
+/* snippet: css-station-mini-base */
+/* A station that CONTAINS other stations draws them as MINIATURES, and a
+   miniature re-uses its full-size sibling's silhouette rather than a new one
+   (process.md → Product-first). This is the shared frame all three sit in:
+   a header line, then the module's own rows. Everything below 15px carries
+   [data-texture] and is read as PATTERN, never as words. */
+.mn{display:flex;flex-direction:column;gap:8px;min-width:0}
+.mn__hd{display:flex;align-items:baseline;gap:9px;height:20px}
+.mn__hd b{font-size:15px;font-weight:700;line-height:1.2;color:var(--on)}
+.mn__hd b.mono{font-family:var(--font-mono)}
+.mn__hd span{margin-left:auto;font-size:12px;line-height:1.2;
+             color:color-mix(in srgb,var(--on) 66%,var(--surface))}
+.mn i.sk{display:block;height:6px;border-radius:4px;background:var(--skel)}
+
+/* snippet: css-station-mini-api-card */
+/* THE BACK-END, as a believable service: three routes read as "an API" in one
+   glance. FIRST APPEARANCE, harvested on the UNIVERSALITY argument that
+   rule-of-two allows and the user's V2 approval (2026-08-27) supplied: an API
+   card is what "a back-end" looks like in every vibe-coded app, the same ruling
+   that let the social and ecom webapp skins in on their first appearance.
+   Chosen over a receive→validate→save badge pipeline because the piece's own
+   sub-label already says exactly that, and a strip repeating it is decoration. */
+.mbe{gap:8px}
+.mbe__r{display:flex;align-items:center;gap:9px;height:34px;padding:0 10px;
+        background:var(--surface);border:1px solid color-mix(in srgb,var(--line) 55%,transparent);
+        border-radius:6px}
+.mbe__m{flex:0 0 auto;min-width:44px;padding:3px 7px;border-radius:4px;text-align:center;
+        font-family:var(--font-mono);font-size:12px;font-weight:700;line-height:1.1;
+        letter-spacing:.02em;color:#f8fafc;background:var(--accent)}
+.mbe__m--get{background:color-mix(in srgb,var(--on) 72%,var(--surface))}
+.mbe__p{flex:1;min-width:0;font-family:var(--font-mono);font-size:13px;line-height:1.2;
+        color:var(--ink);white-space:nowrap;overflow:hidden}
+.mbe__ok{flex:0 0 auto;width:8px;height:8px;border-radius:50%;
+        background:color-mix(in srgb,var(--accent-data) 78%,transparent)}
+
+/* snippet: css-station-mini-items-table */
+/* The DB piece's interior: the same `items` table css-station-schema-table
+   draws full size — second appearance of that silhouette, so it clears
+   rule-of-two on its own. Columns over a dashed rule, then skeleton data rows:
+   the rule is what says "these are the columns, that is the data". */
+.mdb{gap:7px}
+.mdb__c{display:flex;align-items:center;gap:9px;height:24px;padding:0 9px;
+        background:var(--surface);border:1px solid color-mix(in srgb,var(--line) 50%,transparent);
+        border-radius:5px}
+.mdb__c b{flex:0 0 auto;font-family:var(--font-mono);font-size:13px;font-weight:600;
+        line-height:1.2;color:var(--ink)}
+.mdb__c span{margin-left:auto;font-size:12px;line-height:1.2;
+        color:color-mix(in srgb,var(--on) 66%,var(--surface))}
+.mdb__data{margin-top:2px;padding-top:7px;display:flex;flex-direction:column;gap:6px;
+        border-top:1px dashed var(--dash-ink)}
+.mdb__d{display:flex;align-items:center;gap:7px;height:12px}
+.mdb__d i.sk{height:7px}
+.mdb__d i.sk:nth-child(1){flex:0 0 38%}
+.mdb__d i.sk:nth-child(2){flex:0 0 22%}
+.mdb__d i.sk:nth-child(3){flex:1}
+
+/* snippet: css-station-url-pill */
+.url{position:absolute;z-index:2;display:flex;align-items:center;gap:11px;
+     padding:14px 22px;background:var(--fill);color:var(--on);
+     border:var(--shape-bw) solid var(--line);border-radius:var(--pill-radius);
+     box-shadow:var(--node-shadow);font-family:var(--font-mono);font-size:17px}
+.lockglyph{flex:0 0 auto;width:9px;height:11px;position:relative;
+           background:currentColor;border-radius:2px;opacity:.8}
+.lockglyph::before{content:"";position:absolute;left:50%;top:-6px;width:9px;height:9px;
+                   translate:-50% 0;border:2px solid currentColor;border-bottom:0;
+                   border-radius:5px 5px 0 0}
+
+/* snippet: css-station-phone-ripple */
+/* The "it is real now" station. THE RIPPLE ANCHORS TO A BUTTON WRAPPER,
+   not to the screen body: .app's height depends on how many skeleton rows
+   sit above it, so a screen-anchored ripple drifted off the button every
+   time the content changed. Rings sit BEHIND the button (z-index 0 vs 1). */
+.phone{position:absolute;z-index:2;color:var(--line);padding:13px 10px 20px;
+       background:#f1f5f9;border:3px solid var(--line);border-radius:24px;
+       box-shadow:0 2px 4px rgba(30,41,59,.08),0 18px 34px -20px rgba(30,41,59,.5)}
+.phone__notch{position:absolute;left:50%;top:5px;width:66px;height:7px;translate:-50% 0;
+              border-radius:5px;background:var(--line);opacity:.5}
+.phone__home{position:absolute;left:50%;bottom:7px;width:72px;height:5px;translate:-50% 0;
+             border-radius:4px;background:var(--line);opacity:.4}
+.phone__screen{height:100%;overflow:hidden;background:var(--paper-fill);border-radius:0 0 8px 8px}
+.urlbar{display:flex;align-items:center;gap:7px;padding:8px 10px;font-size:15px;
+        color:var(--on);background:var(--fill);border-bottom:1px solid var(--line)}
+.app{position:relative;padding:13px 13px 16px}
+.app__h{margin:0 0 11px;font-family:var(--font-title);font-size:16px;
+        font-weight:var(--fw-title);color:var(--ink)}
+.ctaw{position:relative;display:block}
+.ctaw .cta{position:relative;z-index:1}
+.ripple{position:absolute;z-index:0;left:50%;top:50%;width:0;height:0;translate:-50% -50%}
+.ripple i{position:absolute;left:50%;top:50%;translate:-50% -50%;border-radius:50%;
+          border:2px solid #2563eb}
+.ripple i:nth-child(1){width:56px;height:56px;opacity:.8}
+.ripple i:nth-child(2){width:96px;height:96px;opacity:.42}
+.ripple i:nth-child(3){width:136px;height:136px;opacity:.18}
+
+/* snippet: css-station-strip-card */
+/* THE 5-SECOND FRAME. The whole workflow on one line at small scale: a
+   numbered badge, one bold noun, one short qualifier. If the still frame
+   is not legible in 5 seconds, the storyboard is wrong — not this card. */
+.st{position:absolute;z-index:2;width:210px;height:96px;padding:12px 14px;
+    background:var(--fill);border:var(--shape-bw) solid var(--line);
+    border-radius:10px;box-shadow:var(--node-shadow)}
+.st__no{position:absolute;left:-11px;top:-11px;width:26px;height:26px;
+        display:grid;place-items:center;border-radius:50%;background:var(--line);
+        color:var(--surface);font-family:var(--font-title);font-size:15px;font-weight:700}
+.st__t{margin:0;display:flex;align-items:center;gap:9px;font-family:var(--font-title);
+       font-size:17px;font-weight:700;color:var(--on);line-height:1.15}
+.st__s{margin:7px 0 0;font-size:15px;color:var(--on);opacity:.82;line-height:1.25}
+/* the spark reused at strip scale — single star; a 9px companion is noise */
+.st__spark{position:relative;flex:0 0 auto;width:20px;height:20px}
+.st__spark i{position:absolute;left:0;top:0;width:100%;height:100%;background:var(--line);
+             clip-path:polygon(50% 0%,60% 40%,100% 50%,60% 60%,50% 100%,
+                               40% 60%,0% 50%,40% 40%)}
+.st__spark i:nth-child(2){display:none}
+/* SHAPE-CUE RULE: infra fill (#f1f5f9) and external fill (#f3f4f6) are
+   near-identical greys. When two such stations sit adjacent, colour is not
+   a distinction — one of them borrows a GLYPH from the sheet's existing
+   vocabulary (here the teal seam key, inherited from the retired
+   css-station-snap-seam; at STRIP scale a 15px key still reads, which is
+   exactly why css-station-snap-cartridge dropped it at full scale and this
+   block kept it). Never invent a new colour to solve an adjacency problem. */
+.st__key{position:relative;flex:0 0 auto;width:15px;height:15px;transform:rotate(45deg);
+         border-radius:3px;background:var(--surface);border:2px solid var(--accent-infra)}
+.st__phone{position:absolute;z-index:2;width:120px;height:150px;padding:9px 7px 13px;
+           background:#f1f5f9;border:2.5px solid var(--line);border-radius:18px;
+           box-shadow:0 2px 4px rgba(30,41,59,.08),0 18px 34px -20px rgba(30,41,59,.5)}
+.st__phone .phone__notch{width:46px;height:6px;top:4px}
+.st__phone .phone__home{width:52px;height:4px;bottom:5px}
+.st__scr{height:100%;padding:9px 8px;background:var(--paper-fill);border-radius:6px;
+         display:flex;flex-direction:column;gap:6px}
+.st__scr i{display:block;height:7px;border-radius:3px;background:var(--skel)}
+.st__scr i:nth-child(1){width:70%}.st__scr i:nth-child(2){width:92%}.st__scr i:nth-child(3){width:56%}
+.st__scr b{margin-top:auto;display:block;padding:6px 0;text-align:center;border-radius:5px;
+           background:#2563eb;color:#f8fafc;font-family:var(--font-title);
+           font-size:12px;font-weight:600}   /* texture-class: a button SHAPE, not a label */
+.st__cap{position:absolute;z-index:3;text-align:center;width:120px;font-size:15px;
+         font-weight:600;color:var(--on-client)}
+
+/* snippet: css-station-generic */
+/* When no vignette is earned, a plain titled box is honest. Its title still
+   carries the VERB. Use it rather than stretching an idiom that does not fit. */
+.node{position:absolute;z-index:2;background:var(--fill);
+      border:var(--shape-bw) solid var(--line);border-radius:10px;
+      box-shadow:var(--node-shadow);padding:12px 16px;color:var(--on)}
+.node__t{margin:0;font-family:var(--font-title);font-size:17px;
+         font-weight:var(--fw-title);color:var(--on);line-height:1.2}
+.node__s{margin:3px 0 0;font-size:15px;color:var(--on);opacity:.8;line-height:1.3}
