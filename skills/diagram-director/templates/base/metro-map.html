@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkout request flow — metro-map</title>
+
+<!-- =====================================================================
+     STYLE: metro-map  (data/styles.csv#metro-map)
+     Derived from templates/base/flat-minimal.html. Every class name and
+     custom-property name from that reference file is still declared here;
+     only :root token VALUES, the <defs>, and the rules flagged "METRO:"
+     differ — plus one new family of EDGE-CENTRIC names, listed below.
+
+     >>> IN THIS STYLE THE EDGE IS THE PRIMARY OBJECT, NOT THE NODE. <<<
+     Everywhere else a diagram is boxes joined by lines. A transit map is
+     ROUTES that happen to pass through stops. So the node shrinks to a
+     marker with a label hanging under it, and the connector grows into a
+     three-part object. That inversion is the whole style.
+
+     METRO: CLASS NAMES ADDED (and why each one has to exist)
+       .route          the thick uniform-width coloured line. It is a
+                       MODIFIER on .edge (<path class="edge route">), so
+                       everything that already targets .edge still works.
+                       Width comes from --route-w, never --stroke-w: a stop
+                       marker's outline and a route line are different
+                       objects that happen to both be strokes.
+       .route__casing  the surface-coloured halo drawn UNDER every route.
+                       This is the classic transit-map device that lets one
+                       line cross another and still read as passing over,
+                       and it also lifts a line off a stop label. All
+                       casings live in one layer that ships BEFORE the
+                       routes layer — that ordering IS the effect. There is
+                       no crossing in this example diagram; the casings are
+                       still here so the first route you add that does
+                       cross renders correctly with no extra work.
+       .route__flow    a thin accent strand laid on the exact same `d` as
+                       its route, and the ONLY element that carries
+                       .anim-dash-flow. Putting dash-flow on the route
+                       itself would chop the thick uniform line into
+                       dashes and destroy the one thing this style is —
+                       so the traffic animation rides a separate strand.
+                       Copy the route's `d` verbatim into it.
+       .route__badge / .route__badge-text
+                       the route bullet: a pale pill with a route-coloured
+                       ring and the route id in dark text, dropped on the
+                       line. Route colour is NEVER the only signal — the
+                       badge names the route on the artwork and the route
+                       legend repeats it in words.
+       .node--interchange
+                       a stop where routes meet. A DIAMOND, not a bigger
+                       circle: styles.csv's own accessibility note requires
+                       interchanges to differ in SHAPE, since "slightly
+                       larger" is invisible to a lot of readers. It is
+                       bigger too, but the shape is what carries it.
+       .legend--routes / .legend__line
+                       the second legend. Roles get square swatches, routes
+                       get a line swatch — they are different kinds of
+                       thing and must not share one key.
+     METRO: ONLY TWO NAMES ARE DROPPED — .packet--e1 / .packet--e3, renamed
+     .packet--r1 / .packet--r3 because the thing a packet rides here is a
+     route, not an edge. Same rule, same job, one letter. Everything else
+     survives, including .queue__track / .queue__fill / .group__box, which
+     this example does not use but a pipeline diagram will.
+
+     HOW TO ADAPT THIS FILE
+     1. TOKENS — edit only the :root block and its dark-mode twin. Colours
+        come from data/color-semantics.csv (Style ID metro-map); never
+        invent a hex. A route takes its colour from its own data-role, so
+        three routes = three roles = three pre-verified colours.
+     2. STOPS — add/remove <g class="node"> blocks between NODES:START and
+        NODES:END. The nominal cell is still 160x80 and the MARKER sits at
+        its centre, local (80,40); the label hangs below at local y=74 and
+        y=92, i.e. outside the nominal box. That is deliberate and is why
+        the row gap here is 180, not the 120 in data/layouts.csv#layered-lr:
+        a stop label needs the room a node box used to occupy.
+        When a route leaves a stop vertically, move that stop's label to the
+        SIDE (text-anchor:end, negative-ish local x) — orders-service below
+        shows the pattern. A label a line runs through is the classic
+        transit-map failure.
+     3. ROUTES — a route is THREE elements with the SAME `d`:
+        casing (layer 1) + route (layer 2) + flow strand (layer 3), plus a
+        badge. Bends are 45 or 90 degrees ONLY: a 45 leg must have
+        |dx| == |dy| (both diagonals below are 100 by 100), and the little
+        12-by-12 jogs are how two routes separate as they leave a shared
+        stop. Anything else is not this style.
+     4. MOTION classes available here (templates/snippets/motion-blocks.css):
+          .anim-dash-flow  (.anim-dash)      traffic on a route  -> .route__flow
+          .anim-packet-travel (.anim-travel) one request riding the route
+          .anim-pulse-glow (.anim-pulse)     stop is busy
+          .anim-queue-fill (.anim-fill)      declared, unused here
+          .anim-heartbeat                    declared, unused here
+          .anim-connection-draw-in           declared, unused here
+        styles.csv also lists replication-sync, failover-reroute and
+        stream-continuous for this style. They are not declared here because
+        this diagram does not use them — copy the block you need verbatim
+        from templates/snippets/motion-blocks.css and its reduced-motion
+        rule with it.
+        A packet's offset-path `d` MUST be copied verbatim from its route.
+     5. ARTIFACT vs LOCAL — css-only, zero <script>. The Google Fonts <link>
+        is the ONE external host a Claude Artifact permits, so it ships
+        active; --font-* has a real fallback stack behind it.
+     6. Motion is non-interactive by design — no hover, click, or playback
+        controls. Do not add any.
+
+     METRO: TWO COLOUR SYSTEMS ON ONE PAGE, AND HOW THEY STAY APART
+     A stop's ring is coloured by its ROLE (the same seven roles as every
+     other template — that contract is not broken here) and a route is
+     coloured by ITS role. Both draw from the same palette, so they are
+     kept apart by weight and by shape: routes are 12 units wide and always
+     carry a named badge; stop rings are 3 units and always sit inside a
+     marker. Two separate legends, never merged.
+     ===================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+
+<style>
+:root{
+  /* ---- surface: light neutral, NO grid (transit maps have no graticule) */
+  --bg:#fafafa;
+  --surface:#ffffff;
+  --grid:transparent;      /* METRO: declared, deliberately empty */
+  --ink:#0f172a;
+  --muted:#475569;
+  --stroke:#4b5563;
+  --stroke-w:3px;          /* stop marker outline */
+  --route-w:12px;          /* METRO: route line weight — the style's signature */
+  --radius:10px;
+
+  /* ---- typography --------------------------------------------------- */
+  --font-title:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-label:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --fs-title:1.375rem;
+  --fs-label:16px;
+  --fs-sub:13px;
+
+  /* ---- roles: fill / stroke / accent / on-colour -------------------- */
+  /* values verbatim from data/color-semantics.csv (Style ID metro-map) */
+  --role-client:#eff6ff;   --ink-client:#2563eb;   --accent-client:#3b82f6;   --on-client:#1e3a8a;
+  --role-service:#fff7ed;  --ink-service:#ea580c;  --accent-service:#f97316;  --on-service:#7c2d12;
+  --role-data:#f0fdf4;     --ink-data:#16a34a;     --accent-data:#22c55e;     --on-data:#14532d;
+  --role-async:#faf5ff;    --ink-async:#9333ea;    --accent-async:#a855f7;    --on-async:#581c87;
+  --role-external:#f9fafb; --ink-external:#4b5563; --accent-external:#6b7280; --on-external:#111827;
+  --role-error:#fef2f2;    --ink-error:#dc2626;    --accent-error:#ef4444;    --on-error:#7f1d1d;
+  --role-infra:#f8fafc;    --ink-infra:#475569;    --accent-infra:#14b8a6;    --on-infra:#0f172a;
+
+  /* ---- motion (values from data/motion.csv) ------------------------- */
+  --dur-flow:1600ms;  --dur-pulse:1600ms; --dur-fill:2000ms;
+  --dur-beat:1000ms;  --dur-draw:800ms;
+  --ease-flow:linear; --ease-pulse:ease-in-out;
+  --stagger:200ms;
+  --dash:8; --dash-gap:26; --dash-cycle:102;   /* METRO: sparse ticks, not a dash pattern */
+  --empty:22%;
+  --glow:8px;
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111827;
+    --surface:#1f2937;
+    --ink:#f8fafc;
+    --muted:#cbd5e1;
+    --stroke:#d1d5db;
+    --role-client:#1e40af;   --ink-client:#93c5fd;   --accent-client:#93c5fd;   --on-client:#eff6ff;
+    --role-service:#9a3412;  --ink-service:#fdba74;  --accent-service:#fdba74;  --on-service:#fff7ed;
+    --role-data:#166534;     --ink-data:#86efac;     --accent-data:#86efac;     --on-data:#f0fdf4;
+    --role-async:#6b21a8;    --ink-async:#d8b4fe;    --accent-async:#d8b4fe;    --on-async:#faf5ff;
+    --role-external:#1f2937; --ink-external:#d1d5db; --accent-external:#d1d5db; --on-external:#f9fafb;
+    --role-error:#991b1b;    --ink-error:#fca5a5;    --accent-error:#fca5a5;    --on-error:#fef2f2;
+    --role-infra:#1e293b;    --ink-infra:#cbd5e1;    --accent-infra:#5eead4;    --on-infra:#f8fafc;
+  }
+}
+
+/* ===== page ========================================================== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-label);
+     -webkit-text-size-adjust:100%}
+.diagram{max-width:1440px;margin:0 auto;padding:24px 16px 40px}
+.diagram__title{font-family:var(--font-title);font-size:var(--fs-title);font-weight:600;
+                letter-spacing:-.01em;margin:0 0 4px}
+.diagram__subtitle{margin:0 0 18px;color:var(--muted);font-size:.875rem;line-height:1.55}
+/* METRO: flat surface, no background-image. A transit map has no grid. */
+.diagram__canvas{display:block;width:100%;height:auto;background-color:var(--surface);
+                 border-radius:var(--radius)}
+.diagram__note{margin:16px 0 0;color:var(--muted);font-size:.8125rem;line-height:1.6;max-width:72ch}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+         clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ===== role mapping (the ONLY place a role becomes a colour) ========= */
+[data-role]{--fill:var(--role-external);--line:var(--ink-external);
+            --accent:var(--accent-external);--on:var(--on-external)}
+[data-role="client"]  {--fill:var(--role-client);  --line:var(--ink-client);  --accent:var(--accent-client);  --on:var(--on-client)}
+[data-role="service"] {--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="data"]    {--fill:var(--role-data);    --line:var(--ink-data);    --accent:var(--accent-data);    --on:var(--on-data)}
+[data-role="async"]   {--fill:var(--role-async);   --line:var(--ink-async);   --accent:var(--accent-async);   --on:var(--on-async)}
+[data-role="external"]{--fill:var(--role-external);--line:var(--ink-external);--accent:var(--accent-external);--on:var(--on-external)}
+[data-role="error"]   {--fill:var(--role-error);   --line:var(--ink-error);   --accent:var(--accent-error);   --on:var(--on-error)}
+[data-role="infra"]   {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* ===== nodes = stops ================================================= */
+.node{color:var(--line)}                     /* currentColor drives the glow */
+.node__body{transform-box:fill-box;transform-origin:center}
+.node__shape{fill:var(--fill);stroke:var(--line);stroke-width:calc(var(--stroke-w) * 2);
+             stroke-linejoin:round;stroke-linecap:round}
+.node__detail{fill:none;stroke:var(--line);stroke-width:var(--stroke-w);opacity:.7;
+              stroke-linecap:round}
+.node__detail--dashed{stroke-dasharray:5 4}
+.node__icon{fill:var(--line);stroke:none;opacity:.95}
+.node__icon .node__detail{opacity:.9}
+.node__icon-glyph{fill:var(--on);font-family:var(--font-title);font-size:15px;
+                  font-weight:600;text-anchor:middle}
+/* METRO: labels sit BELOW or BESIDE the marker, never inside it — there is
+   no box to put them in. The ink is --ink (not --on) because a label on the
+   page background is not a label on a fill. */
+.node__label{fill:var(--ink);font-family:var(--font-label);font-size:var(--fs-label);
+             font-weight:600;text-anchor:middle}
+.node__sub{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+           text-anchor:middle}
+.node--primary .node__shape{stroke-width:calc(var(--stroke-w) * 2.4)}
+/* METRO: the interchange. Shape carries it; size only reinforces. */
+.node--interchange .node__shape{stroke-width:calc(var(--stroke-w) * 2.4)}
+
+/* ===== queue (declared for portability; unused in this example) ====== */
+.queue__track{fill:var(--on);opacity:.16;stroke:none}
+.queue__fill{fill:var(--accent);stroke:none}
+.queue .node__detail{stroke:var(--fill);opacity:.9}
+
+/* ===== groups ======================================================== */
+.group__box{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:6 6;opacity:.55}
+.group__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+              letter-spacing:.04em;text-anchor:middle}
+
+/* ===== edges and ROUTES ============================================== */
+.edge{fill:none;stroke:var(--stroke);stroke-width:var(--stroke-w);
+      stroke-linecap:round;stroke-linejoin:round}
+.edge--primary{stroke-width:calc(var(--stroke-w) * 1.35)}
+.edge--async{stroke:var(--ink-async);stroke-dasharray:10 7}   /* dash = async, not colour alone */
+.edge--error{stroke:var(--ink-error);stroke-dasharray:14 5 4 5}
+.edge__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+             text-anchor:middle}
+.marker{fill:var(--stroke);stroke:none}
+.marker--open{fill:none;stroke:var(--ink-async);stroke-width:1.6;stroke-linecap:round}
+
+/* METRO: the route family. stroke-linejoin:round is what makes a 45-degree
+   bend look like rolling stock could take it. */
+.route{stroke:var(--line);stroke-width:var(--route-w);
+       stroke-linecap:round;stroke-linejoin:round}
+.route.edge--async{stroke-dasharray:26 16}   /* long transit dash, still uniform width */
+.route__casing{fill:none;stroke:var(--surface);
+               stroke-width:calc(var(--route-w) + 10px);
+               stroke-linecap:round;stroke-linejoin:round}
+/* METRO: the strand is painted var(--fill) — the palest tone of the route's
+   own role — NOT var(--accent). An accent-on-stroke strand is two shades of
+   one hue and the eye reads the whole route as a dashed line, which is
+   exactly what this style must not look like. A pale strand reads as a
+   highlight travelling inside a line that is still obviously solid. */
+.route__flow{fill:none;stroke:var(--fill);stroke-width:calc(var(--route-w) - 8px);
+             stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.route__badge{fill:var(--fill);stroke:var(--line);stroke-width:calc(var(--stroke-w) + 1px)}
+.route__badge-text{fill:var(--on);font-family:var(--font-title);font-size:15px;
+                   font-weight:700;text-anchor:middle;letter-spacing:.02em}
+
+/* ===== motion (source: templates/snippets/motion-blocks.css) ========= */
+.anim-dash-flow,.anim-dash{
+  stroke-dasharray:var(--dash) var(--dash-gap);
+  stroke-dashoffset:var(--dash-cycle);
+  animation:dash-flow var(--dur-flow) linear infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes dash-flow{to{stroke-dashoffset:0}}
+
+.packet{fill:var(--line);stroke:var(--surface);stroke-width:3;offset-distance:0%;offset-rotate:auto}
+.anim-packet-travel,.anim-travel{
+  animation:packet-travel var(--dur-flow) var(--ease-flow) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes packet-travel{to{offset-distance:100%}}
+/* !! COPY THESE `d` STRINGS VERBATIM FROM THE MATCHING ROUTE PATH !!
+   If they drift, the packet travels a route that does not exist.        */
+.packet--r1{offset-path:path("M 140 180 H 1280")}
+.packet--r3{offset-path:path("M 900 180 L 912 192 V 260 L 1012 360 H 1280")}
+
+.anim-pulse-glow,.anim-pulse{
+  animation:pulse-glow var(--dur-pulse) var(--ease-pulse) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes pulse-glow{
+  0%,100%{opacity:1;filter:drop-shadow(0 0 2px currentColor)}
+  50%{opacity:.72;filter:drop-shadow(0 0 var(--glow) currentColor)}
+}
+
+.anim-queue-fill,.anim-fill{
+  clip-path:inset(0 100% 0 0);
+  animation:queue-fill var(--dur-fill) ease-out infinite alternate;
+}
+@keyframes queue-fill{
+  from{clip-path:inset(0 100% 0 0)}
+  to{clip-path:inset(0 var(--empty) 0 0)}
+}
+
+.anim-heartbeat{animation:heartbeat var(--dur-beat) var(--ease-pulse) infinite}
+@keyframes heartbeat{
+  0%,100%{transform:scale(1)}25%{transform:scale(1.06)}
+  40%{transform:scale(1)}55%{transform:scale(1.04)}
+}
+
+.anim-connection-draw-in{
+  stroke-dasharray:var(--draw-len,1400);stroke-dashoffset:var(--draw-len,1400);
+  animation:connection-draw-in var(--dur-draw) ease-out forwards;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes connection-draw-in{to{stroke-dashoffset:0}}
+
+/* ===== reduced motion: render the INFORMATIVE END STATE ============== */
+@media (prefers-reduced-motion: reduce){
+  .anim-dash-flow,.anim-dash,.anim-connection-draw-in{
+    animation:none !important;stroke-dasharray:none !important;stroke-dashoffset:0 !important}
+  .edge--async{stroke-dasharray:10 7 !important}     /* async must stay dashed */
+  .route.edge--async{stroke-dasharray:26 16 !important}
+  .edge--error{stroke-dasharray:14 5 4 5 !important}
+  /* METRO: the flow strand is the moving part. At rest it is the solid
+     inner highlight of a live route — the route still reads as carrying
+     traffic, it just stops marching. */
+  .packet,.anim-packet-travel,.anim-travel{
+    animation:none !important;offset-distance:100% !important}   /* parked at destination */
+  .anim-pulse-glow,.anim-pulse{
+    animation:none !important;opacity:1 !important;filter:drop-shadow(0 0 3px currentColor)}
+  .anim-queue-fill,.anim-fill{
+    animation:none !important;clip-path:inset(0 var(--empty) 0 0) !important}
+  .anim-heartbeat{animation:none !important;transform:none !important}
+}
+
+/* ===== small screens ================================================= */
+@media (max-width:640px){
+  :root{--fs-title:1.125rem}
+  .diagram{padding:16px 12px 32px}
+  .legend{gap:8px 14px}
+}
+
+/* ===== legend ======================================================== */
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0 0;padding:0}
+.legend__item{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);
+              min-height:24px}
+.legend__swatch{inline-size:16px;block-size:16px;border-radius:4px;flex:none;
+                background:var(--fill);border:2px solid var(--line)}
+.legend__label{line-height:1.4}
+/* METRO: the route key. A line swatch, because a route is not a fill. */
+.legend--routes{margin-top:10px}
+.legend__line{inline-size:34px;block-size:10px;border-radius:5px;flex:none;
+              background:var(--line)}
+.legend--routes .legend__item{font-weight:500;color:var(--ink)}
+</style>
+</head>
+
+<body>
+<main class="diagram">
+  <h1 class="diagram__title">Checkout request flow</h1>
+  <p class="diagram__subtitle">metro-map style &middot; three routes through six stops &middot;
+    45 and 90 degree bends only</p>
+
+  <svg class="diagram__canvas" viewBox="72 130 1298 311" role="img"
+       aria-labelledby="dgm-title dgm-desc">
+    <title id="dgm-title">Checkout request flow</title>
+    <desc id="dgm-desc">Three routes run through six stops. Route R1, the checkout route in orange,
+      runs straight left to right through browser, api-gateway, orders-service and sql-database.
+      Route R2, the cache route in green, branches down from the orders-service interchange to
+      redis-cache. Route R3, the events route in purple and drawn as a dashed line because it is
+      asynchronous, branches down from the same interchange and runs diagonally to message-queue.
+      orders-service is drawn as a diamond because it is the interchange where all three routes
+      meet; every other stop is a circle. The bright strand marching along each route is live
+      traffic, the travelling dots are individual in-flight requests, and the pulsing interchange
+      marker means orders-service is actively processing.</desc>
+
+    <defs>
+      <!-- DEFS:START -->
+      <marker id="arrow" class="marker" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10 z" />
+      </marker>
+      <marker id="arrow-open" class="marker marker--open" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10" fill="none" />
+      </marker>
+      <!-- DEFS:END -->
+    </defs>
+
+    <g class="layer-groups">
+      <!-- GROUPS:START -->
+      <!-- GROUPS:END -->
+    </g>
+
+    <!-- ROUTE LAYER 1 of 3: casings. Every casing ships before every route
+         so a later route can cross an earlier one and still read as over. -->
+    <g class="layer-route-casings">
+      <!-- EDGES:START -->
+      <path class="route__casing" d="M 140 180 H 1280" />
+      <path class="route__casing" d="M 900 180 L 888 192 V 260 L 788 360 H 340" />
+      <path class="route__casing" d="M 900 180 L 912 192 V 260 L 1012 360 H 1280" />
+    </g>
+
+    <!-- ROUTE LAYER 2 of 3: the lines themselves. -->
+    <g class="layer-routes">
+      <path class="edge route" data-role="service" d="M 140 180 H 1280">
+        <title>R1 checkout route: browser to api-gateway to orders-service to sql-database</title>
+      </path>
+      <path class="edge route" data-role="data" d="M 900 180 L 888 192 V 260 L 788 360 H 340">
+        <title>R2 cache route: orders-service reads through redis-cache</title>
+      </path>
+      <path class="edge route edge--async" data-role="async"
+            d="M 900 180 L 912 192 V 260 L 1012 360 H 1280">
+        <title>R3 events route: orders-service publishes order-placed to message-queue
+          asynchronously</title>
+      </path>
+    </g>
+
+    <!-- ROUTE LAYER 3 of 3: the animated traffic strand. Same `d`, every time. -->
+    <g class="layer-route-flow">
+      <path class="route__flow anim-dash-flow" data-role="service" d="M 140 180 H 1280" />
+      <path class="route__flow anim-dash-flow" data-role="data" style="--i:1"
+            d="M 900 180 L 888 192 V 260 L 788 360 H 340" />
+      <path class="route__flow anim-dash-flow" data-role="async" style="--i:2"
+            d="M 900 180 L 912 192 V 260 L 1012 360 H 1280" />
+      <!-- EDGES:END -->
+    </g>
+
+    <g class="layer-nodes">
+      <!-- NODES:START -->
+      <g class="node" data-role="client" transform="translate(60,140)">
+        <title>browser — customer web client, western terminus of route R1</title>
+        <g class="node__body">
+          <circle class="node__shape" cx="80" cy="40" r="15" />
+        </g>
+        <text class="node__label" x="80" y="74">browser</text>
+        <text class="node__sub" x="80" y="92">checkout SPA</text>
+      </g>
+
+      <g class="node" data-role="service" transform="translate(440,140)">
+        <title>api-gateway — edge entry point, a through stop on route R1</title>
+        <g class="node__body">
+          <circle class="node__shape" cx="80" cy="40" r="15" />
+        </g>
+        <text class="node__label" x="80" y="74">api-gateway</text>
+        <text class="node__sub" x="80" y="92">TLS &middot; authn</text>
+      </g>
+
+      <!-- THE INTERCHANGE: diamond, not a bigger circle. Its label is pushed
+           to the left because two routes leave straight down through the
+           space a centred label would occupy. -->
+      <g class="node node--interchange anim-pulse-glow" data-role="service"
+         transform="translate(820,140)">
+        <title>orders-service — interchange stop where routes R1, R2 and R3 meet; currently
+          processing checkout requests</title>
+        <g class="node__body">
+          <polygon class="node__shape" points="80,16 104,40 80,64 56,40" />
+          <circle class="node__icon" cx="80" cy="40" r="6" />
+        </g>
+        <text class="node__label" x="46" y="66" style="text-anchor:end">orders-service</text>
+        <text class="node__sub" x="46" y="84" style="text-anchor:end">interchange &middot; 2 replicas</text>
+      </g>
+
+      <g class="node" data-role="data" transform="translate(1200,140)">
+        <title>sql-database — primary relational datastore, eastern terminus of route R1</title>
+        <g class="node__body">
+          <circle class="node__shape" cx="80" cy="40" r="15" />
+        </g>
+        <text class="node__label" x="80" y="74">sql-database</text>
+        <text class="node__sub" x="80" y="92">primary</text>
+      </g>
+
+      <g class="node" data-role="data" transform="translate(260,320)">
+        <title>redis-cache — read-through cache, terminus of route R2</title>
+        <g class="node__body">
+          <circle class="node__shape" cx="80" cy="40" r="15" />
+        </g>
+        <text class="node__label" x="80" y="74">redis-cache</text>
+        <text class="node__sub" x="80" y="92">TTL 60s</text>
+      </g>
+
+      <g class="node" data-role="async" transform="translate(1200,320)">
+        <title>message-queue — durable buffer, terminus of route R3</title>
+        <g class="node__body">
+          <circle class="node__shape" cx="80" cy="40" r="15" />
+        </g>
+        <text class="node__label" x="80" y="74">message-queue</text>
+        <text class="node__sub" x="80" y="92">order-placed</text>
+      </g>
+      <!-- NODES:END -->
+    </g>
+
+    <!-- Route bullets. Colour is never the only signal: every route is named
+         here on the artwork and again in the route legend below. -->
+    <g class="layer-route-badges">
+      <g class="route-badge" data-role="service">
+        <rect class="route__badge" x="278" y="167" width="44" height="26" rx="13" ry="13" />
+        <text class="route__badge-text" x="300" y="185">R1</text>
+      </g>
+      <g class="route-badge" data-role="data">
+        <rect class="route__badge" x="538" y="347" width="44" height="26" rx="13" ry="13" />
+        <text class="route__badge-text" x="560" y="365">R2</text>
+      </g>
+      <g class="route-badge" data-role="async">
+        <rect class="route__badge" x="1118" y="347" width="44" height="26" rx="13" ry="13" />
+        <text class="route__badge-text" x="1140" y="365">R3</text>
+      </g>
+    </g>
+
+    <g class="layer-motion">
+      <!-- MOTION:START -->
+      <!-- one dot per in-flight request; offset-path lives in the stylesheet -->
+      <circle class="packet anim-packet-travel packet--r1" data-role="client" r="9" />
+      <circle class="packet anim-packet-travel packet--r3" data-role="async" r="9" style="--i:1" />
+      <!-- MOTION:END -->
+    </g>
+  </svg>
+
+  <!-- LEGEND:START -->
+  <ul class="legend legend--routes">
+    <li class="legend__item" data-role="service"><span class="legend__line"></span>
+      <span class="legend__label">R1 checkout — synchronous request path (solid)</span></li>
+    <li class="legend__item" data-role="data"><span class="legend__line"></span>
+      <span class="legend__label">R2 cache — read-through lookups (solid)</span></li>
+    <li class="legend__item" data-role="async"><span class="legend__line"></span>
+      <span class="legend__label">R3 events — asynchronous publish (dashed)</span></li>
+  </ul>
+
+  <ul class="legend">
+    <li class="legend__item"><span class="legend__swatch" data-role="client"></span>
+      <span class="legend__label">client — browser, mobile, or device</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="service"></span>
+      <span class="legend__label">service — application code we own</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="data"></span>
+      <span class="legend__label">data — database, cache, object store</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="async"></span>
+      <span class="legend__label">async — queue or worker (dashed route)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="external"></span>
+      <span class="legend__label">external — third party we do not run</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="error"></span>
+      <span class="legend__label">error — failure path (long-short dash)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="infra"></span>
+      <span class="legend__label">infra — platform and observability</span></li>
+  </ul>
+  <!-- LEGEND:END -->
+
+  <p class="diagram__note">Reading the map: a <strong>circle</strong> is an ordinary stop, a
+    <strong>diamond</strong> is an interchange where routes meet, and a <strong>dashed</strong> route
+    is asynchronous — none of those three depend on colour. The bright strand marching inside a route
+    means traffic is flowing on it and a travelling dot is one in-flight request. With
+    <em>reduced motion</em> enabled the strand becomes a solid inner highlight and the dots park at
+    their destination stops, so the map still says which routes are live and where the traffic
+    ends up.</p>
+</main>
+</body>
+</html>

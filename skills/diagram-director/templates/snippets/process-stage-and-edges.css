@@ -1,0 +1,248 @@
+/* =====================================================================
+   process-stage-and-edges.css — THE HYBRID CONTRACT for `--genre process`
+   ---------------------------------------------------------------------
+   PROVENANCE
+   Distilled verbatim from the element sampler v2 approved by the user on
+   2026-08-26 ("chuẩn rồi, style cũng đẹp"); this tranche superseded that
+   board and it is gone. Every clause below is exercised by the genre's
+   frozen golden, examples/vibe-code-voi-ai.html — including the one
+   deliberate departure from clause 4, which that cut's sheet records as
+   deviation 16. Doctrine and the WHY: references/genres/process.md.
+
+   WHAT THIS FILE IS
+   `process` cuts are built HTML-FIRST: every station is a div, every
+   connector is a thin SVG overlay. That split is probe-proven, not taste
+   — glass/grid/text-wrap are painful-to-impossible in SVG, and connectors
+   are painful in HTML. This file owns the SEAM between the two layers:
+   the stage box, the overlay, the edge vocabulary, and the HTML labels
+   that ride an edge. Station bodies live in process-stations.css; the
+   markup lives in process-stations.html.
+
+   THE CONTRACT (verified in-browser; every clause has a failure behind it)
+     1. .stage carries an EXPLICIT pixel width AND height.
+     2. Its <svg class="edges"> carries viewBox="0 0 <same w> <same h>".
+        => 1 SVG user unit == 1 CSS px, forever. No preserveAspectRatio
+           guesswork, no drift after a text reflow, and edge endpoints stay
+           CHECKABLE: a verifier reads the same numbers the eye does.
+     3. The stage hairline is `box-shadow: inset 0 0 0 1px`, NEVER a 1px
+        `border` — a border shrinks the 100%-sized svg by 2px and the
+        viewBox silently drifts off the stations it is pointing at.
+     4. .edges sits UNDER the stations (z-index 1) and is
+        `pointer-events:none`. Edges may run straight through a station's
+        footprint and be occluded by it — no manual path clipping.
+        THE COST: dead geometry. An edge whose whole run is under an
+        opaque block is invisible; check every path has a visible span.
+     5. The overlay is GEOMETRY ONLY. Never a <text>. Vietnamese text stays
+        HTML, where it is crisp, wraps, and keeps its stacked diacritics.
+     6. Markers are declared INLINE per <svg> with a suffixed id
+        (arrow-fwd-b3, arrow-back-b3) — a shared <defs> in another stage is
+        a cross-document reference waiting to break on extraction.
+     7. THE FRAME IS FIT TO THE VIEWPORT (see css-process-fit below). An
+        SVG-mode cut gets this free from `svg{width:min(100vw,177.8vh)}`;
+        an HTML-mode frame is a fixed px box and is CLIPPED in any window
+        narrower than it. One CSS number, no JavaScript.
+   ===================================================================== */
+
+/* snippet: css-process-tokens */
+/* Colours verbatim from data/color-semantics.csv (Style ID = flat-minimal,
+   Palette = house); neutrals verbatim from templates/base/flat-minimal.html.
+   No invented hexes. NO handwriting font — Vietnamese stacked diacritics go
+   mushy in a script face, which is why this genre is locked flat-minimal. */
+:root{
+  --bg:#f1f5f9; --surface:#f8fafc;
+  --grid:color-mix(in srgb,#475569 10%,transparent);
+  --ink:#1e293b; --muted:#475569; --stroke:#475569;
+
+  --font-title:system-ui,-apple-system,"SF Pro Text","Segoe UI",Roboto,
+               "Helvetica Neue",Arial,sans-serif;
+  --font-label:var(--font-title);
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --fs-label:16px; --fw-title:600; --ls-title:-.012em;
+
+  --role-client:#dbeafe;   --ink-client:#2563eb;   --accent-client:#3b82f6;   --on-client:#1e40af;
+  --role-service:#ffedd5;  --ink-service:#ea580c;  --accent-service:#f97316;  --on-service:#9a3412;
+  --role-data:#dcfce7;     --ink-data:#16a34a;     --accent-data:#22c55e;     --on-data:#166534;
+  --role-async:#f3e8ff;    --ink-async:#9333ea;    --accent-async:#a855f7;    --on-async:#6b21a8;
+  --role-external:#f3f4f6; --ink-external:#4b5563; --accent-external:#6b7280; --on-external:#1f2937;
+  --role-error:#fee2e2;    --ink-error:#dc2626;    --accent-error:#ef4444;    --on-error:#991b1b;
+  --role-infra:#f1f5f9;    --ink-infra:#475569;    --accent-infra:#14b8a6;    --on-infra:#1e293b;
+
+  --shape-bw:1.5px; --pill-radius:999px; --chip-radius:8px;
+  --stage-radius:8px; --stage-bg:#f8fafc;
+  --stage-hair:inset 0 0 0 1px color-mix(in srgb,#475569 12%,transparent);
+  --node-shadow:0 1px 2px rgba(30,41,59,.06),0 6px 16px -12px rgba(30,41,59,.30);
+  --paper-fill:#f8fafc; --paper-radius:8px;
+  --paper-shadow:0 1px 2px rgba(30,41,59,.06),0 6px 16px -10px rgba(30,41,59,.28);
+  --dash-ink:color-mix(in srgb,#475569 42%,transparent);
+  --skel:color-mix(in srgb,#475569 16%,transparent);
+  --code-bg:#f1f5f9;
+
+  /* edge layer — three colours, three meanings, no legend needed */
+  --edge-ink:#475569;      /* gray solid  = forward handoff            */
+  --edge-service:#ea580c;  /* orange dash = return / loop / "not yet"  */
+  --edge-data:#16a34a;     /* green       = derivation (X is read FROM Y) */
+  --edge-w:2px;
+  --packet-bg:#14b8a6;
+  --packet-glow:0 0 0 4px color-mix(in srgb,#14b8a6 20%,transparent);
+}
+
+/* snippet: css-process-role-mapping */
+/* Same contract as templates/base/*.html: colour enters through data-role
+   only. Semantic Role stays the engine's fixed 7 slots; the pack-local kind
+   (actor / artifact / decision) lives in components.Category and drives the
+   LEGEND text, so a viewer reads "actor — PM", never "client". */
+[data-role]{--fill:var(--role-external);--line:var(--ink-external);
+            --accent:var(--accent-external);--on:var(--on-external)}
+[data-role="client"]  {--fill:var(--role-client);  --line:var(--ink-client);  --accent:var(--accent-client);  --on:var(--on-client)}
+[data-role="service"] {--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="data"]    {--fill:var(--role-data);    --line:var(--ink-data);    --accent:var(--accent-data);    --on:var(--on-data)}
+[data-role="async"]   {--fill:var(--role-async);   --line:var(--ink-async);   --accent:var(--accent-async);   --on:var(--on-async)}
+[data-role="external"]{--fill:var(--role-external);--line:var(--ink-external);--accent:var(--accent-external);--on:var(--on-external)}
+[data-role="error"]   {--fill:var(--role-error);   --line:var(--ink-error);   --accent:var(--accent-error);   --on:var(--on-error)}
+[data-role="infra"]   {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* snippet: css-process-fit */
+/* FIT-TO-VIEWPORT — contract clause 7, and the HTML mode's equivalent of the
+   goldens' `svg{width:min(100vw,177.8vh)}`. The .frame keeps its AUTHORED px
+   size, so every world coordinate in the file stays literal and every headless
+   gate keeps measuring the same numbers; only the paint is scaled. The factor
+   is the largest 16:9 box the viewport holds divided by the authored width, so
+   it is exactly 1 at a viewport of the authored size — which is where the
+   contact sheet, the camera gate and the edge checker all run.
+   Change 1920/177.7778 together if the frame is not 16:9 (177.7778vh == 16/9). */
+:root{--fit:calc(min(100vw,177.7778vh) / 1920px)}
+html,body{height:100%;overflow:hidden;margin:0}
+.frame{width:1920px;height:1080px;position:absolute;overflow:hidden;
+       left:50%;top:50%;
+       transform:translate(-50%,-50%) scale(var(--fit))}
+/* TRAP 1: centring is NOT `body{display:grid;place-items:center}`. A grid does
+   not centre an item WIDER than its track — it parks it at the start edge — so
+   scaling about the element's own centre leaves half the paint off-screen
+   (measured: a 1920px frame at a 1280px viewport landed at x=320..1600).
+   `left/top:50%` + `translate(-50%,-50%)` centres the BORDER BOX, and the
+   percentages resolve against the UNSCALED box, so it is scale-independent.
+   TRAP 2: do NOT "fix" the clipping by making .frame a percentage box instead.
+   Every station offset, every path `d` and every camera tx/ty in a process cut
+   is authored in those px; a fluid frame re-derives all of them per viewport
+   and the SVG overlay stops agreeing with the divs. Scale the paint, keep the
+   layout box. An ancestor scale is harmless to the edge checker: it divides
+   the stage rect by the viewBox and works in stage-local units. */
+
+/* snippet: css-process-stage */
+/* Width and height are set INLINE on the element (style="width:854px;
+   height:400px") next to the svg's viewBox, so the two numbers that must
+   agree are one line apart and diff together. Do not move them here. */
+.stage{position:relative;overflow:hidden;background:var(--stage-bg);
+       border-radius:var(--stage-radius);box-shadow:var(--stage-hair);
+       background-image:radial-gradient(var(--grid) 1px,transparent 1px);
+       background-size:20px 20px}
+/* TRAP: never `background-attachment:fixed` on a stage. It re-anchors the
+   dot grid to the viewport, so any camera move or loop restart tears a
+   visible seam across the grid. */
+
+/* snippet: css-process-edges */
+.edges{position:absolute;left:0;top:0;width:100%;height:100%;
+       z-index:1;pointer-events:none;overflow:visible}
+.edge{fill:none;stroke:var(--edge-ink);stroke-width:var(--edge-w);
+      stroke-linecap:round;stroke-linejoin:round}
+.edge--back{stroke:var(--edge-service);stroke-dasharray:8 7} /* return / loop */
+.edge--pull{fill:none;stroke:var(--edge-data);stroke-width:1.75px}  /* derivation.
+   fill:none is NOT inherited from .edge -- this class is used without it, and a
+   path with any jog encloses area: SVG paints it black the day the line bends. */
+.edge--soft{stroke:var(--dash-ink);stroke-width:1.5px;stroke-dasharray:5 6}
+/* .edge--soft = "this station taps that bundle" — an annotation tie, not a
+   handoff. It carries no marker, on purpose: nothing travels along it. */
+
+/* snippet: css-process-edge-labels */
+/* Anything with words on it is HTML at z-index 3, sitting ON TOP of both
+   layers. .pill = a branch condition ("OK" / "chưa"); .tag = a short aside
+   pointing at a station; .cap = a caption under a group. */
+.pill{position:absolute;z-index:3;padding:3px 13px;border-radius:var(--pill-radius);
+      font-size:15px;font-weight:600;line-height:1.4;white-space:nowrap;
+      background:var(--stage-bg);border:1.5px solid var(--line);color:var(--on)}
+.tag{position:absolute;z-index:3;font-size:15px;line-height:1.35;color:var(--muted)}
+.tag b{color:var(--ink);font-weight:600}
+.cap{position:absolute;z-index:3;font-size:15px;color:var(--muted);line-height:1.4}
+/* one packet resting mid-path: implies flow in a STILL frame, no animation */
+.packet{position:absolute;z-index:3;width:14px;height:14px;translate:-50% -50%;
+        border-radius:50%;background:var(--packet-bg);box-shadow:var(--packet-glow)}
+
+/* snippet: css-process-motion-floor */
+/* The genre's whole motion budget, and the rules that bound it.
+   - Animate TRANSFORM and OPACITY only. `top`/`left` was tried once and
+     cost a re-layout per frame plus a visibly different easing curve.
+   - transform-origin is ELEMENT-LOCAL: a station already carrying
+     rotate(-2deg) scales about its own centre, not the stage's.
+   - z-index OPENS A STACKING CONTEXT. A packet given z-index inside a
+     station's subtree cannot rise above a sibling station, however large
+     the number — promote it to a stage-level child instead.
+   - backdrop-filter under a camera-transformed ancestor changes its
+     sampling rect: keep every glass surface OUT of the camera subtree. */
+@keyframes stickyPulse{
+  0%,100%{transform:rotate(-2deg) scale(1);opacity:.94}
+  50%    {transform:rotate(-2deg) scale(1.035);opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .sticky--pulse,.ripple--pulse{animation:none}}
+
+/* snippet: css-process-lod */
+/* LEVEL OF DETAIL — two tiers, one switch. Lives here rather than in a station
+   sheet because it is a CAMERA mechanism: every station family uses it and none
+   of them owns it.
+
+   THE PROBLEM IT SOLVES. The genre's 15px body floor is authored in WORLD px,
+   and the overview hold is at k≈0.80 — so a compliant 15px line PAINTS at 12px,
+   under the floor, exactly where the doctrine says nobody is expected to read.
+   The overview is already showing text as texture; it just is not admitting it.
+   LOD admits it: at the FAR tier the line IS texture (a skeleton bar), and at
+   the beat zoom the real words cross-fade in at >= 15px world (>= 24px painted).
+
+   ONE SWITCH: data-lod-tier="far|close" on an ancestor (the beat wrapper or the
+   station), never a per-element toggle — one flip per camera hold.
+   TWO MECHANISMS:
+     (a) PLAIN REVEAL  [data-lod="close"] — text that simply is not there at the
+         far tier (chart tick labels, card meta, a KPI delta).
+     (b) CROSSFADE     .lod + .lod__near / .lod__far — a line that is a SKELETON
+         BAR far and WORDS near. .lod__near stays IN FLOW and defines the box
+         height; .lod__far is absolutely positioned over it. Nothing reflows.
+
+   FOUR RULES, all build-trap-derived (references/genres/process.md → Build traps)
+   1. ANIMATE `opacity` ONLY. No height, no display, no top/left.
+   2. NOTHING INSIDE AN LOD SUBTREE SETS ITS OWN `opacity`. A station rule and
+      [data-lod="close"] have IDENTICAL specificity, so a station sheet loaded
+      later silently wins and the element never hides. Dim with COLOUR
+      (color-mix), never with opacity. Gated by
+      scripts/browser-checks/verify-html-edge-anchors.mjs → [LOD-LEAK].
+   3. LOD is a licence to REVEAL MORE, never a licence to author SMALLER.
+      Close-tier text still honours the 15px world floor; the only sub-15px text
+      is texture-class, exempt with or without LOD.
+   4. The fade runs AFTER the camera stops, not during the move — two motions
+      overlapping and the eye tracks neither. 0.34s is the shipped value; the
+      whole reading time then sits inside the hold.
+
+   The camera-scale REVIEW WRAPPER (.wv) is board chrome, not cut chrome: it
+   paints a station at the k the real camera would use so an element board is
+   judged at honest legibility. A cut has a real camera and does not need it.
+   transform-origin:0 0 keeps the wrapper's left/top the top-left of the painted
+   result (transform-origin is ELEMENT-LOCAL — the same trap as a station already
+   carrying rotate(-2deg)). */
+[data-lod="close"]{opacity:0;transition:opacity .34s ease}
+[data-lod-tier="close"] [data-lod="close"]{opacity:1}
+.lod{position:relative;display:block}
+.lod__near{display:block;opacity:0;transition:opacity .34s ease}
+.lod__far{position:absolute;left:0;top:0;right:0;bottom:0;z-index:1;
+          display:flex;flex-direction:column;justify-content:center;gap:6px;
+          opacity:1;transition:opacity .34s ease;pointer-events:none}
+.lod__far i{display:block;height:7px;border-radius:4px;background:var(--skel)}
+.lod__far i.w95{width:95%}.lod__far i.w88{width:88%}.lod__far i.w76{width:76%}
+.lod__far i.w64{width:64%}.lod__far i.w52{width:52%}.lod__far i.w40{width:40%}
+[data-lod-tier="close"] .lod__near{opacity:1}
+[data-lod-tier="close"] .lod__far{opacity:0}
+/* board-only: paint a station at the camera's k so legibility is judged honestly */
+.wv{position:absolute;z-index:2;transform-origin:0 0;transform:scale(var(--k,1))}
+.wv__in{position:relative}
+@media (prefers-reduced-motion:reduce){
+  /* the tier still switches — it is INFORMATION, not decoration. What goes is
+     the fade: the handover becomes instantaneous. Do NOT force the close tier
+     here; that would print every station's full text at overview, which is the
+     cramped frame LOD exists to prevent. */
+  .lod__near,.lod__far,[data-lod="close"]{transition:none}}

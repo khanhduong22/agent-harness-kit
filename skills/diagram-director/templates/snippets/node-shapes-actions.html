@@ -1,0 +1,119 @@
+<!-- =====================================================================
+     node-shapes-actions.html — DECISIONS and GATES of the `process` genre
+     ---------------------------------------------------------------------
+     WHY THIS FILE EXISTS — AND WHAT IS *NOT* IN IT
+     Steps are NOT nodes. In this genre a step is a BEAT: an engine temporal
+     unit (references/camera-beat.md → "ONE CAMERA HOLD PER BEAT"), drawn as
+     the camera moving to the actor + artifact that the step is about, over a
+     cast that PERSISTS. It is not an ACT — an act is a `<g class="act">` that
+     owns the whole canvas and clears by window handoff, which is the opposite
+     of a persistent cast; a process cut uses true acts only for a major phase
+     change that really does clear the canvas. A file of "step boxes" would
+     turn every process into a flowchart of verbs and lose the two facts that
+     matter — WHO does it and WHAT moves.
+     What earns a node here is the case where the BRANCH ITSELF is the
+     subject: a decision whose two outcomes are the thing being explained,
+     and a gate a piece of work must clear before it may continue.
+     Full rule: references/genres/process.md → Cast ontology.
+
+     REFERENCED BY data/components.csv rows whose `Genres` cell is `process`
+     (`snippets/node-shapes-actions.html#shape-<id>`).
+
+     ROLE MAPPING (references/genres/process.md → Role mapping)
+     decision -> `service` (something happens TO the work here), and a gate
+     splits: gate-as-SUBJECT -> `service` (a node, below), gate-as-SUBSTRATE
+     -> `infra` and NOT a node at all — a substrate gate every item passes
+     through is drawn as a lane band behind the acts, and the solution sheet
+     records `NO ROW — gate drawn as a lane band` (SKILL.md Query Contract
+     rule 9). The LEGEND reads "decision" / "gate", never "service".
+     Valid roles: client service data async external error infra
+
+     ml's `shape-diamond-router` IS FORBIDDEN AS THE PROCESS DECISION.
+     It looks right and is not: its ascii degradation is box-rounded-rect
+     (a router is a service that happens to be drawn as a diamond), and a
+     rounded-rect "diamond" in the terminal style is no longer a decision —
+     the one style where the silhouette is the ONLY channel loses the branch
+     entirely. The process decision degrades to `box-diamond`, which
+     resolves against node-shapes.html#shape-diamond (V7s). Do not point a
+     process component's Snippet Ref at node-shapes-ml.html.
+
+     RULES (inherited from node-shapes.html — read its header first)
+     - Nominal box 160 x 80; caller positions with translate(x,y); colour
+       via data-role only.
+     - LABEL BELOW on the diamond (its interior narrows away from the
+       midline faster than a hexagon's; containment is measured at the
+       text's own y-band). The GROUP footprint runs ~38px past the nominal
+       box — clearance floors apply to that extended footprint; the BODY
+       bbox stays exactly nominal, so camera math and forks are safe.
+     - AND IT RUNS PAST THE BOX SIDEWAYS TOO. A below-label is centred on
+       x=80 with no box to contain it, so a long question spills into the
+       neighbours' gutters: keep it to ~160px of rendered width (about 18
+       characters at the house label size; measure, do not count — mono runs
+       ~20% wider than sans), or move the qualifier to the sub-label. The
+       render review caught "Good enough to ship?" at ~174px, and the layout
+       gap it was eating is where the branch edge labels live.
+     - The diamond's label is the QUESTION ("Good enough to ship?"), never
+       the answer, and never a verb phrase for the step that precedes it.
+     - BOTH BRANCHES ARE ALWAYS DRAWN, and both carry their condition on
+       the EDGE label. The taken path is `flow-active`; the untaken path is
+       PARKED at reduced opacity with its condition still legible — an
+       erased branch turns a decision into a corridor and silently answers
+       the question the diagram asked. Full convention:
+       references/genres/process.md → Branch convention.
+     - Every drawn mark keeps >=3px from EVERY text in its own node,
+       measured on the rendered boxes; the containment sweeps do not catch
+       glyph-vs-own-label, only the eye does.
+     - Never icon-only: the diamond shape and its label both carry the fact.
+     ===================================================================== -->
+
+<!-- snippet: shape-decision-diamond -->
+<!-- decision-point: the process cast's branch node. GEOMETRY IS DELIBERATELY
+     IDENTICAL to node-shapes.html#shape-diamond (vertices on the nominal
+     box's edge midpoints) so the default style and the ascii degradation
+     draw the same silhouette; what this block adds is the process dressing
+     — data-role="service", the QUESTION as the label, and the two branch
+     names as the sub-label so a reader knows what the outgoing edges will
+     say before following them.
+     THE LABEL SITS BELOW THE BODY (y=98/114 under an 80-tall diamond) and
+     that is deliberate: a diamond's interior narrows to nothing exactly
+     where a centred label would go. Both render-side gates know this shape
+     — verify-text-containment.mjs counts a text whose y-band is entirely
+     outside the body as a below-label instead of measuring it against a
+     body that is not there, and verify-hold-geometry.mjs's [INK-VERTICAL]
+     sweep does the same. Neither waives anything real: the label is still
+     measured against foreign nodes, against its own node's art
+     (verify-glyph-label-gap.mjs) and against every edge that could run
+     through it. Keep the label INSIDE the `g.node` — moving it to a sibling
+     group to dodge a gate costs the node its accessible name. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Good enough to ship? — the decision that ends one cycle of the loop</title>
+  <g class="node__body">
+    <polygon class="node__shape" points="80,0 160,40 80,80 0,40" />
+  </g>
+  <text class="node__label" x="80" y="98">Good enough?</text>
+  <text class="node__sub" x="80" y="114">ship / one more pass</text>
+</g>
+
+<!-- snippet: shape-gate-subject -->
+<!-- A GATE THAT IS ITSELF THE SUBJECT: a barrier across the top of the card
+     that work must clear before it continues. Use this ONLY when the gate
+     is what the diagram is explaining (the approval nobody can skip, the
+     compliance sign-off that adds three days). When every item simply
+     passes through it, the gate is SUBSTRATE: draw a lane band behind the
+     acts with role `infra`, record `NO ROW — gate drawn as a lane band`,
+     and do not spend a node on it.
+     The gate's sub-label states its COST or its OWNER — a gate with neither
+     is decoration, and the reason it is on the canvas is that it is
+     expensive or that somebody owns it. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Legal sign-off — the gate every launch must clear, owned by Legal</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <rect class="node__detail" x="20" y="12" width="120" height="8" rx="2" ry="2" />
+      <path class="node__detail" d="M 20 12 V 30 M 140 12 V 30" />
+    </g>
+  </g>
+  <text class="node__label" x="80" y="52">Legal sign-off</text>
+  <text class="node__sub" x="80" y="70">Legal · 3 days</text>
+</g>

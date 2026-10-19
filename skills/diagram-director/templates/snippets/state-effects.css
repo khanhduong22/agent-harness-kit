@@ -1,0 +1,235 @@
+/* =====================================================================
+   state-effects.css — the state vocabulary from data/states.csv as CSS
+   ---------------------------------------------------------------------
+   WHAT THIS IS
+   One block per states.csv row (anchor `state-<State ID>`). A state class
+   goes on the node group (`g.node.is-degraded`) or the edge path
+   (`path.edge.flow-broken`).
+
+   THE THREE-LAYER CONTRACT (every state, no exceptions)
+   1. STATIC — always visible: stroke pattern, opacity, geometry tick,
+      chip. This layer alone must carry the meaning.
+   2. MOTION — never authored here. Compose with the existing recipe class
+      from motion-blocks.css named by the row's Motion Ref
+      (e.g. `class="node is-degraded"` + `.anim-pulse-glow` on the body).
+      A state with a blank Motion Ref is static BY DESIGN (is-idle,
+      is-frozen, flow-attention): do not add motion to it — stillness is
+      the meaning. is-down is the near case: its Motion Ref covers the
+      one-shot collapse INTO the state and the reroute edges around it,
+      never the corpse.
+   3. REDUCED-MOTION — inherited from the recipe classes' own fallbacks;
+      the static layer above is what remains, and it must match the row's
+      Reduced-Motion Fallback cell.
+
+   RULES CARRIED FROM THE SESSION LOG (do not relearn these)
+   - No `filter:url()` on zero-area elements: a straight edge has a
+     zero-height bbox and the filter region collapses to nothing.
+   - Animate only transform / opacity / stroke-dashoffset /
+     offset-distance / clip-path.
+   - Chips are real <text> + a rect, so they survive reduced-motion and
+     screen readers; they are the state's guaranteed channel. Chip text
+     comes from states.csv Chip Text — numbers from the solution sheet.
+   - A chip is geometry: it sits ON the node border, exactly where edges
+     land. Collision-check it like a bracket arm — an edge entering the
+     chip's border segment buries its arrowhead under the chip (observed:
+     a top-centre chip swallowed the "1 msg" arrow). Route the edge past
+     the chip or put the chip on the border's free side.
+   - Colour via role tokens only, so every skin gets states for free;
+     a skin must still re-check chip contrast like any text.
+   ===================================================================== */
+
+/* ---- shared primitives ---------------------------------------------- */
+/* snippet: state-chip */
+/* The chip: pill at the node box's top-right, overlapping the border by
+   half its height. Fill = the node's role token, text = the on-colour
+   token, 11px caps. Position is per-diagram (translate on the group);
+   nominal size below fits 4-8 characters — resize the rect to the
+   measured text, never squeeze tracking. */
+.state-chip__box  { rx: 9px; height: 18px; }
+.state-chip__text {
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; text-anchor: middle;
+  font-variant-ligatures: none;
+}
+
+/* ---- node states ----------------------------------------------------- */
+
+/* snippet: state-is-healthy */
+/* Healthy is the ABSENCE of exception marks: solid stroke, normal fill,
+   no chip. Optional idle pulse = .anim-heartbeat on the body. */
+.is-healthy .node__shape { /* intentionally empty — baseline look */ }
+
+/* snippet: state-is-degraded */
+.is-degraded .node__shape { stroke-dasharray: 6 3; }
+/* motion: .anim-pulse-glow (motion-blocks.css) on .node__body */
+
+/* snippet: state-is-down */
+/* Dead = still: never put an animation on this node; failover-reroute
+   animates the EDGES around it. */
+.is-down .node__shape { stroke-dasharray: 2 6; fill-opacity: .4; stroke: var(--role-error); }
+.is-down text          { opacity: .6; }
+
+/* snippet: state-is-overloaded */
+/* The fill-level bar: a rect clipped to the shape, height = the measured
+   level. The chip carries the NUMBER (e.g. 97%) — the number is the story. */
+.is-overloaded .state-fill-bar { fill: var(--accent); opacity: .35; }
+.is-overloaded.past-threshold .state-fill-bar { fill: var(--role-error); }
+/* motion: .anim-queue-fill / .anim-backpressure */
+
+/* snippet: state-is-throttled */
+/* Valve tick: two short strokes across the inbound edge at the node join. */
+.is-throttled .state-valve { stroke-width: 2.5; }
+/* motion: .anim-throttle-gate / .anim-token-bucket-refill */
+
+/* snippet: state-is-scaling */
+/* Appearing ghosts are OUTLINE-ONLY (stack rule): fill none, stroke token. */
+.is-scaling .state-ghost { fill: none; opacity: .5; }
+/* motion: .anim-scale-out-spawn */
+
+/* snippet: state-is-cold */
+.is-cold .node__shape { stroke-dasharray: 1 3; fill-opacity: .55; }
+/* motion: .anim-node-boot-sequence */
+
+/* snippet: state-is-draining */
+/* Hatch overlay: pattern ref defined per-template (defs), not a filter. */
+.is-draining .state-hatch { opacity: .25; }
+/* motion: .anim-load-shedding */
+
+/* snippet: state-is-syncing */
+/* Double line lives on the SYNC EDGE (paired path 3px offset), chip LAG <t>. */
+.is-syncing-edge { stroke-dasharray: 10 4; }
+/* motion: .anim-replication-sync */
+
+/* snippet: state-is-leader */
+.is-leader .node__shape { stroke-width: calc(var(--stroke-w, 2px) + 1px); }
+/* motion: .anim-leader-election-pulse */
+
+/* snippet: state-is-follower */
+/* Chip only — static by definition. Always paired with a visible is-leader. */
+.is-follower .node__shape { /* baseline stroke; the FOLLOWER chip is the mark */ }
+
+/* snippet: state-is-selected */
+/* Accent + weight step: two channels, never colour alone. Works per grid
+   cell (MoE expert routed) or per whole node. */
+.is-selected .node__shape,
+.grid-cell.is-selected { stroke: var(--accent); stroke-width: calc(var(--stroke-w, 2px) + 1px); }
+/* motion: .anim-pulse-glow */
+
+/* snippet: state-is-idle */
+/* Stillness IS the meaning: no motion, ever. 35% floor keeps it legible. */
+.is-idle .node__body,
+.grid-cell.is-idle { opacity: .35; }
+
+/* snippet: state-is-cached */
+.is-cached .state-tick { stroke-width: 2.5; }
+/* motion: .anim-cache-hit-miss — and always show the paired flow-miss path */
+
+/* snippet: state-is-frozen */
+.is-frozen .node__shape { stroke-dasharray: 4 4; fill-opacity: .7; }
+
+/* ---- edge states ------------------------------------------------------ */
+
+/* snippet: state-flow-active */
+/* The default animated path; spends the motion budget (MAX_ANIMATED_EDGES). */
+.flow-active { /* baseline edge look */ }
+/* motion: .anim-dash-flow / .anim-packet-travel */
+
+/* snippet: state-flow-blocked */
+/* X tick sits ON the guard component; packet parked before it is the
+   resting state, so there is nothing to animate. */
+.flow-blocked .state-block-x { stroke: var(--role-error); stroke-width: 2.5; }
+.flow-blocked .packet        { opacity: 1; /* parked, not travelling */ }
+
+/* snippet: state-flow-retrying */
+.flow-retrying { stroke-dasharray: 8 5; }
+/* motion: .anim-retry-loop — always show where retries END (DLQ / give-up) */
+
+/* snippet: state-flow-broken */
+/* The gap is GEOMETRY (two path stubs), not a colour change. */
+.flow-broken { stroke: var(--role-error); }
+/* motion: .anim-circuit-breaker-flicker / .anim-error-propagation */
+
+/* snippet: state-flow-backpressure */
+.flow-backpressure { /* widening toward the congested end is authored geometry */ }
+/* motion: .anim-backpressure — pair with the consumer's is-overloaded */
+
+/* snippet: state-flow-attention */
+/* stroke-width ∝ weight IS the encoding; static by definition. If animated
+   at all: opacity shimmer only, never width. */
+.flow-attention          { fill: none; opacity: .8; }
+.flow-attention--heavy   { stroke-width: 4; }
+.flow-attention--medium  { stroke-width: 2.2; }
+.flow-attention--light   { stroke-width: 1; opacity: .5; }
+
+/* snippet: state-flow-miss */
+.flow-miss { stroke-dasharray: 5 5; }
+/* motion: .anim-cache-hit-miss — annotate the cost difference (the price) */
+
+/* ---- educational register: intensity patterns ------------------------- */
+/* The blocks below are PATTERNS, not states — they have no states.csv row
+   and never will. They are how a state is rendered in the *educational*
+   register (references/camera-beat.md → "Scenario timeline"), where a
+   staged condition must be felt, not just annotated. The reference
+   register keeps the quiet form above (chip + dash + bar). Same
+   data-window machinery, same verifier, louder rendering. */
+
+/* snippet: state-overlay-replica */
+/* THE COLORED REPLICA. A state must recolor its node without ever touching
+   the base node's paint — animating fill/stroke takes the whole node off
+   the compositor (the law in state-timeline's Don't cell). So draw a full
+   COPY of the node's shape, filled and stroked in the STATE's role tokens,
+   as a child of the state's overlay group. The group's opacity window then
+   crossfades the node's whole appearance for free.
+
+   Same `d`/geometry as `.node__shape`, same transform context (the overlay
+   lives inside the node group), so it lands pixel-on-pixel. Draw it BELOW
+   the state's chip and bar so those stay readable on top of it, and above
+   `.node__body` so it covers the base paint.
+
+   <g class="stage stage-overload" data-window="42,58">
+     <path class="state-replica state-replica--warn" d="…same d as .node__shape…"/>
+     …fill bar…  …chip…
+   </g>
+
+   Tint by the state's meaning, never by the node's role: amber/accent for
+   overloaded (still working, past capacity), error role for degraded and
+   down (broken). Keep the fill light — the node's own label sits on top of
+   it and must stay AA. */
+.state-replica            { stroke-width: calc(var(--stroke-w, 2px) + 0.8px); }
+.state-replica--warn      { fill: var(--role-warn, var(--role-error)); fill-opacity: .55;
+                            stroke: var(--accent-warn, var(--ink-error)); }
+.state-replica--error     { fill: var(--role-error); fill-opacity: .6; stroke: var(--ink-error); }
+
+/* snippet: state-shake-stress */
+/* motion.csv → shake-stress. The overload's intensity: a component
+   trembling under load it cannot absorb. Put it on the OVERLAY group (or a
+   body group), never on the base paint, and keep it inside the state's own
+   data-window so it starts and stops with the condition. 120ms divides a
+   38.4s master 320 times — snap to a divisor before using it under a
+   master timeline. Amplitude is capped at ±1.5px: past ~2px the node's own
+   label stops being readable. */
+.anim-shake-stress { animation: shake-stress 120ms linear infinite; }
+@keyframes shake-stress {
+  0%, 100% { transform: translate(-1.5px, 0) }
+  25%      { transform: translate(1.2px, -.6px) }
+  50%      { transform: translate(-1.1px, .6px) }
+  75%      { transform: translate(1.5px, 0) }
+}
+
+/* snippet: state-collapse-death */
+/* motion.csv → collapse-death. The dying MOMENT, played ONCE at the start
+   of an is-down window with `forwards` fill; everything after it is the
+   static dead state, because dead = still. Never loop it — a node cannot
+   die twice — and never animate paint alongside it. */
+.anim-collapse-death { animation: collapse-death 480ms cubic-bezier(.3,.8,.4,1) 1 forwards; }
+@keyframes collapse-death {
+  0%   { transform: none }
+  60%  { transform: translateY(6px) scale(.94) rotate(-1.5deg) }
+  100% { transform: translateY(4px) scale(.96) rotate(-1deg) }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The replica STAYS — where the state is the resting truth, its colour is
+     information. Only the two intensity motions stop. */
+  .anim-shake-stress, .anim-collapse-death { animation: none; transform: none; }
+}

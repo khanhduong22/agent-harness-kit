@@ -1,0 +1,240 @@
+<!-- =====================================================================
+     node-shapes-ml.html — ML/AI architecture geometry for diagram-director
+     ---------------------------------------------------------------------
+     WHAT THIS IS
+     The shapes referenced by data/components.csv ml-category rows (and the
+     agent-dispatcher row) as `snippets/node-shapes-ml.html#shape-<id>`.
+     Same contract as node-shapes.html: copy a block into a base template
+     and adapt.
+
+     THE CONTRACT (inherited from node-shapes.html — read its header first)
+     - Positioned by the caller with transform="translate(x,y)"; never add
+       scale/rotate to .node itself.
+     - Colour via data-role only. Valid roles: client service data async
+       external error infra.
+     - Every node: <title> first, geometry inside <g class="node__body">
+       (the seam node-rendering forks restyle), real <text> labels after.
+     - Body occupies EXACTLY the nominal box, so edges, camera frames,
+       captions and spotlight brackets computed against the box stay valid
+       when the body is swapped.
+
+     GLYPH-LEFT SHAPES ARE 190 x 80 (the second sanctioned size)
+     - shape-agent-bot, shape-text-model-bubble, shape-decision-bars and
+       shape-dispatch-fanout seat a figurative glyph in the LEFT 56px of
+       the card and centre the label + sub in what is left (x = 121), so
+       the card is 190 wide, not 160. They exist for PRIMARY components
+       (SKILL.md -> Output Rules: a primary component wears a figurative
+       glyph). Layouts must quote their gaps against 190 for these rows.
+       The glyph is drawn with node__detail / node__icon only, so it rides
+       the role's own stroke and fill tokens in every skin.
+
+     NOMINAL SIZES (one sanctioned exception, do not invent others)
+     - Every shape here is 160 x 80 EXCEPT shape-layer-band, which is
+       320 x 56. A transformer layer is wide-and-flat by nature: it spans
+       the token dimension and stacks vertically. Layouts that consume it
+       (layered-tb, progressive-tiers) must quote their gaps against
+       320 x 56 explicitly — the 160 x 80 spacing tables do not apply to a
+       band column. Only attention-block / mla-attention / ffn-block may
+       use it; anything else on a band is out of spec.
+
+     LABEL-BELOW SHAPES EXTEND THE GROUP BOX
+     - matrix-grid, token-strip and diamond-router put their labels BELOW
+       the body (their interiors have no room), so the GROUP's footprint
+       runs ~38px past the nominal box. Clearance floors (checklist item
+       7) apply to that extended footprint, not the body alone. The BODY
+       bbox is still exactly nominal — camera math and forks are safe.
+
+     STATES
+     - matrix-grid cells and token-strip chips are individually addressable
+       (class + data-idx) precisely so data/states.csv classes land per
+       cell: .grid-cell.is-selected / .is-idle, .token-chip reveal order.
+     - Repeat chips ("x61") follow the solution sheet like every string.
+     ===================================================================== -->
+
+<!-- snippet: shape-layer-band -->
+<!-- One transformer layer / pipeline stage as a full-width band, 320 x 56.
+     Draw ONE representative layer and put the repeat count in the corner
+     chip — never draw all N layers (anti-pattern in ml-architecture row).
+     The chip is a fact from the solution sheet ("x61"), not decoration. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Attention block — multi-head attention, one representative layer of sixty-one</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="320" height="56" rx="6" ry="6" />
+    <!-- repeat chip slot, top-right, inside the band -->
+    <rect class="node__detail" x="268" y="6" width="46" height="18" rx="9" ry="9" />
+  </g>
+  <text class="node__label" x="150" y="34">MHA (32 heads)</text>
+  <text class="node__count" x="291" y="19">x61</text>
+</g>
+
+<!-- snippet: shape-matrix-grid -->
+<!-- A pool of peers shown as a grid of addressable cells: MoE experts,
+     KV-cache slots, shard maps. 4 x 2 cells of 34 x 30 with 4px gaps
+     fills the 160 x 80 box within a 6px inset. Each cell carries its own
+     class + data-idx so state classes land PER CELL — light the routed
+     experts with .is-selected, dim the rest with .is-idle. The label sits
+     BELOW the box (the grid interior has no room for text). -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Routed expert pool — two-hundred-fifty-six experts, eight active per token</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6" />
+    <rect class="grid-cell" data-idx="0" x="6"   y="8"  width="34" height="30" rx="3" />
+    <rect class="grid-cell" data-idx="1" x="44"  y="8"  width="34" height="30" rx="3" />
+    <rect class="grid-cell" data-idx="2" x="82"  y="8"  width="34" height="30" rx="3" />
+    <rect class="grid-cell" data-idx="3" x="120" y="8"  width="34" height="30" rx="3" />
+    <rect class="grid-cell" data-idx="4" x="6"   y="42" width="34" height="30" rx="3" />
+    <rect class="grid-cell" data-idx="5" x="44"  y="42" width="34" height="30" rx="3" />
+    <rect class="grid-cell" data-idx="6" x="82"  y="42" width="34" height="30" rx="3" />
+    <rect class="grid-cell" data-idx="7" x="120" y="42" width="34" height="30" rx="3" />
+  </g>
+  <text class="node__label" x="80" y="98">256 Experts</text>
+  <text class="node__sub" x="80" y="114">8 active / token</text>
+</g>
+
+<!-- snippet: shape-tensor-slab -->
+<!-- A weight tensor / embedding table / model shard as an isometric slab.
+     Depth offset dx 12.1, dy 7.0 (14 at 30 degrees — same constant the
+     isometric-2.5d fork uses, so the two never disagree on the angle).
+     Front face carries the label; top and side faces are node__detail so
+     role colour lands on the front only. Body bbox is 160 x 80 INCLUDING
+     the depth: front face is 147.9 x 73, offset to keep the box exact. -->
+<g class="node" data-role="data" transform="translate(0,0)">
+  <title>Embedding table — token embedding weights, d-model seven-thousand-one-hundred-sixty-eight</title>
+  <g class="node__body">
+    <!-- top face -->
+    <polygon class="node__detail" points="12.1,0 160,0 147.9,7 0,7" />
+    <!-- side face -->
+    <polygon class="node__detail" points="160,0 160,73 147.9,80 147.9,7" />
+    <!-- front face -->
+    <rect class="node__shape" x="0" y="7" width="147.9" height="73" rx="4" ry="4" />
+  </g>
+  <text class="node__label" x="74" y="40">Embed</text>
+  <text class="node__sub" x="74" y="58">d=7168</text>
+</g>
+
+<!-- snippet: shape-token-strip -->
+<!-- A token sequence: rounded chips in a row, centred in the 160 x 80
+     box. CHIP WIDTH ADAPTS TO ITS FRAGMENT — BPE tokens vary, and a
+     12px mono glyph runs 7.2px/char, so a fixed 22px chip clips at three
+     characters (render-caught). Size each chip to its text + >=4px pad a
+     side, 4px gaps, and centre the whole row. Chips are individually
+     addressable (data-idx) so autoregressive decode reveals them one per
+     beat via OPACITY stagger — never width animation. .token-chip--next
+     marks the slot being generated; give it the accent. Fragments are
+     the literal text from the solution sheet. Label sits below the box. -->
+<g class="node" data-role="client" transform="translate(0,0)">
+  <title>Token sequence — the prompt fragment being decoded, one chip per token</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6" />
+    <rect class="token-chip" data-idx="0" x="13"  y="26" width="30" height="28" rx="5" />
+    <rect class="token-chip" data-idx="1" x="47"  y="26" width="36" height="28" rx="5" />
+    <rect class="token-chip" data-idx="2" x="87"  y="26" width="30" height="28" rx="5" />
+    <rect class="token-chip" data-idx="3" x="121" y="26" width="14" height="28" rx="5" />
+    <rect class="token-chip token-chip--next" data-idx="4" x="139" y="26" width="8" height="28" rx="4" />
+    <text class="node__code" x="28"  y="44">Xin</text>
+    <text class="node__code" x="65"  y="44">chào</text>
+    <text class="node__code" x="102" y="44">anh</text>
+    <text class="node__code" x="128" y="44">!</text>
+  </g>
+  <text class="node__label" x="80" y="98">Output tokens</text>
+</g>
+
+<!-- snippet: shape-diamond-router -->
+<!-- A routing/decision point: MoE router, sampler, any top-k gate.
+     Diamond inscribed in 120 x 80, centred in the 160 x 80 box. The label
+     sits BELOW the shape, never inside — a diamond's interior narrows away
+     from its midline even faster than a hexagon's, and containment is
+     measured at the text's own y-band (checklist item 7). The policy fact
+     ("top-8") rides the sub-label. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>MoE router — gating network selecting the top eight experts per token</title>
+  <g class="node__body">
+    <polygon class="node__shape" points="80,0 140,40 80,80 20,40" />
+  </g>
+  <text class="node__label" x="80" y="98">Router</text>
+  <text class="node__sub" x="80" y="114">top-8 / token</text>
+</g>
+
+<!-- snippet: shape-agent-bot -->
+<!-- An LLM agent: something that takes a task and works it with its own
+     tools. The bot face (antenna, eyes, ears) states the KIND, so N agents
+     in one diagram share this one glyph and read as N of a kind. 190 x 80. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Support agent — an LLM agent that works customer-care tickets</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="190" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 30 28 V 21" />
+      <circle cx="30" cy="18" r="3" />
+      <rect class="node__detail" x="14" y="28" width="32" height="26" rx="8" ry="8" />
+      <rect x="9" y="36" width="4" height="10" rx="2" ry="2" />
+      <rect x="47" y="36" width="4" height="10" rx="2" ry="2" />
+      <circle cx="24" cy="39" r="3" />
+      <circle cx="36" cy="39" r="3" />
+      <path class="node__detail" d="M 24 47 H 36" />
+    </g>
+  </g>
+  <text class="node__label" x="121" y="38">support agent</text>
+  <text class="node__sub" x="121" y="56">after-sales help</text>
+</g>
+
+<!-- snippet: shape-text-model-bubble -->
+<!-- A text-generating model (chat / reasoning LLM): a chat bubble with
+     lines of text and a typing cursor = it WRITES, token by token. Use it
+     when the diagram argues about the model itself; a serving box with no
+     argument attached stays inference-server. 190 x 80. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>LLM — a text model that writes its answer token by token</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="190" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 17 22 H 43 a 7 7 0 0 1 7 7 V 45 a 7 7 0 0 1 -7 7 H 28
+                                    L 20 60 V 52 H 17 a 7 7 0 0 1 -7 -7 V 29 a 7 7 0 0 1 7 -7 Z" />
+      <path class="node__detail" d="M 17 31 H 43 M 17 38 H 43 M 17 45 H 28" />
+      <rect x="31" y="41.5" width="4" height="7" rx="1" ry="1" />
+    </g>
+  </g>
+  <text class="node__label" x="121" y="38">LLM</text>
+  <text class="node__sub" x="121" y="56">writes the reply</text>
+</g>
+
+<!-- snippet: shape-decision-bars -->
+<!-- A decision model: it scores a closed set of options and returns the
+     pick WITH a probability, and writes nothing. Three bars = one
+     probability per option, the tallest ticked. NOT moe-router (tokens to
+     experts, inside a model) and NOT a rules engine (no probability). 190 x 80. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Decision model — picks one option and returns a probability per option</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="190" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <rect x="12" y="42" width="9" height="14" rx="2" ry="2" opacity=".55" />
+      <rect x="25" y="28" width="9" height="28" rx="2" ry="2" />
+      <rect x="38" y="47" width="9" height="9" rx="2" ry="2" opacity=".55" />
+      <path class="node__detail" d="M 24 19 l 4 4 l 8 -9" />
+      <path class="node__detail" d="M 9 59 H 50" />
+    </g>
+  </g>
+  <text class="node__label" x="121" y="38">decision model</text>
+  <text class="node__sub" x="121" y="56">pick + probability</text>
+</g>
+
+<!-- snippet: shape-dispatch-fanout -->
+<!-- An agent dispatcher: code that hands each task to ONE of several
+     agents. One stem fanning out to three arrowheads = "in once, out to
+     one of many". NOT a load balancer (identical replicas) and NOT a
+     workflow orchestrator (a fixed sequence of steps). 190 x 80. -->
+<g class="node" data-role="service" transform="translate(0,0)">
+  <title>Dispatcher — assigns each ticket to one of several agents</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="190" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <circle cx="13" cy="40" r="3.5" />
+      <path class="node__detail" d="M 16 40 H 26 M 26 40 C 34 40 34 24 44 24 M 26 40 H 44
+                                    M 26 40 C 34 40 34 56 44 56" />
+      <path d="M 43 20 L 51 24 L 43 28 Z M 43 36 L 51 40 L 43 44 Z M 43 52 L 51 56 L 43 60 Z" />
+    </g>
+  </g>
+  <text class="node__label" x="121" y="38">dispatcher</text>
+  <text class="node__sub" x="121" y="56">one agent per ticket</text>
+</g>

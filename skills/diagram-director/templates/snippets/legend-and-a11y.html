@@ -1,0 +1,104 @@
+<!-- =====================================================================
+     legend-and-a11y.html — reusable legend + accessibility boilerplate
+     ---------------------------------------------------------------------
+     Three snippets:
+       legend         the role -> colour -> label key (HTML, sits under the SVG)
+       svg-a11y-head  the role/title/desc pattern every diagram SVG needs
+       node-aria      how a single node gets an accessible name
+
+     WHY THE LEGEND IS NOT OPTIONAL
+     A colour swatch alone is meaningless to anyone with a colour-vision
+     difference, in greyscale print, or on a projector with a washed-out
+     gamut. The legend pairs every colour with a TEXT label and every
+     node shape carries its own <title>, so the diagram never encodes
+     meaning in colour alone. Delete legend rows for roles the diagram
+     does not use — do not delete the legend.
+     ===================================================================== -->
+
+<!-- snippet: legend -->
+<ul class="legend">
+  <li class="legend__item">
+    <span class="legend__swatch" data-role="client"></span>
+    <span class="legend__label">client — browser, mobile, or IoT device</span>
+  </li>
+  <li class="legend__item">
+    <span class="legend__swatch" data-role="service"></span>
+    <span class="legend__label">service — application code we own</span>
+  </li>
+  <li class="legend__item">
+    <span class="legend__swatch" data-role="data"></span>
+    <span class="legend__label">data — database, cache, or object store</span>
+  </li>
+  <li class="legend__item">
+    <span class="legend__swatch" data-role="async"></span>
+    <span class="legend__label">async — queue, topic, or background worker (dashed edge)</span>
+  </li>
+  <li class="legend__item">
+    <span class="legend__swatch" data-role="external"></span>
+    <span class="legend__label">external — third party outside our control</span>
+  </li>
+  <li class="legend__item">
+    <span class="legend__swatch" data-role="error"></span>
+    <span class="legend__label">error — failure or fallback path (long-short dash)</span>
+  </li>
+  <li class="legend__item">
+    <span class="legend__swatch" data-role="infra"></span>
+    <span class="legend__label">infra — platform, container, or observability</span>
+  </li>
+</ul>
+
+<!-- snippet: svg-a11y-head -->
+<!-- Paste as the FIRST children of every diagram <svg>.
+     role="img"          collapses the SVG subtree into one image node
+     aria-labelledby     wires the visible <title> + <desc> to that node
+     <title>             short accessible NAME (one line, no period)
+     <desc>              the DESCRIPTION: read the diagram out loud, in
+                         flow order, naming every node and hop. This is
+                         the fallback for anyone who cannot see the
+                         picture, so it must be complete enough to stand
+                         on its own — including what the motion conveys.
+     The ids must be unique per page; suffix them when embedding two
+     diagrams in one document (dgm-title-2, dgm-desc-2). -->
+<svg viewBox="0 0 1440 760" role="img" aria-labelledby="dgm-title dgm-desc">
+  <title id="dgm-title">Checkout request flow</title>
+  <desc id="dgm-desc">
+    A browser sends a checkout request to the api-gateway, which forwards it to
+    orders-service. Orders-service reads and writes redis-cache, persists to
+    sql-database, and publishes an order-placed event to message-queue for
+    asynchronous processing. Animated dashes indicate live traffic on the
+    synchronous path; the queue bar shows messages accumulating.
+  </desc>
+  <!-- …defs, layers… -->
+</svg>
+
+<!-- snippet: node-aria -->
+<!-- Per-node accessible naming. The <g> is not focusable and the parent
+     SVG is role="img", so the <title> exists for tooltip parity and for
+     tools that flatten the SVG; the authoritative narration is <desc>
+     on the root. Pattern:
+       - <title> reads "name — what it is / what it does"
+       - the visible .node__label repeats the name so sighted users and
+         screen-reader users hear the same identifier
+       - status is carried by data-role AND the sub-label, never colour -->
+<g class="node" data-role="service" transform="translate(820,140)">
+  <title>orders-service — application service handling checkout</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+  </g>
+  <text class="node__label" x="80" y="42">orders-service</text>
+  <text class="node__sub" x="80" y="60">REST · HTTP</text>
+</g>
+
+<!-- snippet: a11y-checklist -->
+<!--
+  Before shipping a diagram, verify:
+  [ ] svg has role="img" + aria-labelledby pointing at <title> and <desc>
+  [ ] <desc> narrates every node and every hop, in flow order
+  [ ] every node <g> has a <title>
+  [ ] all labels are real <text>, no text baked into a path or an image
+  [ ] label text is at least 14px at the rendered size
+  [ ] every role colour is repeated in the legend with a text label
+  [ ] async and error edges differ by DASH PATTERN, not only colour
+  [ ] a prefers-reduced-motion block renders the informative end state
+  [ ] the diagram still reads correctly in greyscale
+-->

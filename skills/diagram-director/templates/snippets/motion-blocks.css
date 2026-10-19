@@ -1,0 +1,756 @@
+/* =====================================================================
+   motion-blocks.css — Phase-1 motion library for diagram-director
+   ---------------------------------------------------------------------
+   HOW TO USE
+   - Copy the block(s) you need into the <style> element of a base
+     template. Every base template in templates/base/ already ships
+     these blocks inline; this file is the canonical source.
+   - Class naming: .anim-<motion-id> where <motion-id> is the Motion ID
+     column in data/motion.csv. Short aliases (.anim-dash, .anim-travel,
+     .anim-pulse, .anim-fill) are kept for brevity — both spellings are
+     live selectors, use whichever reads better.
+   - Every block reads shared custom properties defined on :root by the
+     style template. It never hardcodes a color or a duration.
+   - Motion is NON-INTERACTIVE by design: loops run continuously, there
+     are no hover/click/playback controls anywhere in this library.
+   - ALWAYS ship the motion-reduced-fallback block at the END of your
+     stylesheet. Reduced motion must render the INFORMATIVE END STATE
+     (solid strokes, packets parked at the destination, queues at rest),
+     never a mid-animation freeze.
+
+   PROPERTIES READ (declare these on :root)
+     --dur-flow --dur-pulse --dur-fill --dur-beat --dur-draw
+     --ease-flow --ease-pulse --stagger
+     --dash --dash-gap --dash-cycle --fill-level --empty --glow
+     --role-* / --ink-* / --accent-* (color, via currentColor or var())
+   OPTIONAL (every block below ships a sane fallback, so a template that
+   declares none of these still renders correctly):
+     --dur-trip --dur-transition --dur-branch --dur-flash --dur-reroute
+     --dur-sync --dur-retry --dur-hop --dur-ttl --dur-spawn --dur-boot
+     --dur-stream --dur-tick --delay-fail --retry-backoff
+     --stagger-branch --stagger-replica --stagger-spawn
+     --draw-len --stream-tile --active --err
+   PROPERTIES DECLARED (the one block below that writes to :root)
+     --ease-spring-soft --ease-spring-snappy --ease-spring-bouncy
+     — generated linear() timing functions, see snippet: spring-easing-tokens
+
+   CSS APPROXIMATIONS OF needs-js MOTIONS
+     round-trip, retry-loop, fanout-broadcast, replication-sync and
+     scale-out-spawn are `needs-js` in data/motion.csv because their
+     element COUNT (hops, attempts, subscribers, replicas, instances)
+     varies per scenario and because JS triggers them on an event rather
+     than on page load. The classes below are the honest CSS-only
+     approximations: the markup fixes the count, the timeline starts at
+     load, and there is no replay. Each block states what is lost.
+     For --target artifact these five stay unavailable via the composer
+     (it filters on the Runtime column); the classes exist so a
+     hand-authored local file does not have to re-derive them.
+   ===================================================================== */
+
+/* snippet: spring-easing-tokens
+   MEANING  physical settle for ONE-SHOT transform moves — a spawn that
+            lands, a chip that drops, a camera that arrives. Not a motion
+            of its own: a timing function you swap into an existing block.
+   SOURCE   generated, not hand-tuned. Each string is the sampled unit-step
+            response of a damped mass-spring-damper, emitted as evenly
+            spaced linear() control points:
+              python3 scripts/generate_spring_easing.py --presets
+            Re-run it to recalibrate; never edit the numbers by hand.
+   WHY linear()  the skill ships pure CSS — no JS runtime, no animation
+            library — because the frame-seek video export needs every frame
+            to be a deterministic function of one master time. linear() is
+            how a spring gets into a stylesheet without either.
+   ALLOWED  one-shot settles only: scale-out-spawn, node promote, chip
+            landing, state-transition-arrow, a camera move that ARRIVES at
+            a hold. Always with `forwards` fill and exactly one iteration.
+   BANNED   (1) any `infinite` loop — an overshoot that repeats reads as a
+            wobble, not as physics; (2) the master timeline itself, which
+            must stay `linear` or beat percentages stop meaning time;
+            (3) reduced motion — see the reduced-fallback block.
+   REGISTER reference diagrams use soft/snappy only. bouncy is educational
+            register (state-overlay entrances in a teaching cut).
+   OVERSHOOT the peaks below are fractions of the animated DELTA, not of
+            the final value: snappy on `scale(.5)->scale(1)` peaks at
+            scale 1.047, bouncy at 1.153. Check your delta before bouncy.
+   DURATION the "sampled over Nms" in each comment is the window the shape
+            was DESIGNED for, not a constraint — linear() is normalised to
+            progress, so the same curve stretches to whatever duration the
+            motion block sets. Stray far from it and the bounce reads
+            either too slow to be physical or too fast to be seen.
+   MIXED PROPS a spring on a keyframe that animates opacity alongside
+            transform overshoots the opacity too; values above 1 clamp, so
+            the fade sits at full for a beat. Harmless on a spawn (that is
+            the pop). If it is not what you want, split the keyframe. */
+:root {
+  /* zeta=1.00, f=2.20Hz, 24 samples over 520ms — 0 overshoots, tail clamp -0.62% */
+  --ease-spring-soft: linear(0, .04, .13, .241, .355, .463, .559, .642, .713, .771, .819, .857, .888, .913, .932, .948, .96, .969, .976, .982, .986, .989, .992, 1);
+  /* zeta=0.60, f=2.00Hz, 28 samples over 560ms — 1 overshoot, peak +9.5%, tail clamp -0.50% */
+  --ease-spring-snappy: linear(0, .031, .109, .218, .343, .473, .598, .713, .814, .899, .966, 1.018, 1.054, 1.078, 1.091, 1.095, 1.092, 1.085, 1.075, 1.063, 1.051, 1.039, 1.028, 1.018, 1.01, 1.004, .999, 1);
+  /* zeta=0.35, f=2.20Hz, 32 samples over 900ms — 2 overshoots (+30.6%, +3.0%)
+     with a -9.5% undershoot between them, tail clamp -0.41% */
+  --ease-spring-bouncy: linear(0, .073, .256, .497, .749, .974, 1.148, 1.258, 1.306, 1.3, 1.253, 1.183, 1.105, 1.031, .971, .93, .909, .905, .915, .935, .959, .983, 1.003, 1.018, 1.027, 1.03, 1.028, 1.022, 1.015, 1.008, 1.001, 1);
+}
+
+/* The opt-in utility CLASSES that consume these tokens live near the end of
+   this file, not here — every .anim-* block uses the `animation` shorthand,
+   which resets animation-timing-function, so a utility declared above them
+   loses the cascade at equal specificity. See snippet: spring-easing-utils.
+
+   VAR() DOES NOT WORK INSIDE @keyframes. Measured, Chrome 148:
+     @keyframes k { 0% { animation-timing-function: var(--ease-spring-snappy) } }
+   silently falls back to the animation's own timing function — animation-*
+   properties in a keyframe are not custom-property substituted. In a normal
+   rule (the utilities below, and the `animation` shorthand) var() resolves
+   fine. So per-segment easing inside a keyframe — which is how camera-beat
+   eases each move — must PASTE THE linear() STRING LITERALLY. Regenerate it
+   with scripts/generate_spring_easing.py rather than retyping it. */
+
+/* snippet: motion-dash-flow
+   MEANING  data is actively flowing along this connector (motion.csv#dash-flow)
+   APPLY TO an <path class="edge anim-dash-flow"> — connectors only.
+   DIRECTION the dash marches from the start of the path toward its end
+             because the offset animates from +--dash-cycle down to 0.
+             Reverse the flow by animating to +--dash-cycle instead.
+   PERF     stroke-dashoffset is compositor-friendly; keep the segment
+            count low (long dasharray) on paths over ~500px. */
+.anim-dash-flow,
+.anim-dash {
+  stroke-dasharray: var(--dash) var(--dash-gap);
+  stroke-dashoffset: var(--dash-cycle);
+  animation: dash-flow var(--dur-flow) linear infinite;
+}
+
+@keyframes dash-flow {
+  to { stroke-dashoffset: 0; }
+}
+
+/* snippet: motion-packet-travel
+   MEANING  one discrete request/message is in transit (motion.csv#packet-travel)
+   APPLY TO a small shape inside .layer-motion, e.g.
+            <circle class="packet packet--e1" r="7" />
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !! THE offset-path `d` STRING MUST BE COPIED VERBATIM FROM THE     !!
+   !! `d` ATTRIBUTE OF THE EDGE THE PACKET TRAVELS ON.                !!
+   !! If they differ, the packet silently flies along the wrong route !!
+   !! and the diagram lies. One class (or one --path value) PER EDGE. !!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   COORDINATES offset-path uses the SVG user coordinate system of the
+   element's nearest viewport, so paste the edge `d` unchanged and do
+   NOT put a transform on the packet.
+   PERF cheap: only offset-distance animates, it stays on the compositor. */
+.packet {
+  offset-distance: 0%;
+  offset-rotate: auto;
+}
+
+.anim-packet-travel,
+.anim-travel {
+  animation: packet-travel var(--dur-flow) var(--ease-flow) infinite;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+
+@keyframes packet-travel {
+  to { offset-distance: 100%; }
+}
+
+/* One rule per edge. Duplicate for each animated route. */
+.packet--e1 { offset-path: path("M 220 180 L 440 180"); }
+
+/* snippet: motion-pulse-glow
+   MEANING  this node is alive and processing work (motion.csv#pulse-glow)
+   APPLY TO a <g class="node anim-pulse-glow"> — the glow colour comes
+            from currentColor, so set `color: var(--ink-service)` (the
+            base templates already do this per data-role).
+   PERF     drop-shadow is the expensive primitive in this library.
+            Keep it under ~10 simultaneously pulsing nodes. */
+.anim-pulse-glow,
+.anim-pulse {
+  animation: pulse-glow var(--dur-pulse) var(--ease-pulse) infinite;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1;  filter: drop-shadow(0 0 3px  currentColor); }
+  50%      { opacity: .72; filter: drop-shadow(0 0 var(--glow, 10px) currentColor); }
+}
+
+/* snippet: motion-queue-fill
+   MEANING  messages are piling up in a buffer (motion.csv#queue-fill)
+   APPLY TO the fill bar of a queue shape:
+            <rect class="queue__fill anim-queue-fill" />
+   --empty  how much of the bar stays empty at rest (default 20%).
+   CHEAPER ALTERNATIVE for very long bars — animate a scaleX instead:
+            .queue__fill { transform-box: fill-box; transform-origin: left center;
+                           animation: queue-fill-x var(--dur-fill) ease-out infinite alternate; }
+            @keyframes queue-fill-x { from { transform: scaleX(.15) } to { transform: scaleX(.8) } }
+   PERF     clip-path insets are compositor-friendly; never animate
+            box-shadow next to them. */
+.anim-queue-fill,
+.anim-fill {
+  clip-path: inset(0 100% 0 0);
+  animation: queue-fill var(--dur-fill) ease-out infinite alternate;
+}
+
+@keyframes queue-fill {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 var(--empty, 20%) 0 0); }
+}
+
+/* snippet: motion-heartbeat
+   MEANING  periodic liveness / health-check ping (motion.csv#heartbeat)
+   APPLY TO <g class="node__body anim-heartbeat"> — the INNER body group,
+            never the .node group itself: .node carries the positioning
+            transform="translate(x,y)" and a transform animation would
+            overwrite it and teleport the node to the origin.
+   PERF     transform: scale is cheap. */
+.anim-heartbeat {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: heartbeat var(--dur-beat) var(--ease-pulse) infinite;
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1);    }
+  25%      { transform: scale(1.06); }
+  40%      { transform: scale(1);    }
+  55%      { transform: scale(1.04); }
+}
+
+/* snippet: motion-connection-draw-in
+   MEANING  a new dependency was just established (motion.csv#connection-draw-in)
+   APPLY TO <path class="edge anim-connection-draw-in">
+   --draw-len must be >= the path length; 400 covers the 220px edges used
+            by the reference layout. Too small = the line never completes.
+   NOTE     this is a ONE-SHOT (forwards) motion. Do not put it on an edge
+            that is part of the steady-state topology — use dash-flow. */
+.anim-connection-draw-in {
+  stroke-dasharray: var(--draw-len, 400);
+  stroke-dashoffset: var(--draw-len, 400);
+  animation: connection-draw-in var(--dur-draw) ease-out forwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+
+@keyframes connection-draw-in {
+  to { stroke-dashoffset: 0; }
+}
+
+/* =====================================================================
+   TRANSFORM SAFETY — read once, applies to every transform block below
+   (heartbeat, cache-hit-miss, retry-loop, ttl-expiry, scale-out-spawn,
+    batch-tick, stream-continuous)
+   A CSS transform animation REPLACES the element's transform="translate()"
+   presentation attribute. Never put these classes on a <g class="node">
+   that carries its own positioning transform — the node teleports to the
+   origin. Put them on an INNER wrapper: <g class="node" transform="...">
+   <g class="node__body anim-*"> ... </g></g>.
+   `transform-box: fill-box` makes transform-origin and % lengths resolve
+   against the element's own bounding box instead of the SVG viewBox.
+   ===================================================================== */
+
+/* snippet: motion-round-trip
+   MEANING  a request left and its response is coming back; the loop length
+            reads as round-trip latency (motion.csv#round-trip)
+   RUNTIME  dataset says needs-js. This is the CSS-only approximation:
+            ONE token, ONE hop, out-dwell-back on a loop.
+            JS ADDS   variable hop count per scenario (chained legs), an
+                      event trigger instead of page load, per-hop latency
+                      from the scenario data, and a response token that can
+                      differ in colour/shape from the request token.
+            CSS CANNOT vary the hop count — the markup fixes it at one.
+   APPLY TO <circle class="packet packet--e1 anim-round-trip" r="7"/>
+            The .packet--e1 offset-path rule must exist and its `d` must be
+            copied verbatim from the edge (see motion-packet-travel).
+   TIMING   0-45% outbound, 45-55% dwell at the callee (its service time),
+            55-100% return. offset-rotate:auto turns the token around. */
+.anim-round-trip {
+  animation: round-trip var(--dur-trip, 1600ms) var(--ease-flow, ease-in-out) infinite;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+
+@keyframes round-trip {
+  0%       { offset-distance: 0%;   }
+  45%, 55% { offset-distance: 100%; }
+  100%     { offset-distance: 0%;   }
+}
+
+/* snippet: motion-state-transition-arrow
+   MEANING  the machine just moved from one defined state to the next
+            (motion.csv#state-transition-arrow)
+   APPLY TO <path class="edge anim-state-transition-arrow">
+   --active the transition colour; defaults to the success/data ink.
+   --draw-len must be >= the path length (400 covers the reference layout).
+   DIVERGES FROM THE RECIPE (deliberate): the recipe interpolates `stroke`
+            inside the keyframe. Stroke colour is a PAINT property, not a
+            compositor one. The arrow is set to --active statically instead
+            and only stroke-dashoffset animates — identical end state,
+            nothing repaints. One-shot: use dash-flow for steady traffic. */
+.anim-state-transition-arrow {
+  stroke: var(--active, var(--ink-data, currentColor));
+  stroke-dasharray: var(--draw-len, 400);
+  stroke-dashoffset: var(--draw-len, 400);
+  animation: state-transition-arrow var(--dur-transition, 500ms) ease-out forwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+
+@keyframes state-transition-arrow {
+  to { stroke-dashoffset: 0; }
+}
+
+/* snippet: motion-fanout-broadcast
+   MEANING  one published event is being delivered to every subscriber
+            (motion.csv#fanout-broadcast)
+   RUNTIME  dataset says needs-js. CSS-only approximation below.
+            JS ADDS   N branches generated from the subscriber list, replay
+                      on every publish, and batched DOM writes past ~10
+                      targets.
+            CSS CANNOT generate branches — author one <path> per subscriber
+                      and set --i to its publish order.
+   APPLY TO <path class="edge anim-fanout-broadcast" style="--i:0">
+   NOTE     one-shot (forwards): the branches END fully drawn, which is the
+            informative state. Do not loop it — a repeating fade reads as a
+            fault, not as delivery. */
+.anim-fanout-broadcast {
+  opacity: 0;
+  stroke-dasharray: var(--draw-len, 400);
+  stroke-dashoffset: var(--draw-len, 400);
+  animation: fanout-broadcast var(--dur-branch, 500ms) ease-out forwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger-branch, 100ms));
+}
+
+@keyframes fanout-broadcast {
+  to { opacity: 1; stroke-dashoffset: 0; }
+}
+
+/* An async edge carries its meaning in its dash pattern, but the draw-in technique
+   has to commandeer stroke-dasharray to work — so once the branch has finished
+   drawing, colour would be the only thing left saying "async", which the delivery
+   checklist forbids. Hand the pattern back at the end: a 1ms second animation fires
+   right after the first and holds its end state, so the settled edge is dashed again.
+   Applies to every style that pairs this motion with an async edge, not just the one
+   where it was first noticed. */
+.edge--async.anim-fanout-broadcast {
+  animation-name: fanout-broadcast, fanout-restore-async-dash;
+  animation-duration: var(--dur-branch, 500ms), 1ms;
+  animation-timing-function: ease-out, linear;
+  animation-fill-mode: forwards, forwards;
+  animation-delay:
+    calc(var(--i, 0) * var(--stagger-branch, 100ms)),
+    calc(var(--i, 0) * var(--stagger-branch, 100ms) + var(--dur-branch, 500ms));
+}
+@keyframes fanout-restore-async-dash {
+  to { stroke-dasharray: var(--async-dash, 10 7); stroke-dashoffset: 0; }
+}
+
+/* snippet: motion-cache-hit-miss
+   MEANING  a lookup just resolved from cache (hit) or fell through (miss)
+            (motion.csv#cache-hit-miss)
+   APPLY TO the outcome badge next to the cache node:
+            <g class="badge anim-cache-hit-miss"> HIT </g>
+            Colour the badge yourself (--ink-data for hit, --ink-error for
+            miss) — the motion carries the timing, not the verdict.
+   CORRECTED RECIPE: the published keyframes ended at opacity 0, which
+            (a) contradicted their own reduced-motion end state ("static
+            hit/miss badge shown next to the cache node") and (b) snapped
+            back to opacity 1 the instant the animation finished, because
+            there was no fill-mode. It now pops in and SETTLES visible. */
+.anim-cache-hit-miss {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cache-hit-miss var(--dur-flash, 800ms) ease-out 1 both;
+}
+
+@keyframes cache-hit-miss {
+  0%   { opacity: 0; transform: scale(.9); }
+  40%  { opacity: 1; transform: scale(1);  }
+  100% { opacity: 1; transform: scale(1);  }
+}
+
+/* snippet: motion-failover-reroute
+   MEANING  traffic for a failed node is being redirected to a healthy
+            standby (motion.csv#failover-reroute)
+   APPLY TO TWO connectors, and both classes are required for the story to
+            read — the fade alone looks like an idle link:
+              <path class="edge anim-failover-reroute--old"/>  failed route
+              <path class="edge anim-failover-reroute"/>       standby route
+   TIMING   the standby draw-in waits --delay-fail (= the fade-out length)
+            so the failure is visibly the CAUSE of the reroute.
+   NOTE     pair with a static cross/skull marker on the failed path: a
+            dimmed line alone is not an accessible failure signal. */
+.anim-failover-reroute {
+  opacity: 0;
+  stroke-dasharray: var(--draw-len, 400);
+  stroke-dashoffset: var(--draw-len, 400);
+  animation: failover-reroute var(--dur-reroute, 600ms) ease-out var(--delay-fail, 400ms) forwards;
+}
+
+.anim-failover-reroute--old {
+  animation: failover-fade var(--delay-fail, 400ms) ease-in forwards;
+}
+
+@keyframes failover-reroute {
+  to { opacity: 1; stroke-dashoffset: 0; }
+}
+
+@keyframes failover-fade {
+  to { opacity: .2; }
+}
+
+/* snippet: motion-replication-sync
+   MEANING  a write on the primary is being copied to the replicas
+            (motion.csv#replication-sync)
+   RUNTIME  dataset says needs-js. CSS-only approximation below.
+            JS ADDS   N replicas generated from the topology and replay per
+                      write.
+            CSS CANNOT generate replicas — author one per replica node and
+                      set --i to its position in replication order.
+   APPLY TO the replica node body: <g class="node__body anim-replication-sync"
+            style="--i:1">. Opacity only, so this one is safe on any element.
+   READS    replicas start at .3 (stale) and settle at 1 (in sync). */
+.anim-replication-sync {
+  opacity: .3;
+  animation: replication-sync var(--dur-sync, 600ms) ease-out forwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger-replica, 125ms));
+}
+
+@keyframes replication-sync {
+  to { opacity: 1; }
+}
+
+/* snippet: motion-retry-loop
+   MEANING  a failed call is being retried automatically after backoff
+            (motion.csv#retry-loop)
+   RUNTIME  dataset says needs-js. CSS-only approximation below.
+            JS ADDS   the real attempt count, the real backoff schedule
+                      (incl. jitter) and a trigger on the actual failure.
+            CSS CANNOT count attempts — author 3-5 attempt markers, set --i
+                      on each. The delay grows as i*dur + i^2*backoff, an
+                      honest stand-in for exponential backoff: gaps widen
+                      with every attempt, which is the point of the motion.
+   APPLY TO each attempt marker (arrow, tick or badge):
+            <g class="attempt anim-retry-loop" style="--i:2">
+            See TRANSFORM SAFETY above — never on a positioned .node. */
+.anim-retry-loop {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: retry-loop var(--dur-retry, 500ms) ease-out forwards;
+  animation-delay: calc(
+    var(--i, 0) * var(--dur-retry, 500ms) +
+    var(--i, 0) * var(--i, 0) * var(--retry-backoff, 220ms)
+  );
+}
+
+@keyframes retry-loop {
+  from { opacity: 0; transform: scale(.8); }
+  to   { opacity: 1; transform: scale(1);  }
+}
+
+/* snippet: motion-error-propagation
+   MEANING  a fault is cascading outward through dependent services
+            (motion.csv#error-propagation, covers the cascade-ripple alias)
+   APPLY TO every node on the cascade path, --i = hop distance from the
+            failing node: <g class="node anim-error-propagation" style="--i:2">
+            Opacity + filter only, so it is safe on a positioned .node.
+   --err    error colour; defaults to the template's --ink-error.
+   PERF     one drop-shadow per node — cap the cascade at 6 nodes.
+   NOTE     the recipe staggers with :nth-child(); --i is used here so the
+            hop order follows the DEPENDENCY graph, not the DOM order.
+            Colour alone is not an accessible failure signal — keep the
+            static error role fill/badge on the affected nodes too. */
+.anim-error-propagation {
+  animation: error-propagation var(--dur-hop, 500ms) ease-in forwards;
+  animation-delay: calc(var(--i, 0) * var(--dur-hop, 500ms));
+}
+
+@keyframes error-propagation {
+  to {
+    opacity: .8;
+    filter: drop-shadow(0 0 6px var(--err, var(--ink-error, currentColor)));
+  }
+}
+
+/* snippet: motion-ttl-expiry
+   MEANING  a cached/session item hit its TTL and is being evicted
+            (motion.csv#ttl-expiry)
+   APPLY TO the expiring item only: <g class="item anim-ttl-expiry">
+            See TRANSFORM SAFETY above.
+   TIMING   holds for 80% of --dur-ttl (the item is alive and useful), then
+            fades and shrinks away. The hold IS the time-to-live.
+   NOTE     one-shot: the item ENDS GONE (opacity 0). Keep a visible
+            "expired" slot or count nearby so the diagram still explains
+            itself once the item has vanished. */
+.anim-ttl-expiry {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ttl-expiry var(--dur-ttl, 3000ms) ease-in forwards;
+}
+
+@keyframes ttl-expiry {
+  0%, 80% { opacity: 1; transform: scale(1);  }
+  100%    { opacity: 0; transform: scale(.7); }
+}
+
+/* snippet: motion-scale-out-spawn
+   MEANING  new instances are being created to absorb load
+            (motion.csv#scale-out-spawn)
+   RUNTIME  dataset says needs-js. CSS-only approximation below.
+            JS ADDS   instance count driven by the scenario and replay on
+                      each scaling event.
+            CSS CANNOT generate instances — author each new instance and set
+                      --i to its spawn order.
+   APPLY TO the instance body: <g class="node__body anim-scale-out-spawn"
+            style="--i:2">. See TRANSFORM SAFETY above.
+   SCALE-IN reverse the keyframe direction (animation-direction: reverse)
+            for termination; do not invent a second motion.
+   EASING   the one catalog row whose Easing cell names a spring
+            (motion.csv#scale-out-spawn): a spawn that arrives on ease-out
+            arrives dead. The var() fallback keeps this block working in a
+            stylesheet that did not copy the spring-easing-tokens block. */
+.anim-scale-out-spawn {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: scale-out-spawn var(--dur-spawn, 500ms)
+             var(--ease-spring-snappy, ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger-spawn, 125ms));
+}
+
+@keyframes scale-out-spawn {
+  from { opacity: 0; transform: scale(.5); }
+  to   { opacity: 1; transform: scale(1);  }
+}
+
+/* snippet: motion-node-boot-sequence
+   MEANING  components are starting up in a defined order
+            (motion.csv#node-boot-sequence)
+   APPLY TO every node, --i = boot order:
+            <g class="node anim-node-boot-sequence" style="--i:3">
+            Opacity only, so it is safe directly on a positioned .node.
+   TIMING   stagger equals the per-node duration (--dur-boot), so each node
+            lands exactly as the next one starts — reads as a sequence, not
+            as a crowd fading in.
+   NOTE     the recipe staggers with :nth-child(); --i is used here so boot
+            order is explicit in the markup and survives DOM reordering. */
+.anim-node-boot-sequence {
+  opacity: 0;
+  animation: node-boot-sequence var(--dur-boot, 400ms) ease-out forwards;
+  animation-delay: calc(var(--i, 0) * var(--dur-boot, 400ms));
+}
+
+@keyframes node-boot-sequence {
+  to { opacity: 1; }
+}
+
+/* snippet: motion-stream-continuous
+   MEANING  unbounded, always-on flow — a stream, not discrete messages
+            (motion.csv#stream-continuous)
+   APPLY TO a tiled group of ticks inside a clip:
+            <g clip-path="url(#streamClip)">
+              <g class="anim-stream-continuous"> ...ticks every --stream-tile
+                 user units, with ONE EXTRA tile of overhang on the right...
+              </g>
+            </g>
+   --stream-tile MUST equal the tick spacing, otherwise the loop visibly
+            jumps at every wrap. Overhang + exact tile = seamless.
+   CORRECTED RECIPE: the published snippet animated `background-position`.
+            SVG elements have no CSS background, so it did nothing on the
+            only elements this library targets, and background-position is
+            a paint property anyway. Replaced with the translate loop the
+            performance note already listed as the alternative.
+   VS dash-flow: dash-flow shows discrete dashes with gaps (countable
+            messages); this reads as one continuous band. */
+.anim-stream-continuous {
+  animation: stream-continuous var(--dur-stream, 2000ms) linear infinite;
+}
+
+@keyframes stream-continuous {
+  to { transform: translateX(calc(-1 * var(--stream-tile, 40px))); }
+}
+
+/* snippet: motion-batch-tick
+   MEANING  work accumulates and is processed together on a schedule
+            (motion.csv#batch-tick)
+   APPLY TO the batch track/conveyor group:
+            <g class="batch anim-batch-tick"> ...5 slots... </g>
+            See TRANSFORM SAFETY above — transform-box:fill-box makes the
+            -100% resolve against the track's own width, so one step moves
+            exactly one slot when the track holds 5 slots.
+   STEPS    steps(5, end) is intentionally hardcoded: it must match the slot
+            count in your markup. Edit both together, or the conveyor
+            slides by fractions of a slot and stops reading as ticks.
+   READS    discrete jumps = scheduled intervals; a smooth version of this
+            would mean stream-continuous. */
+.anim-batch-tick {
+  transform-box: fill-box;
+  animation: batch-tick var(--dur-tick, 3000ms) steps(5, end) infinite;
+}
+
+@keyframes batch-tick {
+  to { transform: translateX(-100%); }
+}
+
+/* snippet: motion-stagger
+   MEANING  ordered reveal / de-synchronised loops across siblings.
+   USAGE    set --i on each sibling in the MARKUP (index, not a theme
+            value, so an inline custom property is acceptable here):
+              <g class="node anim-pulse-glow" style="--i:0"> ... </g>
+              <g class="node anim-pulse-glow" style="--i:1"> ... </g>
+            Every motion block above already reads --i, so no extra CSS
+            is needed. Keep --stagger between 120ms and 300ms: below that
+            the offset is invisible, above it the group stops reading as
+            one system. */
+.anim-dash-flow,
+.anim-connection-draw-in,
+.anim-pulse-glow,
+.anim-packet-travel {
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+
+/* snippet: spring-easing-utils
+   The opt-in half of snippet: spring-easing-tokens. Put one class on the
+   SAME element that already carries a ONE-SHOT motion class:
+     <g class="node__body anim-scale-out-spawn ease-spring-bouncy">
+   Each sets only animation-timing-function, so the motion block keeps owning
+   duration, delay, fill and iteration count.
+   ORDER MATTERS: this block must sit AFTER every .anim-* block, because
+   those use the `animation` shorthand (which resets the timing function) and
+   the utilities have the same specificity — source order is the tie-break.
+   Ship it here, immediately before the reduced-motion block, or it is inert.
+   Never put one on an `infinite` class; see the BANNED list in the tokens
+   block above. */
+.ease-spring-soft   { animation-timing-function: var(--ease-spring-soft); }
+.ease-spring-snappy { animation-timing-function: var(--ease-spring-snappy); }
+.ease-spring-bouncy { animation-timing-function: var(--ease-spring-bouncy); }
+
+/* snippet: motion-reduced-fallback
+   MANDATORY. Ships LAST so it wins the cascade.
+   Each rule restores the INFORMATIVE END STATE named in the
+   "Reduced-Motion Fallback" column of data/motion.csv:
+     dash-flow            -> solid stroke, no dash pattern
+     packet-travel        -> packet parked AT THE DESTINATION, path solid
+     pulse-glow           -> full opacity with a fixed static glow
+     queue-fill           -> bar at its resting fill level
+     heartbeat            -> node at rest scale, no scaling
+     connection-draw-in   -> connector fully drawn, solid
+     round-trip           -> token back AT THE ORIGIN, the trip completed
+     state-transition-arrow -> arrow fully drawn in the --active colour
+     fanout-broadcast     -> every branch drawn solid, all delivered
+     cache-hit-miss       -> outcome badge visible, no flash
+     failover-reroute     -> failed path dimmed, standby path solid
+     replication-sync     -> every replica at full opacity, in sync
+     retry-loop           -> all attempt markers visible at rest scale
+     error-propagation    -> whole cascade in the error colour at once
+     ttl-expiry           -> item ALREADY EVICTED (gone), not mid-fade
+     scale-out-spawn      -> new instances present at final scale
+     node-boot-sequence   -> every node booted and fully opaque
+     stream-continuous    -> stream band at rest, static direction arrow
+     batch-tick           -> conveyor parked on a slot boundary
+     spring easings      -> irrelevant: every block a spring is legal on is
+                            already killed here, and the rule below is the
+                            belt-and-braces for a hand-authored one.
+   The diagram must be completely understandable with motion off. */
+@media (prefers-reduced-motion: reduce) {
+  /* A spring is an overshoot. Reduced motion has no overshoots — if some
+     hand-authored element still animates in this mode, it must arrive
+     monotonically and stop. Never negotiate this one. */
+  .ease-spring-soft,
+  .ease-spring-snappy,
+  .ease-spring-bouncy {
+    animation-timing-function: linear !important;
+    transition-timing-function: linear !important;
+  }
+
+  .anim-dash-flow,
+  .anim-dash,
+  .anim-connection-draw-in {
+    animation: none !important;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+
+  .packet,
+  .anim-packet-travel,
+  .anim-travel {
+    animation: none !important;
+    /* parked at the destination end of its own offset-path */
+    offset-distance: 100% !important;
+  }
+
+  .anim-pulse-glow,
+  .anim-pulse {
+    animation: none !important;
+    opacity: 1 !important;
+    filter: drop-shadow(0 0 3px currentColor);
+  }
+
+  .anim-queue-fill,
+  .anim-fill {
+    animation: none !important;
+    /* resting depth, not an empty bar */
+    clip-path: inset(0 var(--empty, 20%) 0 0) !important;
+  }
+
+  .anim-heartbeat {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  /* round-trip parks at 0% — the response came HOME. This rule must stay
+     after the .packet rule above, which parks plain packets at 100%. */
+  .anim-round-trip {
+    animation: none !important;
+    offset-distance: 0% !important;
+  }
+
+  .anim-state-transition-arrow,
+  .anim-fanout-broadcast,
+  .anim-failover-reroute {
+    animation: none !important;
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+  }
+  /* same reason as the animated path: without this the async edge settles solid */
+  .edge--async.anim-fanout-broadcast {
+    stroke-dasharray: var(--async-dash, 10 7) !important;
+  }
+
+  /* the failed route stays visibly dimmed — that is the information */
+  .anim-failover-reroute--old {
+    animation: none !important;
+    opacity: .2 !important;
+  }
+
+  .anim-cache-hit-miss,
+  .anim-replication-sync,
+  .anim-retry-loop,
+  .anim-node-boot-sequence,
+  .anim-scale-out-spawn {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* cascade shown all at once, in the error colour, never mid-ripple */
+  .anim-error-propagation {
+    animation: none !important;
+    opacity: .8 !important;
+    filter: drop-shadow(0 0 6px var(--err, var(--ink-error, currentColor)));
+  }
+
+  /* the item's TTL has already elapsed: evicted, not frozen mid-fade */
+  .anim-ttl-expiry {
+    animation: none !important;
+    opacity: 0 !important;
+    transform: none !important;
+  }
+
+  /* stream/conveyor at rest on a whole slot — pair with a static
+     flow-direction arrow so the direction is still readable */
+  .anim-stream-continuous,
+  .anim-batch-tick {
+    animation: none !important;
+    transform: none !important;
+  }
+}
