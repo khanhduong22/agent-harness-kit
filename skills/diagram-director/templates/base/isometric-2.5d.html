@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkout request flow — isometric-2.5d</title>
+
+<!-- =====================================================================
+     STYLE: isometric-2.5d  (data/styles.csv#isometric-2.5d)
+     Derived from templates/base/flat-minimal.html. Class names and custom
+     property names are IDENTICAL to that file so templates/snippets/*
+     stays portable; only :root token values, the <defs>, and the three
+     isometric-only rules noted below differ.
+
+     WHAT THIS STYLE ADDS TO THE SHARED ARCHITECTURE (the only deviations)
+       .node__face          the projection wrapper. Snippet geometry is
+                            copied VERBATIM inside it and gets projected.
+       .node__shape--left   the two extruded side faces of the block.
+       .node__shape--right  Shaded by color-mix() off --fill, so no new
+                            colour token is introduced and no palette
+                            value is invented.
+     Nothing else is added and nothing from flat-minimal is dropped.
+
+     THE PROJECTION (30-degree isometric, CSS/SVG transforms only — no
+     icon library, no WebGL, no external asset)
+       transform="translate(70,0) matrix(0.866,0.5,-0.866,0.5,0,0)"
+       maps the standard 160x80 node box onto the isometric ground plane:
+         model (0,0)   -> local (70,   0)     top corner
+         model (160,0) -> local (208.6,80)    right corner
+         model (160,80)-> local (139.3,120)   bottom corner
+         model (0,80)  -> local (0.7,  40)    left corner
+       The block is extruded DOWN by 26 units, giving the two side faces:
+         left  polygon  0.7,40  139.3,120 139.3,146 0.7,66
+         right polygon  139.3,120 208.6,80 208.6,106 139.3,146
+       So a node's local footprint is x 0.7..208.6, y 0..146.
+
+     HOW TO ADAPT THIS FILE
+     1. TOKENS — edit only the :root block and its dark-mode twin. Colours
+        come from data/color-semantics.csv (Style ID isometric-2.5d);
+        never invent a hex. Face shading is derived, not authored.
+     2. NODES — add/remove <g class="node"> blocks between NODES:START and
+        NODES:END. Keep the three-face body above and paste the badge
+        geometry of a templates/snippets/node-shapes.html shape inside
+        .node__face. Two isometric-specific adaptations, both deliberate:
+          - the snippet's OUTER .node__shape is replaced by the plain
+            160x80 rect, because a hexagon/cylinder silhouette cannot
+            share the rhombus extrusion. Component type is carried by the
+            badge, the sub-label and <title> instead — never by colour.
+          - badges are placed in the model top-left corner (model x 6..54,
+            y 6..40) so the projected badge never lands under the labels.
+        Every stroked element inside .node__face carries
+        vector-effect="non-scaling-stroke" so the 1.5px outline does not
+        thicken under the skew.
+     3. LABELS STAY HORIZONTAL — never put <text> inside .node__face.
+        Skewed type is the classic failure of this style. Both label rows
+        sit BELOW the block, centred on the silhouette at local x=104.65,
+        y=172 (.node__label) and y=190 (.node__sub). They are outside the
+        rhombus on purpose: a horizontal line of type inside a 30-degree
+        parallelogram only gets 138.6 - 1.7325*(line height) units of
+        usable width, which is ~104 at 16px and clips names as ordinary as
+        "message-queue". Under the block the width is unbounded and the
+        text never crosses a shaded face, so the AA contrast pair stays
+        --on-* against --bg. Node local footprint is therefore y 0..196.
+     4. LAYOUT — nodes sit on the isometric grid, which has THREE useful
+        move directions. From one node's translate(X,Y):
+          model (+d,-d)  -> screen (+1.732*d, 0)      a horizontal row step
+          model (+k, 0)  -> screen (+0.866*k, +0.5*k) down-right at 30&deg;
+          model ( 0,+k)  -> screen (-0.866*k, +0.5*k) down-left  at 30&deg;
+        This example puts the request row on the first axis (columns 382
+        apart) and hangs redis-cache / message-queue off orders-service on
+        the other two, so the diagram fills its box instead of cascading.
+     5. EDGES — add <path class="edge"> between EDGES:START and EDGES:END.
+        Every connector runs along one of those three axes, so no line
+        ever leaves the 30-degree grid. An edge starts and ends at the
+        SAME local point on both blocks (that is what guarantees the line
+        is exactly on-axis); pick the midpoint of the face that looks at
+        the other node. Arrowheads are flattened to match the perspective.
+     6. MOTION classes available here (templates/snippets/motion-blocks.css):
+          .anim-dash-flow  (.anim-dash)      traffic flowing on a connector
+          .anim-packet-travel (.anim-travel) one request in flight
+          .anim-pulse-glow (.anim-pulse)     node is alive and working
+          .anim-queue-fill (.anim-fill)      buffer depth growing
+          .anim-heartbeat                    liveness ping (on .node__body!)
+          .anim-connection-draw-in           a new dependency appearing
+        A packet's offset-path `d` MUST be copied verbatim from its edge.
+     7. ARTIFACT vs LOCAL — css-only, zero <script>. The Google Fonts
+        <link> below is the ONE external host a Claude Artifact permits
+        (fonts.googleapis.com + fonts.gstatic.com), so it ships active and
+        the file is artifact-safe as-is; the --font-* fallback stacks
+        render correctly if the request is blocked.
+     8. Motion is non-interactive by design — no hover, click, or playback
+        controls. Do not add any.
+     ===================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  /* ---- surface ------------------------------------------------------ */
+  --bg:#f1f5f9;
+  --surface:#f1f5f9;
+  --grid:color-mix(in srgb, #475569 14%, transparent);
+  --ink:#1e293b;
+  --muted:#475569;
+  --stroke:#475569;
+  --stroke-w:1.5px;
+  --radius:8px;
+
+  /* ---- typography --------------------------------------------------- */
+  --font-title:"Inter","Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-label:"Inter","Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --fs-title:1.375rem;
+  --fs-label:16px;
+  --fs-sub:13px;
+
+  /* ---- roles: fill / stroke / accent / on-colour -------------------- */
+  /* values verbatim from data/color-semantics.csv (Style ID isometric-2.5d) */
+  --role-client:#dbeafe;   --ink-client:#2563eb;   --accent-client:#3b82f6;   --on-client:#1e40af;
+  --role-service:#ffedd5;  --ink-service:#ea580c;  --accent-service:#f97316;  --on-service:#9a3412;
+  --role-data:#dcfce7;     --ink-data:#16a34a;     --accent-data:#22c55e;     --on-data:#166534;
+  --role-async:#f3e8ff;    --ink-async:#9333ea;    --accent-async:#a855f7;    --on-async:#6b21a8;
+  --role-external:#f3f4f6; --ink-external:#4b5563; --accent-external:#6b7280; --on-external:#1f2937;
+  --role-error:#fee2e2;    --ink-error:#dc2626;    --accent-error:#ef4444;    --on-error:#991b1b;
+  --role-infra:#f1f5f9;    --ink-infra:#475569;    --accent-infra:#14b8a6;    --on-infra:#1e293b;
+
+  /* ---- motion (values from data/motion.csv) ------------------------- */
+  --dur-flow:1200ms;  --dur-pulse:1600ms; --dur-fill:2000ms;
+  --dur-beat:1000ms;  --dur-draw:800ms;
+  --ease-flow:ease-in-out; --ease-pulse:ease-in-out;
+  --stagger:200ms;
+  --dash:8; --dash-gap:6; --dash-cycle:56;
+  --empty:22%;
+  --glow:8px;
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f172a;
+    --surface:#0f172a;
+    --grid:color-mix(in srgb, #94a3b8 16%, transparent);
+    --ink:#f8fafc;
+    --muted:#94a3b8;
+    --stroke:#cbd5e1;
+    --role-client:#1d4ed8;   --ink-client:#93c5fd;   --accent-client:#93c5fd;   --on-client:#eff6ff;
+    --role-service:#c2410c;  --ink-service:#fdba74;  --accent-service:#fdba74;  --on-service:#fff7ed;
+    --role-data:#15803d;     --ink-data:#86efac;     --accent-data:#86efac;     --on-data:#f0fdf4;
+    --role-async:#7e22ce;    --ink-async:#d8b4fe;    --accent-async:#d8b4fe;    --on-async:#faf5ff;
+    --role-external:#374151; --ink-external:#d1d5db; --accent-external:#d1d5db; --on-external:#f9fafb;
+    --role-error:#b91c1c;    --ink-error:#fca5a5;    --accent-error:#fca5a5;    --on-error:#fef2f2;
+    --role-infra:#334155;    --ink-infra:#cbd5e1;    --accent-infra:#5eead4;    --on-infra:#f8fafc;
+  }
+}
+
+/* ===== page ========================================================== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-label);
+     -webkit-text-size-adjust:100%}
+.diagram{max-width:1440px;margin:0 auto;padding:24px 16px 40px}
+.diagram__title{font-family:var(--font-title);font-size:var(--fs-title);font-weight:600;
+                letter-spacing:-.01em;margin:0 0 4px}
+.diagram__subtitle{margin:0 0 18px;color:var(--muted);font-size:.875rem;line-height:1.55}
+/* isometric dot lattice: two offset dot grids give the 2:1 rhombic ground plane */
+.diagram__canvas{display:block;width:100%;height:auto;background-color:var(--surface);
+                 background-image:radial-gradient(var(--grid) 1.1px,transparent 1.1px),
+                                  radial-gradient(var(--grid) 1.1px,transparent 1.1px);
+                 background-size:34.64px 20px,34.64px 20px;
+                 background-position:0 0,17.32px 10px;
+                 border-radius:var(--radius)}
+.diagram__note{margin:16px 0 0;color:var(--muted);font-size:.8125rem;line-height:1.6;max-width:72ch}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+         clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ===== role mapping (the ONLY place a role becomes a colour) ========= */
+[data-role]{--fill:var(--role-external);--line:var(--ink-external);
+            --accent:var(--accent-external);--on:var(--on-external)}
+[data-role="client"]  {--fill:var(--role-client);  --line:var(--ink-client);  --accent:var(--accent-client);  --on:var(--on-client)}
+[data-role="service"] {--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="data"]    {--fill:var(--role-data);    --line:var(--ink-data);    --accent:var(--accent-data);    --on:var(--on-data)}
+[data-role="async"]   {--fill:var(--role-async);   --line:var(--ink-async);   --accent:var(--accent-async);   --on:var(--on-async)}
+[data-role="external"]{--fill:var(--role-external);--line:var(--ink-external);--accent:var(--accent-external);--on:var(--on-external)}
+[data-role="error"]   {--fill:var(--role-error);   --line:var(--ink-error);   --accent:var(--accent-error);   --on:var(--on-error)}
+[data-role="infra"]   {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* ===== nodes ========================================================= */
+.node{color:var(--line)}                     /* currentColor drives the glow */
+.node__body{transform-box:fill-box;transform-origin:center}
+.node__shape{fill:var(--fill);stroke:var(--line);stroke-width:var(--stroke-w);
+             stroke-linejoin:round;stroke-linecap:round}
+/* ISOMETRIC-ONLY: three-tone flat shading, no gradients. Both side faces are
+   derived from --fill by mixing toward black, so no palette value is invented
+   and no new colour token exists. Labels never sit on a shaded face — they sit
+   on the top face, whose --fill/--on pair is the AA-verified one from
+   data/color-semantics.csv. */
+.node__shape--left {fill:color-mix(in srgb, var(--fill) 66%, #000)}
+.node__shape--right{fill:color-mix(in srgb, var(--fill) 84%, #000)}
+.node__face{}                                 /* projection wrapper, no paint */
+.node__detail{fill:none;stroke:var(--line);stroke-width:1;opacity:.65;stroke-linecap:round}
+.node__detail--dashed{stroke-dasharray:5 4}
+.node__icon{fill:var(--line);stroke:none;opacity:.9}
+.node__icon .node__detail{opacity:.9}
+.node__icon-glyph{fill:var(--on);font-family:var(--font-title);font-size:17px;
+                  font-weight:600;text-anchor:middle}
+.node__label{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-label);
+             font-weight:600;text-anchor:middle}
+.node__sub{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-sub);
+           text-anchor:middle;opacity:.85}
+.node--primary .node__shape{stroke-width:calc(var(--stroke-w) * 1.4)}
+
+/* ===== queue ========================================================= */
+/* On this style the depth gauge is painted on the extruded LEFT face, so the
+   bar reads as the block filling up rather than as a flat sticker. */
+.queue__track{fill:var(--on);opacity:.16;stroke:none}
+.queue__fill{fill:var(--accent);stroke:none}
+.queue .node__detail{stroke:var(--fill);opacity:.9}
+
+/* ===== groups ======================================================== */
+.group__box{fill:none;stroke:var(--line);stroke-width:1;stroke-dasharray:6 6;opacity:.55}
+.group__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+              letter-spacing:.04em;text-anchor:middle}
+
+/* ===== edges ========================================================= */
+.edge{fill:none;stroke:var(--stroke);stroke-width:var(--stroke-w);
+      stroke-linecap:round;stroke-linejoin:round}
+.edge--primary{stroke-width:calc(var(--stroke-w) * 1.35)}
+.edge--async{stroke:var(--ink-async);stroke-dasharray:10 7}   /* dash = async, not colour alone */
+.edge--error{stroke:var(--ink-error);stroke-dasharray:14 5 4 5}
+.edge__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+             text-anchor:middle}
+.marker{fill:var(--stroke);stroke:none}
+.marker--open{fill:none;stroke:var(--ink-async);stroke-width:1.6;stroke-linecap:round}
+
+/* ===== motion (source: templates/snippets/motion-blocks.css) ========= */
+.anim-dash-flow,.anim-dash{
+  stroke-dasharray:var(--dash) var(--dash-gap);
+  stroke-dashoffset:var(--dash-cycle);
+  animation:dash-flow var(--dur-flow) linear infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes dash-flow{to{stroke-dashoffset:0}}
+
+.packet{fill:var(--line);stroke:var(--surface);stroke-width:2;offset-distance:0%;offset-rotate:auto}
+.anim-packet-travel,.anim-travel{
+  animation:packet-travel var(--dur-flow) var(--ease-flow) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes packet-travel{to{offset-distance:100%}}
+/* !! COPY THESE `d` STRINGS VERBATIM FROM THE MATCHING EDGE PATH !!
+   If they drift, the packet travels a route that does not exist.        */
+.packet--e1{offset-path:path("M 262 100 L 470.7 100")}
+.packet--e3{offset-path:path("M 1024 100 L 1232.7 100")}
+
+.anim-pulse-glow,.anim-pulse{
+  animation:pulse-glow var(--dur-pulse) var(--ease-pulse) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes pulse-glow{
+  0%,100%{opacity:1;filter:drop-shadow(0 0 2px currentColor)}
+  50%{opacity:.72;filter:drop-shadow(0 0 var(--glow) currentColor)}
+}
+
+.anim-queue-fill,.anim-fill{
+  clip-path:inset(0 100% 0 0);
+  animation:queue-fill var(--dur-fill) ease-out infinite alternate;
+}
+@keyframes queue-fill{
+  from{clip-path:inset(0 100% 0 0)}
+  to{clip-path:inset(0 var(--empty) 0 0)}
+}
+
+.anim-heartbeat{animation:heartbeat var(--dur-beat) var(--ease-pulse) infinite}
+@keyframes heartbeat{
+  0%,100%{transform:scale(1)}25%{transform:scale(1.06)}
+  40%{transform:scale(1)}55%{transform:scale(1.04)}
+}
+
+.anim-connection-draw-in{
+  stroke-dasharray:var(--draw-len,400);stroke-dashoffset:var(--draw-len,400);
+  animation:connection-draw-in var(--dur-draw) ease-out forwards;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes connection-draw-in{to{stroke-dashoffset:0}}
+
+/* ===== reduced motion: render the INFORMATIVE END STATE ============== */
+@media (prefers-reduced-motion: reduce){
+  .anim-dash-flow,.anim-dash,.anim-connection-draw-in{
+    animation:none !important;stroke-dasharray:none !important;stroke-dashoffset:0 !important}
+  .edge--async{stroke-dasharray:10 7 !important}   /* async must stay dashed */
+  .edge--error{stroke-dasharray:14 5 4 5 !important}
+  .packet,.anim-packet-travel,.anim-travel{
+    animation:none !important;offset-distance:100% !important}   /* parked at destination */
+  .anim-pulse-glow,.anim-pulse{
+    animation:none !important;opacity:1 !important;filter:drop-shadow(0 0 2px currentColor)}
+  .anim-queue-fill,.anim-fill{
+    animation:none !important;clip-path:inset(0 var(--empty) 0 0) !important}  /* at rest */
+  .anim-heartbeat{animation:none !important;transform:none !important}
+}
+
+/* ===== small screens ================================================= */
+@media (max-width:640px){
+  :root{--fs-title:1.125rem}
+  .diagram{padding:16px 12px 32px}
+  .legend{gap:8px 14px}
+}
+
+/* ===== legend ======================================================== */
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0 0;padding:0}
+.legend__item{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);
+              min-height:24px}
+/* the swatch is a mini isometric block: same three-tone shading as a node */
+.legend__swatch{inline-size:16px;block-size:16px;border-radius:2px;flex:none;
+                background:linear-gradient(160deg,var(--fill) 0 58%,
+                           color-mix(in srgb,var(--fill) 66%,#000) 58% 100%);
+                border:2px solid var(--line)}
+.legend__label{line-height:1.4}
+</style>
+</head>
+
+<body>
+<main class="diagram">
+  <h1 class="diagram__title">Checkout request flow</h1>
+  <p class="diagram__subtitle">isometric-2.5d style &middot; 30&deg; isometric grid &middot; six extruded blocks</p>
+
+  <!-- viewBox hugs the measured content box (x 88.7..1491.6, y 37.2..483.1) with an
+       even 24-unit padding on all four sides. Measure with getBoundingClientRect()
+       mapped through svg.getScreenCTM().inverse() — getBBox() ignores the parent
+       <g transform> and reports the WRONG numbers for a projected node. -->
+  <svg class="diagram__canvas" viewBox="64.7 13.2 1450.9 493.9" role="img"
+       aria-labelledby="dgm-title dgm-desc">
+    <title id="dgm-title">Checkout request flow</title>
+    <desc id="dgm-desc">Six components drawn as extruded isometric blocks on a 30 degree grid.
+      A browser sends a checkout request to the api-gateway, which forwards it over HTTP to
+      orders-service. Orders-service reads and writes redis-cache, persists orders to sql-database,
+      and publishes an order-placed event asynchronously to message-queue. Animated dashes on the
+      connectors indicate live traffic, the moving dots are individual in-flight requests, the
+      pulsing orders-service block is actively processing, and the filling gauge on the side face
+      of message-queue shows queue depth growing. Each block is labelled with horizontal text; the
+      three-tone shading is decoration only and carries no meaning.</desc>
+
+    <defs>
+      <!-- DEFS:START -->
+      <!-- arrowheads are FLATTENED (1.5..8.5 instead of 0..10) so they sit on the
+           isometric ground plane instead of standing up out of it -->
+      <marker id="arrow" class="marker" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 1.5 L 10 5 L 0 8.5 z" />
+      </marker>
+      <marker id="arrow-open" class="marker marker--open" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="9" markerHeight="9" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 1.5 L 10 5 L 0 8.5" fill="none" />
+      </marker>
+      <!-- DEFS:END -->
+    </defs>
+
+    <g class="layer-groups">
+      <!-- GROUPS:START -->
+      <!-- No bounded-context box in this example: on an isometric ground plane a
+           group outline must itself be a projected rhombus, so copy the top-face
+           polygon of a node, scale it around the cluster and give it
+           class="group__box" plus a horizontal .group__label. -->
+      <!-- GROUPS:END -->
+    </g>
+
+    <g class="layer-edges">
+      <!-- EDGES:START -->
+      <!-- row edges run along the model (+d,-d) grid axis, which projects to a
+           horizontal screen line; they start and end exactly on each block's
+           silhouette at the top face's vertical mid-row (local y = 60) -->
+      <path class="edge edge--primary anim-dash-flow" d="M 262 100 L 470.7 100"
+            marker-end="url(#arrow)"><title>browser calls api-gateway</title></path>
+
+      <g class="edge-group">
+        <path class="edge edge--primary anim-dash-flow" d="M 644 100 L 850.7 100"
+              marker-end="url(#arrow)"><title>api-gateway calls orders-service over HTTP</title></path>
+        <text class="edge__label" x="764" y="86">HTTP &middot; p99 40ms</text>
+      </g>
+
+      <path class="edge anim-dash-flow" d="M 1024 100 L 1232.7 100"
+            marker-end="url(#arrow)"><title>orders-service writes to sql-database</title></path>
+
+      <!-- model +y axis: a straight 30&deg; line down-LEFT. It runs between the
+           middle of orders-service's left (model y=80) face and the middle of
+           redis-cache's opposite face, with both ends pushed 10 units clear of
+           the silhouettes — the edges layer paints UNDER the nodes layer, so an
+           endpoint left inside a block swallows its arrowhead. -->
+      <g class="edge-group">
+        <path class="edge" d="M 900.1 144.5 L 576.2 331.5"
+              marker-start="url(#arrow)" marker-end="url(#arrow)"><title>orders-service reads from
+          and writes to redis-cache</title></path>
+        <text class="edge__label" x="720" y="310">read-through</text>
+      </g>
+
+      <!-- model +x axis: a straight 30&deg; line down-RIGHT, dashed for async -->
+      <g class="edge-group">
+        <path class="edge edge--async" d="M 1043.9 164.5 L 1298.4 311.5"
+              marker-end="url(#arrow-open)"><title>orders-service publishes order-placed to
+          message-queue asynchronously</title></path>
+        <text class="edge__label" x="1120" y="290">async &middot; order-placed</text>
+      </g>
+      <!-- EDGES:END -->
+    </g>
+
+    <g class="layer-nodes">
+      <!-- NODES:START -->
+      <!-- painter's algorithm: back row first, front row last -->
+      <g class="node" data-role="client" transform="translate(88,40)">
+        <title>browser — customer web client</title>
+        <g class="node__body">
+          <polygon class="node__shape node__shape--left"  points="0.7,40 139.3,120 139.3,146 0.7,66" />
+          <polygon class="node__shape node__shape--right" points="139.3,120 208.6,80 208.6,106 139.3,146" />
+          <g class="node__face" transform="translate(70,0) matrix(0.866,0.5,-0.866,0.5,0,0)">
+            <rect class="node__shape" x="0" y="0" width="160" height="80"
+                  vector-effect="non-scaling-stroke" />
+            <!-- shape-device badge: a screen with a chrome bar -->
+            <rect class="node__detail" x="6" y="6" width="48" height="30" rx="3" ry="3"
+                  vector-effect="non-scaling-stroke" />
+            <path class="node__detail" d="M 6 16 H 54" vector-effect="non-scaling-stroke" />
+            <circle class="node__icon" cx="12" cy="11" r="2" />
+            <circle class="node__icon" cx="20" cy="11" r="2" />
+            <circle class="node__icon" cx="28" cy="11" r="2" />
+          </g>
+        </g>
+        <text class="node__label" x="104.65" y="172">browser</text>
+        <text class="node__sub" x="104.65" y="190">checkout SPA</text>
+      </g>
+
+      <g class="node node--primary" data-role="service" transform="translate(470,40)">
+        <title>api-gateway — edge entry point, health-checked every second</title>
+        <g class="node__body anim-heartbeat">
+          <polygon class="node__shape node__shape--left"  points="0.7,40 139.3,120 139.3,146 0.7,66" />
+          <polygon class="node__shape node__shape--right" points="139.3,120 208.6,80 208.6,106 139.3,146" />
+          <g class="node__face" transform="translate(70,0) matrix(0.866,0.5,-0.866,0.5,0,0)">
+            <rect class="node__shape" x="0" y="0" width="160" height="80"
+                  vector-effect="non-scaling-stroke" />
+            <!-- shape-hexagon badge: something traffic passes THROUGH -->
+            <polygon class="node__detail" points="16,6 40,6 50,21 40,36 16,36 6,21"
+                     vector-effect="non-scaling-stroke" />
+          </g>
+        </g>
+        <text class="node__label" x="104.65" y="172">api-gateway</text>
+        <text class="node__sub" x="104.65" y="190">TLS &middot; authn</text>
+      </g>
+
+      <g class="node node--primary anim-pulse-glow" data-role="service" transform="translate(850,40)">
+        <title>orders-service — application service, currently processing checkout requests</title>
+        <g class="node__body">
+          <polygon class="node__shape node__shape--left"  points="0.7,40 139.3,120 139.3,146 0.7,66" />
+          <polygon class="node__shape node__shape--right" points="139.3,120 208.6,80 208.6,106 139.3,146" />
+          <g class="node__face" transform="translate(70,0) matrix(0.866,0.5,-0.866,0.5,0,0)">
+            <rect class="node__shape" x="0" y="0" width="160" height="80"
+                  vector-effect="non-scaling-stroke" />
+            <!-- shape-container-box badge: a boundary you can ship -->
+            <rect class="node__detail node__detail--dashed" x="6" y="6" width="48" height="30"
+                  rx="2" ry="2" vector-effect="non-scaling-stroke" />
+          </g>
+        </g>
+        <text class="node__label" x="104.65" y="172">orders-service</text>
+        <text class="node__sub" x="104.65" y="190">REST &middot; 2 replicas</text>
+      </g>
+
+      <g class="node" data-role="data" transform="translate(1232,40)">
+        <title>sql-database — primary relational datastore</title>
+        <g class="node__body">
+          <polygon class="node__shape node__shape--left"  points="0.7,40 139.3,120 139.3,146 0.7,66" />
+          <polygon class="node__shape node__shape--right" points="139.3,120 208.6,80 208.6,106 139.3,146" />
+          <g class="node__face" transform="translate(70,0) matrix(0.866,0.5,-0.866,0.5,0,0)">
+            <rect class="node__shape" x="0" y="0" width="160" height="80"
+                  vector-effect="non-scaling-stroke" />
+            <!-- shape-cylinder badge: the classic drum -->
+            <ellipse class="node__detail" cx="30" cy="12" rx="24" ry="6"
+                     vector-effect="non-scaling-stroke" />
+            <path class="node__detail" d="M 6 12 V 30 A 24 6 0 0 0 54 30 V 12"
+                  vector-effect="non-scaling-stroke" />
+          </g>
+        </g>
+        <text class="node__label" x="104.65" y="172">sql-database</text>
+        <text class="node__sub" x="104.65" y="190">primary</text>
+      </g>
+
+      <g class="node" data-role="data" transform="translate(417,290)">
+        <title>redis-cache — read-through cache with a 60 second time to live</title>
+        <g class="node__body">
+          <polygon class="node__shape node__shape--left"  points="0.7,40 139.3,120 139.3,146 0.7,66" />
+          <polygon class="node__shape node__shape--right" points="139.3,120 208.6,80 208.6,106 139.3,146" />
+          <g class="node__face" transform="translate(70,0) matrix(0.866,0.5,-0.866,0.5,0,0)">
+            <rect class="node__shape" x="0" y="0" width="160" height="80"
+                  vector-effect="non-scaling-stroke" />
+            <!-- shape-cache badge: fast and volatile -->
+            <polygon class="node__icon" points="24,6 12,24 20,24 14,40 30,20 22,20 28,6" />
+          </g>
+        </g>
+        <text class="node__label" x="104.65" y="172">redis-cache</text>
+        <text class="node__sub" x="104.65" y="190">TTL 60s</text>
+      </g>
+
+      <g class="node" data-role="async" transform="translate(1283,290)">
+        <title>message-queue — durable buffer; the gauge on the block's side face shows queue
+          depth growing</title>
+        <g class="node__body">
+          <polygon class="node__shape node__shape--left"  points="0.7,40 139.3,120 139.3,146 0.7,66" />
+          <polygon class="node__shape node__shape--right" points="139.3,120 208.6,80 208.6,106 139.3,146" />
+          <!-- depth gauge, painted ON the extruded left face (see .queue rules) -->
+          <g class="queue">
+            <polygon class="queue__track" points="9,48.8 131,119.2 131,137.2 9,66.8" />
+            <polygon class="queue__fill anim-queue-fill" points="9,48.8 131,119.2 131,137.2 9,66.8" />
+            <path class="node__detail" d="M 39.5 66.4 V 84.4 M 70 84.1 V 102.1 M 100.5 101.6 V 119.6" />
+          </g>
+          <g class="node__face" transform="translate(70,0) matrix(0.866,0.5,-0.866,0.5,0,0)">
+            <rect class="node__shape" x="0" y="0" width="160" height="80"
+                  vector-effect="non-scaling-stroke" />
+            <!-- shape-pipe badge: messages moving through a channel -->
+            <path class="node__detail" d="M 10 12 L 22 21 L 10 30 M 26 12 L 38 21 L 26 30"
+                  vector-effect="non-scaling-stroke" />
+          </g>
+        </g>
+        <text class="node__label" x="104.65" y="172">message-queue</text>
+        <text class="node__sub" x="104.65" y="190">depth</text>
+      </g>
+      <!-- NODES:END -->
+    </g>
+
+    <g class="layer-motion">
+      <!-- MOTION:START -->
+      <!-- one dot per in-flight request; offset-path lives in the stylesheet -->
+      <circle class="packet anim-packet-travel packet--e1" data-role="client" r="7" />
+      <circle class="packet anim-packet-travel packet--e3" data-role="data" r="7" style="--i:1" />
+      <!-- MOTION:END -->
+    </g>
+  </svg>
+
+  <!-- LEGEND:START -->
+  <ul class="legend">
+    <li class="legend__item"><span class="legend__swatch" data-role="client"></span>
+      <span class="legend__label">client — browser, mobile, or device</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="service"></span>
+      <span class="legend__label">service — application code we own</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="data"></span>
+      <span class="legend__label">data — database, cache, object store</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="async"></span>
+      <span class="legend__label">async — queue or worker (dashed edge)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="external"></span>
+      <span class="legend__label">external — third party we do not run</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="error"></span>
+      <span class="legend__label">error — failure path (long-short dash)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="infra"></span>
+      <span class="legend__label">infra — platform and observability</span></li>
+  </ul>
+  <!-- LEGEND:END -->
+
+  <p class="diagram__note">Reading the picture: every component is the same extruded block, so
+    depth is decoration — type is carried by the badge on the top face, the label and the sub-label,
+    never by the 3D or by colour. Reading the motion: marching dashes mean traffic is flowing on
+    that connector, a moving dot is one in-flight request, a pulsing block is actively processing,
+    and the gauge on the side of <em>message-queue</em> is queue depth. With <em>reduced motion</em>
+    enabled every one of those renders as its end state — solid strokes, dots parked at their
+    destination, the gauge at its resting depth — so nothing here depends on animation to be
+    understood.</p>
+</main>
+</body>
+</html>

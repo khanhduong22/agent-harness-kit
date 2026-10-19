@@ -1,0 +1,430 @@
+/* =====================================================================
+   process-webapp-templates.css — THE WEBAPP STATION: one shell, three
+   skins, and the deploy-beat responsive pair.
+   ---------------------------------------------------------------------
+   LOAD ORDER (it matters, twice)
+     process-stage-and-edges.css   tokens, role mapping, css-process-lod
+     process-stations.css          .url pill + .lockglyph + .phone shell
+     process-webapp-templates.css  this file
+   Nothing here re-declares .lockglyph, .url or .phone — they are harvested
+   idioms and one definition is the point. Because this file loads LAST it
+   is also the file most able to break the LOD cascade, which is why rule 2
+   below is repeated on the spot rather than left to the doctrine.
+
+   PROVENANCE
+   Distilled from element sampler v3 (sections B / C / E), user-approved
+   2026-08-27 including the user's contract-v2 correction. The sampler board
+   is gone — this file IS the distillation; the worked example is
+   examples/vibe-code-voi-ai.html (the genre's frozen golden). Markup:
+   snippets/process-webapp-templates.html. Doctrine:
+   references/genres/process.md -> "Webapp template contract (v2)".
+
+   ── WHAT THE SHELL OWNS, AND WHAT A SKIN MAY TOUCH ──────────────────
+   SHELL (this file, first block): .win / __tabs / __addr / __url / __body /
+   __main, the .win--deploy modifier, and the [data-anchor] marker idiom.
+   SKIN: anything inside its own `.webapp-skin--<name>` block, which is
+   always a class ON `.win__main`. A rule that styles .win__addr, .win__tabs
+   or [data-anchor] from inside a skin is a CONTRACT BREAK — the invariants
+   are what let three flavours read as one station family.
+
+   ── THE OPACITY LOCK (the single most expensive trap in v3) ─────────
+   NOTHING IN THIS FILE SETS `opacity` ON ANYTHING INSIDE AN LOD SUBTREE.
+   A station rule and [data-lod="close"] have IDENTICAL specificity and this
+   file loads later, so a bare `opacity:.72` silently wins and the element
+   never hides at the far tier. Every dim tone below is a `color-mix`. The
+   two `opacity` declarations that DO appear (.win__plus, .win__nav i,
+   .chart__b) are on elements that are outside the LOD system entirely.
+   Gated by scripts/browser-checks/verify-html-edge-anchors.mjs -> [LOD-LEAK].
+
+   ── NO EXTERNAL ASSETS ──────────────────────────────────────────────
+   Every "image" is a two-stop gradient mixed from the palette's own client
+   hexes. The flat-minimal lock forbids gradients ON a station; these are
+   CONTENT INSIDE the mock product, the same licence the data jar's fake
+   JSON has. Every glyph is a CSS shape or a plain text char with Unicode
+   text presentation (♥ U+2665, ↗ U+2197) — no emoji font is load-bearing,
+   so the row cannot reflow on a machine with a different emoji set.
+   ===================================================================== */
+
+/* snippet: css-station-webapp */
+/* THE SHELL. Browser chrome + the address + the LOD hook + the anchor idiom,
+   and nothing else. Contract v2 deleted the v1 docked `.panel`/`.fld`/`.cta`
+   block outright rather than deprecating it: with the anchor decoupled from
+   the form there is nothing left to dock, and a dead docked panel is exactly
+   the rigidity the user rejected ("nhìn cứng quá").
+
+   WIDTH. One token, two sanctioned values. A CUT picks ONE width for every
+   webapp station in it — 640 is the default. 540 (`.win--flavor`) exists
+   because an element board draws two flavours side by side at the honest k
+   pair 0.80 / 1.65 and 640 does not fit twice. Both are real; mixing them
+   inside one cut is not. */
+.win{position:absolute;z-index:2;width:var(--win-w,640px);color:var(--line);
+     background:var(--surface);border:var(--shape-bw) solid var(--line);
+     border-radius:11px;box-shadow:var(--paper-shadow);overflow:hidden}
+.win--flavor{--win-w:540px}
+.win--flavor .win__body{padding:13px}
+.win__tabs{display:flex;align-items:flex-end;gap:7px;height:33px;padding:0 11px;
+           background:var(--fill);border-bottom:1px solid var(--line)}
+.win__tab{display:flex;align-items:center;gap:8px;height:26px;padding:0 13px;
+          background:var(--surface);border:1px solid var(--line);border-bottom:0;
+          border-radius:7px 7px 0 0;font-size:15px;font-weight:600;color:var(--on);
+          line-height:1;white-space:nowrap}
+.win__tab i{width:11px;height:11px;border-radius:3px;background:var(--accent)}
+.win__plus{margin:0 0 6px;font-size:15px;font-weight:600;color:var(--on);opacity:.5}
+.win__addr{display:flex;align-items:center;gap:10px;padding:7px 12px;
+           background:var(--fill);border-bottom:1px solid var(--line)}
+.win__nav{display:flex;gap:7px;flex:0 0 auto}
+.win__nav i{width:9px;height:9px;border-radius:50%;background:var(--line);opacity:.42}
+/* the address is MONO and NEVER WRAPS. A wrapped address does not read as an
+   address, it reads as a bug (first cut, user-caught). Shorten the string or
+   widen the box; the 15px floor is a floor. .lockglyph comes from
+   process-stations.css -> css-station-url-pill. */
+.win__url{flex:1;min-width:0;display:flex;align-items:center;gap:9px;padding:4px 12px;
+          background:var(--surface);border:1px solid var(--line);
+          border-radius:var(--pill-radius);font-family:var(--font-mono);
+          font-size:15px;color:var(--on);white-space:nowrap}
+.win__body{display:flex;gap:14px;padding:14px;background:var(--paper-fill)}
+.win__main{flex:1;min-width:0}
+
+/* --- THE SEMANTIC ANCHOR (contract v2 invariant #2) ------------------ */
+/* An anchor is ANY UI element that visibly carries a data field: a KPI
+   number, a row title, a price pill, a "2h" timestamp. Exactly three per
+   webapp station. Its measured RIGHT EDGE is where the green derivation
+   pull-line to the table beat leaves from — write the path `d` from the
+   measurement, never from arithmetic.
+   TRAP: an anchor may never BE or SIT INSIDE a [data-lod="close"] element —
+   that element is opacity:0 at the far tier, so the "three anchors" claim
+   would hold only at zoom. Use the .lod CROSSFADE instead: its box is never
+   gated, so the anchor survives both tiers while the words still only print
+   close up. */
+[data-anchor]{position:relative}
+/* THE MARKER IS BOARD ANNOTATION, NOT CUT VOCABULARY. Opt in by putting
+   [data-anchor-marks] on an ancestor — an element board does; a cut never
+   does, because in a cut the pull-lines themselves mark the anchors (plus
+   the spotlight bracket at the derivation beat). The teal is --accent-infra
+   verbatim, ringed in --surface so it reads on any card. */
+[data-anchor-marks] [data-anchor]::after{
+  content:"";position:absolute;right:-7px;top:50%;
+  width:7px;height:7px;margin-top:-3.5px;border-radius:50%;
+  background:var(--accent-infra);box-shadow:0 0 0 2px var(--surface)}
+/* THE DOT MUST TOUCH ITS CARRIER. A crossfade box that spans its whole row
+   leaves the dot floating in empty space beside the words; shrink the box to
+   the words, and then force the far-tier skeleton to FILL that box (a
+   52%-wide bar in a text-width box re-opens the same gap at overview). The
+   clearance the dot needs (7px offset + a 2px ring = 11px) is bought with
+   card padding, kept identical whether the marks are on or off so board and
+   cut measure the same geometry. The two declarations that do it live in each
+   SKIN, not here — the box that has to shrink is a layout decision and layout
+   belongs to the skin. Grep `display:inline-block` in this file to see them. */
+
+/* --- the deploy-beat cut of the same shell -------------------------- */
+/* Same window, narrower, WITHOUT the toolbar and WITHOUT anchors: at this
+   beat the claim is "it is live at an address", not "here is what you can
+   do" and not "this is where the data lives". */
+/* the two size overrides carry the SKIN class as well, so they beat the skin
+   block below on specificity instead of on source order — a modifier that only
+   wins because it happens to be declared later is a modifier that breaks the
+   day somebody reorders the file. */
+.win--deploy{--win-w:470px}
+.win--deploy .win__body{padding:12px}
+.win--deploy .webapp-skin--dashboard .kpi__v{font-size:23px}
+.win--deploy .webapp-skin--dashboard .chart__plot{height:66px}
+
+/* --- the mock "image" block, four users, one definition -------------- */
+/* Harvested by rule-of-two several times over: item card, post avatar, post
+   image, product card, phone card. Variants keep their own angle/stops. */
+:root{--mock-img:linear-gradient(135deg,var(--role-client) 0%,
+                color-mix(in srgb,var(--accent-client) 42%,var(--role-client)) 100%)}
+
+/* snippet: css-webapp-skin-dashboard */
+/* THE NEUTRAL DEFAULT. Layout = toolbar over KPI row over chart over a short
+   item list. Anchor map: amount (KPI number) / name (row 1 title) /
+   created_at (row 2 date cell) — three columns from three places. */
+.webapp-skin--dashboard .tbar{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.webapp-skin--dashboard .tbar__t{margin:0 auto 0 0;font-family:var(--font-title);
+       font-size:17px;font-weight:700;letter-spacing:-.015em;line-height:1.2;color:var(--ink)}
+.webapp-skin--dashboard .tbar__pill{display:flex;align-items:center;gap:7px;padding:4px 12px;
+       background:var(--surface);border:1px solid var(--line);border-radius:var(--pill-radius);
+       font-size:15px;line-height:1.2;color:var(--on);white-space:nowrap}
+.webapp-skin--dashboard .tbar__pill i{width:0;height:0;border-left:4px solid transparent;
+       border-right:4px solid transparent;border-top:5px solid currentColor}
+/* "+ New" is a BUTTON — the thing you click to open a form, not an open form.
+   That single element is what contract v2 replaced the docked panel with. */
+.webapp-skin--dashboard .tbar__new{padding:5px 13px;border-radius:7px;background:#2563eb;
+       color:#f8fafc;border:var(--shape-bw) solid #2563eb;
+       box-shadow:0 2px 6px -1px color-mix(in srgb,#2563eb 45%,transparent);
+       font-family:var(--font-title);font-size:15px;font-weight:600;line-height:1.2;
+       white-space:nowrap}
+.webapp-skin--dashboard .kpi{display:flex;gap:9px}
+.webapp-skin--dashboard .kpi__t{flex:1;min-width:0;padding:9px 11px 10px;
+       background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.webapp-skin--dashboard .kpi__l{margin:0;font-size:15px;line-height:1.2;white-space:nowrap;
+       color:color-mix(in srgb,var(--on) 80%,var(--surface))}
+.webapp-skin--dashboard .kpi__v{margin:5px 0 0;font-family:var(--font-title);font-size:27px;
+       font-weight:700;letter-spacing:-.025em;line-height:1;color:var(--on)}
+/* THE TRAP, ON THE SPOT: this was `opacity:.72` and it cost a rebuild — same
+   specificity as [data-lod="close"], later file, so the delta stayed visible
+   at the far tier while the audit counted it hidden. Dim with COLOUR. */
+.webapp-skin--dashboard .kpi__d{margin:4px 0 0;font-size:15px;line-height:1.2;
+       color:color-mix(in srgb,var(--on) 74%,var(--surface))}
+/* pure-CSS bar chart. Bars are texture by construction (they are shapes); the
+   tick labels are texture at 12px and close-tier only. */
+.webapp-skin--dashboard .chart{margin-top:12px;padding:11px 13px 10px;background:var(--surface);
+       border:1px solid var(--line);border-radius:8px}
+.webapp-skin--dashboard .chart__t{margin:0 0 10px;font-family:var(--font-title);font-size:15px;
+       font-weight:600;color:var(--on);line-height:1.2}
+.webapp-skin--dashboard .chart__plot{display:flex;align-items:flex-end;gap:11px;height:86px;
+       border-bottom:1.5px solid var(--line)}
+.webapp-skin--dashboard .chart__b{flex:1;background:var(--accent);opacity:.82;
+       border-radius:3px 3px 0 0}
+.webapp-skin--dashboard .chart__b--hi{opacity:1}
+.webapp-skin--dashboard .chart__x{display:flex;gap:11px;margin-top:6px}
+.webapp-skin--dashboard .chart__x span{flex:1;text-align:center;font-size:12px;line-height:1.2;
+       color:color-mix(in srgb,var(--on) 70%,var(--surface))}
+.webapp-skin--dashboard .items{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+/* padding-right is 18, not 11: see the anchor clearance note in the shell. */
+.webapp-skin--dashboard .icard{display:flex;align-items:center;gap:12px;padding:8px 18px 8px 11px;
+       background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.webapp-skin--dashboard .icard__img{flex:0 0 auto;width:48px;height:40px;border-radius:6px;
+       background:var(--mock-img)}
+.webapp-skin--dashboard .icard__x{flex:1;min-width:0}
+.webapp-skin--dashboard .icard__t{margin:0;font-size:15px;font-weight:600;line-height:1.25;
+       color:var(--ink)}
+.webapp-skin--dashboard .icard__t .lod{display:inline-block}
+.webapp-skin--dashboard .icard__t .lod__far i{width:100%}
+.webapp-skin--dashboard .icard__m{margin:4px 0 0;font-size:12px;line-height:1.2;color:var(--muted)}
+/* the row's date cell: texture-class, right-aligned, and the skin's SECOND
+   anchor source. Its skeleton bars are pushed right so the crossfade lands
+   where the words land. */
+.webapp-skin--dashboard .icard__w{flex:0 0 106px;text-align:right;font-size:12px;line-height:1.2;
+       color:var(--muted);white-space:nowrap}
+.webapp-skin--dashboard .icard__w .lod__far{align-items:flex-end}
+
+/* snippet: css-webapp-skin-social */
+/* REAL FEED UX: a one-line composer hint bar, then full-width post cards. No
+   side panel — no social product docks an open form beside its feed. The
+   density comes from a REPEATED UNIT, not from added colour, which is why two
+   cards is the minimum honest count.
+   Anchor map: name (author line) / created_at ("2h") / content (post body),
+   all three on ONE card. */
+.webapp-skin--social .cmp{display:flex;align-items:center;gap:9px;padding:6px 8px 6px 7px;
+       background:var(--surface);border:1px solid var(--line);border-radius:var(--pill-radius)}
+.webapp-skin--social .cmp__av{flex:0 0 auto;width:24px;height:24px;border-radius:50%;
+       background:linear-gradient(135deg,var(--role-client) 0%,
+                  color-mix(in srgb,var(--accent-client) 52%,var(--role-client)) 100%)}
+.webapp-skin--social .cmp__h{flex:1;min-width:0;font-size:15px;line-height:1.2;white-space:nowrap;
+       color:color-mix(in srgb,var(--on) 62%,var(--surface))}
+.webapp-skin--social .cmp__b{flex:0 0 auto;padding:3px 12px;border-radius:var(--pill-radius);
+       background:var(--accent);color:#f8fafc;font-family:var(--font-title);font-size:15px;
+       font-weight:600;line-height:1.3}
+.webapp-skin--social .feed{margin-top:9px;display:flex;flex-direction:column;gap:8px}
+.webapp-skin--social .post{padding:9px 14px 8px 10px;background:var(--surface);
+       border:1px solid var(--line);border-radius:8px}
+.webapp-skin--social .post__hd{display:flex;align-items:center;gap:9px}
+.webapp-skin--social .post__av{flex:0 0 auto;width:26px;height:26px;border-radius:50%;
+       background:linear-gradient(135deg,var(--role-client) 0%,
+                  color-mix(in srgb,var(--accent-client) 46%,var(--role-client)) 100%)}
+/* author line and timestamp sit at OPPOSITE ends of the header row: two
+   anchors on one row need two distinct right edges, or their pull-lines are
+   collinear and read as one line. */
+.webapp-skin--social .post__who{flex:1;min-width:0;display:flex;align-items:baseline;gap:10px}
+.webapp-skin--social .post__nm{margin:0;font-size:15px;font-weight:600;line-height:1.2;
+       color:var(--ink)}
+/* "2h" is texture — a shape saying "this has a time". It is a .lod CROSSFADE
+   and NOT a [data-lod="close"] reveal, precisely because it is an anchor: a
+   gated box would take its anchor with it at the far tier. */
+.webapp-skin--social .post__mtw{flex:0 0 auto;margin-left:auto;width:26px;text-align:right;
+       font-size:12px;line-height:1.2;color:var(--muted)}
+.webapp-skin--social .post__mtw .lod__far{align-items:flex-end}
+.webapp-skin--social .post__mtw .lod__far i{width:100%}
+/* min-height keeps both cards the same height when a copy edit rewraps one
+   string — a feed whose cards breathe unevenly reads as broken, not as content */
+.webapp-skin--social .post__tx{margin-top:6px;min-height:41px}
+.webapp-skin--social .post__tx p{margin:0;font-size:15px;line-height:1.35;color:var(--ink)}
+.webapp-skin--social .post__img{display:block;margin-top:7px;height:56px;border-radius:6px;
+       background:linear-gradient(135deg,var(--role-client) 0%,
+                  color-mix(in srgb,var(--accent-client) 44%,var(--role-client)) 100%)}
+.webapp-skin--social .post__img--b{background:linear-gradient(108deg,
+       color-mix(in srgb,var(--accent-client) 30%,var(--role-client)) 0%,
+       var(--role-client) 58%,
+       color-mix(in srgb,var(--accent-client) 52%,var(--role-client)) 100%)}
+.webapp-skin--social .post__act{display:flex;align-items:center;gap:15px;margin-top:7px}
+.webapp-skin--social .post__act span{display:flex;align-items:center;gap:5px;font-size:12px;
+       line-height:1.2;color:var(--muted)}          /* texture: reaction counts */
+.webapp-skin--social .post__act em{font-style:normal;font-size:13px;line-height:1;
+       color:var(--accent)}
+/* the comment bubble, drawn not typed */
+.webapp-skin--social .g-bub{position:relative;display:block;width:12px;height:9px;
+       border-radius:3px;border:1.5px solid var(--accent)}
+.webapp-skin--social .g-bub::after{content:"";position:absolute;left:2px;top:100%;width:0;height:0;
+       border-left:4px solid var(--accent);border-bottom:4px solid transparent}
+
+/* snippet: css-webapp-skin-ecom */
+/* REAL SHOP UX: a search+cart header over a two-column body — a slim FILTER
+   RAIL left, a 2x2 product grid right. Four cells, because a grid needs two
+   rows to read as a grid.
+   Anchor map: name (title) / stock (stock line) / price (price pill), all on
+   the FIRST card. The filter rail carries NO anchor: it is navigation, it
+   carries no record.
+   THE RISK, recorded: four price pills plus four Add buttons pull the eye in
+   a zig-zag. If it starts reading as a real sales page rather than as "an app
+   with goods in it", it has gone too far. */
+.webapp-skin--ecom .shop{display:flex;align-items:center;gap:9px}
+.webapp-skin--ecom .shop__q{flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:28px;
+       padding:0 11px;background:var(--surface);border:1px solid var(--line);
+       border-radius:var(--pill-radius);font-size:15px;line-height:1;white-space:nowrap;
+       color:color-mix(in srgb,var(--on) 60%,var(--surface))}
+.webapp-skin--ecom .g-mag{position:relative;flex:0 0 auto;width:10px;height:10px;
+       border-radius:50%;border:1.5px solid currentColor}
+.webapp-skin--ecom .g-mag::after{content:"";position:absolute;right:-3px;bottom:-2px;width:6px;
+       height:1.5px;background:currentColor;rotate:45deg}
+.webapp-skin--ecom .shop__cart{flex:0 0 auto;display:flex;align-items:center;gap:8px;height:28px;
+       padding:0 11px;background:var(--surface);border:1px solid var(--line);
+       border-radius:var(--pill-radius);font-size:15px;line-height:1;color:var(--on)}
+.webapp-skin--ecom .shop__bg{display:flex;align-items:center;justify-content:center;width:17px;
+       height:17px;border-radius:50%;background:var(--accent);color:#f8fafc;
+       font-family:var(--font-title);font-size:11px;font-weight:700;line-height:1}
+                                          /* texture: "the cart is not empty" */
+.webapp-skin--ecom .shopb{display:flex;align-items:flex-start;gap:10px;margin-top:9px}
+.webapp-skin--ecom .filt{flex:0 0 118px;padding:9px 10px 10px;background:var(--surface);
+       border:1px solid var(--line);border-radius:8px}
+.webapp-skin--ecom .filt__h{margin:0;font-family:var(--font-title);font-size:15px;font-weight:600;
+       line-height:1.2;color:var(--ink)}
+.webapp-skin--ecom .filt__h+.filt__h{margin-top:11px}
+/* the filter LABELS are skeleton texture at BOTH tiers. A filter rail is
+   navigation: at overview it must read as "there is a way to narrow this
+   down" and nothing more. Drawing it as texture keeps it out of the LOD
+   budget entirely — no gate, no crossfade, no words competing with the
+   product titles that DO carry data. */
+.webapp-skin--ecom .filt__l,
+.webapp-skin--ecom .filt__c{list-style:none;margin:7px 0 0;padding:0;display:flex;
+       flex-direction:column;gap:7px}
+.webapp-skin--ecom .filt__l li{display:flex;align-items:center;height:16px;padding:0 6px;
+       border-radius:5px}
+.webapp-skin--ecom .filt__l li.on{background:color-mix(in srgb,var(--accent) 15%,var(--surface))}
+.webapp-skin--ecom .filt__c li{display:flex;align-items:center;gap:7px;height:16px;padding:0 6px}
+.webapp-skin--ecom .filt i{display:block;height:7px;border-radius:4px;background:var(--skel)}
+.webapp-skin--ecom .filt__l li.on i{background:color-mix(in srgb,var(--accent) 55%,var(--surface))}
+.webapp-skin--ecom .filt b{flex:0 0 auto;position:relative;width:11px;height:11px;
+       border-radius:3px;border:1.5px solid color-mix(in srgb,var(--line) 55%,transparent)}
+.webapp-skin--ecom .filt b.ck{background:var(--accent);border-color:var(--accent)}
+.webapp-skin--ecom .filt b.ck::after{content:"";position:absolute;left:2px;top:1px;width:4px;
+       height:6px;border:1.5px solid #f8fafc;border-top:0;border-left:0;rotate:42deg}
+.webapp-skin--ecom .grid2{flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.webapp-skin--ecom .pcard{padding:8px;background:var(--surface);border:1px solid var(--line);
+       border-radius:8px}
+.webapp-skin--ecom .pcard__img{display:block;height:50px;border-radius:6px;
+       background:var(--mock-img)}
+.webapp-skin--ecom .pcard__img--b{background:linear-gradient(160deg,
+       color-mix(in srgb,var(--accent-client) 34%,var(--role-client)) 0%,var(--role-client) 100%)}
+.webapp-skin--ecom .pcard__img--c{background:linear-gradient(112deg,var(--role-client) 0%,
+       color-mix(in srgb,var(--accent-client) 56%,var(--role-client)) 100%)}
+.webapp-skin--ecom .pcard__img--d{background:linear-gradient(135deg,
+       color-mix(in srgb,var(--accent-client) 24%,var(--role-client)) 0%,
+       color-mix(in srgb,var(--accent-client) 50%,var(--role-client)) 100%)}
+.webapp-skin--ecom .pcard__t{margin:7px 0 0;font-size:15px;font-weight:600;line-height:1.2;
+       color:var(--ink)}
+.webapp-skin--ecom .pcard__m{margin:3px 0 0;font-size:12px;line-height:1.2;color:var(--muted)}
+/* the anchor dot must touch its carrier: shrink the crossfade box to the
+   words, then fill it at the far tier. */
+.webapp-skin--ecom .pcard__t .lod,
+.webapp-skin--ecom .pcard__m .lod{display:inline-block}
+.webapp-skin--ecom .pcard__t .lod__far i,
+.webapp-skin--ecom .pcard__m .lod__far i{width:100%}
+.webapp-skin--ecom .pcard__b{display:flex;align-items:center;gap:7px;margin-top:6px}
+.webapp-skin--ecom .pcard__p{padding:2px 9px;border-radius:var(--pill-radius);
+       background:color-mix(in srgb,var(--accent) 14%,var(--surface));
+       border:1px solid color-mix(in srgb,var(--line) 32%,transparent);
+       font-family:var(--font-mono);font-size:15px;font-weight:600;line-height:1.3;color:var(--on)}
+.webapp-skin--ecom .pcard__a{margin-left:auto;padding:3px 11px;border-radius:6px;
+       background:var(--accent);color:#f8fafc;font-family:var(--font-title);font-size:15px;
+       font-weight:600;line-height:1.3}
+
+/* snippet: css-station-deploy-responsive */
+/* THE DEPLOY BEAT (user-chosen option C2): browser + phone, one app.
+   The phone REUSES css-station-phone-ripple's shell (.phone / __notch /
+   __home / __screen) at a smaller size, with the ripple deliberately absent:
+   the ripple's claim is "somebody just tapped it", and this beat's claim is
+   "the same app, a narrower screen".
+   The address must FIT: at a 216px shell the url bar has 158px of text room
+   for a 144px string. A clipped address reads as a bug, not as an address —
+   widen the box, never shrink the type below the 15px floor. */
+.phone--mini{width:216px;height:auto;padding:13px 9px 16px;border-width:3px;border-radius:22px}
+.phone--mini .phone__screen{height:auto;border-radius:7px}
+.phone--mini .phone__notch{top:6px;height:6px}
+.phone--mini .phone__home{bottom:6px;width:74px}
+.ph__url{display:flex;align-items:center;gap:7px;padding:7px 9px;background:var(--fill);
+         border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:15px;
+         letter-spacing:-.02em;color:var(--on);white-space:nowrap;overflow:hidden}
+.ph__body{padding:10px 9px 11px}
+.ph__h{margin:0 0 9px;font-family:var(--font-title);font-size:15px;font-weight:700;
+       color:var(--ink);line-height:1.2}
+/* THE REFLOW, which is the entire point: the SAME three KPI tiles, stacked
+   instead of in a row. Same labels, same numbers, nothing invented. */
+.ph__kpi{display:flex;flex-direction:column;gap:6px}
+.ph__kpi div{display:flex;align-items:baseline;gap:8px;padding:6px 9px;background:var(--surface);
+             border:1px solid var(--line);border-radius:6px}
+.ph__kpi p{margin:0;font-size:15px;line-height:1.2;
+           color:color-mix(in srgb,var(--on) 80%,var(--surface))}
+.ph__kpi b{margin-left:auto;font-family:var(--font-title);font-size:17px;font-weight:700;
+           line-height:1;color:var(--on)}
+.ph__card{display:flex;align-items:center;gap:9px;margin-top:9px;padding:7px 9px;
+          background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.ph__card i{flex:0 0 auto;width:34px;height:28px;border-radius:5px;background:var(--mock-img)}
+.ph__card span{min-width:0;font-size:15px;font-weight:600;color:var(--ink);line-height:1.2}
+.ph__more{margin:8px 0 0;font-size:12px;color:var(--muted);line-height:1.2;text-align:center}
+                       /* texture: "+ 2 more" is a shape saying the list goes on */
+/* the Live chip on the shared address pill (.url is css-station-url-pill) */
+.url__live{margin-left:6px;padding:2px 11px;border-radius:var(--pill-radius);
+           background:var(--surface);border:1px solid var(--line);
+           font-family:var(--font-title);font-size:15px;font-weight:600}
+
+/* snippet: css-webapp-miniature */
+/* THE DASHBOARD AT STATION-INSIDE-A-STATION SCALE — `.mui`, the interior of the
+   UI piece of css-station-snap-cartridge. It lives here, beside its full-size
+   sibling, and not in the generic stations file, because a miniature must
+   re-use its full-size sibling's SILHOUETTE rather than invent a new one
+   (references/genres/process.md → Product-first). SECOND appearance of the
+   dashboard shape, so it clears rule-of-two on its own.
+   PROVENANCE: the V2 snap-block enrichment board, user-approved 2026-08-27.
+
+   THE RECOGNITION CUES, in the order the eye takes them: browser chrome with a
+   tab and an address, a toolbar line with the primary button, a three-tile KPI
+   row, then item rows with a thumbnail. Drop any ONE of the four and it stops
+   reading as "the screen you just saw" and starts reading as a generic card.
+   Requires css-station-mini-base (`.mn`, `.sk`) in process-stations.css. */
+.mui{gap:7px}
+.mui__chrome{display:flex;align-items:center;gap:7px;height:22px;padding:0 7px;
+             background:var(--fill);border:1px solid var(--line);border-radius:6px 6px 4px 4px}
+.mui__tab{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:1;
+          color:var(--on);white-space:nowrap}
+.mui__tab i{width:8px;height:8px;border-radius:2px;background:var(--accent)}
+.mui__url{flex:1;min-width:0;display:flex;align-items:center;height:14px;padding:0 7px;
+          background:var(--surface);border:1px solid color-mix(in srgb,var(--line) 45%,transparent);
+          border-radius:var(--pill-radius);font-family:var(--font-mono);font-size:12px;
+          line-height:1;color:color-mix(in srgb,var(--on) 78%,var(--surface));
+          white-space:nowrap;overflow:hidden}
+.mui__tbar{display:flex;align-items:center;gap:8px;height:20px}
+.mui__tbar b{font-size:12px;font-weight:700;line-height:1.2;color:var(--ink)}
+.mui__tbar i.sk{flex:1;max-width:64px}
+/* #2563eb is INHERITED, not invented: `.webapp-skin--dashboard .tbar__new` already
+   hard-codes the same hex, because a primary action button is the one place this
+   genre lets a product's own accent through. */
+.mui__new{flex:0 0 auto;padding:3px 9px;border-radius:5px;background:#2563eb;color:#f8fafc;
+          font-size:12px;font-weight:600;line-height:1;white-space:nowrap}
+.mui__kpi{display:flex;gap:6px}
+.mui__t{flex:1;min-width:0;padding:6px 7px 7px;background:var(--surface);
+        border:1px solid color-mix(in srgb,var(--line) 55%,transparent);border-radius:6px}
+.mui__t i.sk{width:70%}
+.mui__t b{display:block;margin-top:5px;font-family:var(--font-title);font-size:16px;
+          font-weight:700;letter-spacing:-.02em;line-height:1;color:var(--on)}
+.mui__rows{display:flex;flex-direction:column;gap:6px}
+.mui__r{display:flex;align-items:center;gap:8px;height:26px;padding:0 8px;
+        background:var(--surface);border:1px solid color-mix(in srgb,var(--line) 55%,transparent);
+        border-radius:6px}
+.mui__r em{flex:0 0 auto;width:24px;height:17px;border-radius:4px;background:var(--mock-img)}
+.mui__r span{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.mui__r span i.sk:first-child{width:58%}
+.mui__r span i.sk:last-child{width:34%;height:5px;
+        background:color-mix(in srgb,var(--stroke) 11%,transparent)}
+.mui__r u{flex:0 0 auto;text-decoration:none;font-size:12px;line-height:1.2;
+        color:color-mix(in srgb,var(--on) 62%,var(--surface))}

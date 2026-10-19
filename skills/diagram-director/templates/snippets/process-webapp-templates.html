@@ -1,0 +1,446 @@
+<!-- =====================================================================
+     process-webapp-templates.html — THE WEBAPP STATION of the `process`
+     genre: one SHELL, three SKINS, plus the deploy-beat responsive pair.
+     ---------------------------------------------------------------------
+     WHAT THIS IS
+     The station a process cut draws when the artifact is a running web app.
+     Referenced from data/components.csv -> Snippet Ref by `prototype-screen`
+     (dashboard), `webapp-feed` (social) and `webapp-shop` (ecommerce).
+     Styles: snippets/process-webapp-templates.css (load AFTER
+     process-stage-and-edges.css and process-stations.css — the address
+     pill's .lockglyph and the .url pill itself live there and are NOT
+     re-declared here). Doctrine: references/genres/process.md -> "Webapp
+     template contract (v2)".
+
+     PROVENANCE
+     Distilled from element sampler v3 sections B / C / E, user-approved
+     2026-08-27 ("okie đẹp rồi đó"), including the user's own correction that
+     produced contract v2. The sampler board itself is gone — this file IS the
+     distillation. Worked example: examples/vibe-code-voi-ai.html, the genre's
+     frozen golden, whose app station is the dashboard skin at --win-w 640.
+
+     ── TEMPLATE CONTRACT v2 ────────────────────────────────────────────
+     INVARIANT — true of every webapp station, whatever the flavour:
+       1. BROWSER CHROME + THE ADDRESS. A tab strip and an address bar
+          carrying `my-app.pages.dev`. This is what says "it runs on the
+          web, you open it with a link" — before the deploy beat says it.
+       2. EXACTLY THREE SEMANTIC ANCHORS. Three UI elements that a viewer
+          can SEE are showing data, each marked `data-anchor="<column>"`.
+          Their measured right edges are where the green derivation
+          pull-lines leave from on the way to the table beat.
+          A FORM IS ONLY ONE POSSIBLE ANCHOR SOURCE, and none of the three
+          skins below has one: *"Từ UI element có thể suy ra được cấu trúc
+          dữ liệu chứ không nhất thiết là từ Form UI"* (user, 2026-08-27).
+       3. THE TWO-TIER LOD DISCIPLINE (css-process-lod).
+       4. FLAT-MINIMAL TOKENS. Colour through data-role only.
+     VARIABLE — the ENTIRE content layout. Each skin lays itself out the way
+     that kind of app really lays out: a dashboard gets a toolbar over KPIs
+     and a list, a feed gets a composer over full-width cards, a shop gets a
+     filter rail beside a product grid. A feed that docks a form beside
+     itself is not a feed.
+
+     ── ANCHOR RULES (all three cost a rebuild to learn) ────────────────
+     · An anchor may NEVER be, or sit inside, a `[data-lod="close"]` element.
+       Such an element is opacity:0 at the far tier, so the "three anchors"
+       claim would be true only at zoom. When the field must be texture at
+       overview, wrap it in the `.lod` CROSSFADE — that box is never gated.
+     · The anchor set FOLLOWS WHAT THE UI SHOWS. The three columns differ per
+       flavour (`amount/name/created_at` vs `name/created_at/content` vs
+       `name/stock/price`) and that IS the lesson: the schema is read off the
+       interface, so a shop's card yields `stock` and a feed's card does not.
+       Do not force a common third column to make the flavours match.
+     · The teal dot marker is a BOARD annotation, not cut vocabulary. It is
+       opt-in behind `[data-anchor-marks]` on an ancestor (element boards set
+       it; a cut never does). In a cut the anchors are marked by the
+       PULL-LINES themselves, plus the spotlight bracket at the derivation
+       beat if the beat needs more.
+
+     Every string on these elements is ENGLISH and generic — "Your app",
+     "Item one", "User name", "Product one", `my-app.pages.dev`. Pick the
+     flavour that matches the story's domain; never invent a brand to get
+     there (references/genres/process.md -> Generic-content rule).
+     ===================================================================== -->
+
+<!-- snippet: station-webapp -->
+<!-- THE SHELL, alone. Copy this when you are writing a fourth flavour: drop
+     the skin's own markup into `.win__main` and mark three anchors in it.
+     Nothing else in the shell may move — touching `.win__addr`, `.win__tabs`
+     or the anchor marker is a contract break.
+     data-lod-tier lives on an ANCESTOR (the beat wrapper), so one camera hold
+     flips every station in the frame together. -->
+<div class="win" data-station="app" data-role="client" style="left:120px;top:80px">
+  <div class="win__tabs">
+    <span class="win__tab"><i></i>Your app</span>
+    <span class="win__plus">+</span>
+  </div>
+  <div class="win__addr">
+    <span class="win__nav"><i></i><i></i><i></i></span>
+    <span class="win__url"><i class="lockglyph"></i>my-app.pages.dev</span>
+  </div>
+  <div class="win__body">
+    <div class="win__main">
+      <!-- the skin goes here: layout is free, three [data-anchor] are not -->
+    </div>
+  </div>
+</div>
+
+<!-- snippet: station-webapp-dashboard -->
+<!-- prototype-screen. THE NEUTRAL DEFAULT — use it when the story's domain is
+     not one of the other two, which is most of the time.
+     Real dashboard UX: a toolbar (title + range pill + a "+ New" BUTTON, the
+     thing you click to open a form, never an open form), a KPI row, a chart,
+     a short item list with a date column.
+     ANCHOR MAP — three columns read from THREE DIFFERENT PLACES, deliberately:
+       amount      the KPI number `128`      (.kpi__v span)   an aggregate
+       name        row 1's title             (.icard__t .lod)
+       created_at  row 2's date cell         (.icard__w .lod)
+     Rows 1 and 2 carrying different columns is sanctioned: it dramatises
+     "three columns, three places". Same-row anchors would need a path jog,
+     see the social skin. -->
+<div class="win" data-station="app" data-role="client" style="left:120px;top:80px">
+  <div class="win__tabs">
+    <span class="win__tab"><i></i>Your app</span>
+    <span class="win__plus">+</span>
+  </div>
+  <div class="win__addr">
+    <span class="win__nav"><i></i><i></i><i></i></span>
+    <span class="win__url"><i class="lockglyph"></i>my-app.pages.dev</span>
+  </div>
+  <div class="win__body">
+    <div class="win__main webapp-skin--dashboard">
+      <div class="tbar">
+        <p class="tbar__t">Overview</p>
+        <span class="tbar__pill">Last 7 days<i></i></span>
+        <span class="tbar__new">+ New</span>
+      </div>
+      <div class="kpi">
+        <div class="kpi__t"><p class="kpi__l">Total items</p>
+          <p class="kpi__v"><span data-anchor="amount">128</span></p>
+          <p class="kpi__d" data-lod="close">all time</p></div>
+        <div class="kpi__t"><p class="kpi__l">This week</p>
+          <p class="kpi__v"><span>12</span></p>
+          <p class="kpi__d" data-lod="close">new</p></div>
+        <div class="kpi__t"><p class="kpi__l">Growth</p>
+          <p class="kpi__v"><span>↑ 8%</span></p>
+          <p class="kpi__d" data-lod="close">vs last week</p></div>
+      </div>
+      <div class="chart">
+        <p class="chart__t">Items per day</p>
+        <div class="chart__plot">
+          <i class="chart__b" style="height:34%"></i>
+          <i class="chart__b" style="height:52%"></i>
+          <i class="chart__b" style="height:41%"></i>
+          <i class="chart__b" style="height:70%"></i>
+          <i class="chart__b" style="height:58%"></i>
+          <i class="chart__b chart__b--hi" style="height:88%"></i>
+        </div>
+        <!-- axis ticks are TEXTURE: nobody reads "Mon", they read "there is a
+             time axis" — so they are 12px and close-tier only -->
+        <div class="chart__x" data-lod="close">
+          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+      </div>
+      <div class="items">
+        <div class="icard">
+          <i class="icard__img"></i>
+          <span class="icard__x">
+            <p class="icard__t"><span class="lod" data-anchor="name">
+              <span class="lod__near">Item one</span>
+              <span class="lod__far" aria-hidden="true"><i class="w52"></i></span></span></p>
+            <p class="icard__m" data-lod="close">In list</p>
+          </span>
+          <span class="icard__w"><span class="lod">
+            <span class="lod__near">Added today</span>
+            <span class="lod__far" aria-hidden="true"><i class="w64"></i></span></span></span>
+        </div>
+        <div class="icard">
+          <i class="icard__img"></i>
+          <span class="icard__x">
+            <p class="icard__t"><span class="lod">
+              <span class="lod__near">Item two</span>
+              <span class="lod__far" aria-hidden="true"><i class="w40"></i></span></span></p>
+            <p class="icard__m" data-lod="close">In list</p>
+          </span>
+          <span class="icard__w"><span class="lod" data-anchor="created_at">
+            <span class="lod__near">Added yesterday</span>
+            <span class="lod__far" aria-hidden="true"><i class="w88"></i></span></span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- snippet: station-webapp-social -->
+<!-- webapp-feed. Real feed UX: a one-line composer HINT BAR on top, then
+     full-width post cards. No side panel — no social product on earth docks
+     an open form beside its feed. The density is the point: a feed reads as a
+     feed because the unit REPEATS, so two cards is the minimum honest count.
+     ANCHOR MAP — all three live on ONE post card:
+       name        the author line       (.post__nm)
+       created_at  the "2h" timestamp    (.post__mtw .lod)
+       content     the post body         (.post__tx .lod)
+     `name` and `created_at` share the header ROW, so their two pull-lines
+     would be collinear and read as one. The fix is geometric, not structural:
+     the author's path jogs vertically WHILE STILL UNDER the window, then runs
+     out. `margin-left:auto` on the timestamp gives the two distinct right
+     edges that make the jog small. -->
+<div class="win win--flavor" data-station="app" data-role="client" style="left:120px;top:80px">
+  <div class="win__tabs">
+    <span class="win__tab"><i></i>Your app</span>
+    <span class="win__plus">+</span>
+  </div>
+  <div class="win__addr">
+    <span class="win__nav"><i></i><i></i><i></i></span>
+    <span class="win__url"><i class="lockglyph"></i>my-app.pages.dev</span>
+  </div>
+  <div class="win__body">
+    <div class="win__main webapp-skin--social">
+      <div class="cmp">
+        <i class="cmp__av"></i>
+        <span class="cmp__h">What's new?</span>
+        <span class="cmp__b">Post</span>
+      </div>
+      <div class="feed">
+        <div class="post">
+          <div class="post__hd">
+            <i class="post__av"></i>
+            <span class="post__who">
+              <p class="post__nm" data-anchor="name">User name</p>
+              <span class="post__mtw"><span class="lod" data-anchor="created_at">
+                <span class="lod__near">2h</span>
+                <span class="lod__far" aria-hidden="true"><i class="w64"></i></span></span></span>
+            </span>
+          </div>
+          <div class="post__tx"><span class="lod" data-anchor="content">
+            <span class="lod__near"><p>Posted the first version of the list today, and added the first two items to it.</p></span>
+            <span class="lod__far" aria-hidden="true"><i class="w95"></i><i class="w64"></i></span>
+          </span></div>
+          <i class="post__img"></i>
+          <div class="post__act">
+            <span><em>♥</em>12</span>
+            <span><em class="g-bub"></em>3</span>
+            <span><em>↗</em></span>
+          </div>
+        </div>
+        <div class="post">
+          <div class="post__hd">
+            <i class="post__av"></i>
+            <span class="post__who">
+              <p class="post__nm">Another user</p>
+              <span class="post__mtw"><span class="lod">
+                <span class="lod__near">5h</span>
+                <span class="lod__far" aria-hidden="true"><i class="w64"></i></span></span></span>
+            </span>
+          </div>
+          <div class="post__tx"><span class="lod">
+            <span class="lod__near"><p>Added two more items, cleaned up the list, and checked how it looks on a phone.</p></span>
+            <span class="lod__far" aria-hidden="true"><i class="w88"></i><i class="w52"></i></span>
+          </span></div>
+          <i class="post__img post__img--b"></i>
+          <div class="post__act">
+            <span><em>♥</em>8</span>
+            <span><em class="g-bub"></em>1</span>
+            <span><em>↗</em></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- snippet: station-webapp-ecom -->
+<!-- webapp-shop. Real shop UX: a header (search + cart) over a two-column
+     body — a slim FILTER RAIL on the left, a 2x2 product grid on the right.
+     Four cells, because a grid needs two rows to read as a grid.
+     ANCHOR MAP — all three on the FIRST product card:
+       name   the title       (.pcard__t .lod)
+       stock  the stock line  (.pcard__m .lod)
+       price  the price pill  (.pcard__p)
+     `stock` and not `created_at` on purpose: a product card really shows
+     stock, and the anchor set follows what the UI shows. The filter rail
+     carries NO anchor — it is navigation, it carries no record; its labels
+     are skeleton at BOTH tiers, which is the cheapest way found to make the
+     shop read as a shop without spending words. -->
+<div class="win win--flavor" data-station="app" data-role="client" style="left:120px;top:80px">
+  <div class="win__tabs">
+    <span class="win__tab"><i></i>Your app</span>
+    <span class="win__plus">+</span>
+  </div>
+  <div class="win__addr">
+    <span class="win__nav"><i></i><i></i><i></i></span>
+    <span class="win__url"><i class="lockglyph"></i>my-app.pages.dev</span>
+  </div>
+  <div class="win__body">
+    <div class="win__main webapp-skin--ecom">
+      <div class="shop">
+        <span class="shop__q"><i class="g-mag"></i>Search products</span>
+        <span class="shop__cart">Cart<b class="shop__bg">2</b></span>
+      </div>
+      <div class="shopb">
+        <div class="filt">
+          <p class="filt__h">Category</p>
+          <ul class="filt__l">
+            <li class="on"><i style="width:62%"></i></li>
+            <li><i style="width:80%"></i></li>
+            <li><i style="width:54%"></i></li>
+            <li><i style="width:70%"></i></li>
+          </ul>
+          <p class="filt__h">Price</p>
+          <ul class="filt__c">
+            <li><b></b><i style="width:74%"></i></li>
+            <li><b class="ck"></b><i style="width:58%"></i></li>
+            <li><b></b><i style="width:66%"></i></li>
+          </ul>
+        </div>
+        <div class="grid2">
+          <div class="pcard">
+            <i class="pcard__img"></i>
+            <p class="pcard__t"><span class="lod" data-anchor="name">
+              <span class="lod__near">Product one</span>
+              <span class="lod__far" aria-hidden="true"><i class="w64"></i></span></span></p>
+            <p class="pcard__m"><span class="lod" data-anchor="stock">
+              <span class="lod__near">In stock</span>
+              <span class="lod__far" aria-hidden="true"><i class="w52"></i></span></span></p>
+            <div class="pcard__b"><span class="pcard__p" data-anchor="price">$12</span><span class="pcard__a">Add</span></div>
+          </div>
+          <div class="pcard">
+            <i class="pcard__img pcard__img--b"></i>
+            <p class="pcard__t"><span class="lod">
+              <span class="lod__near">Product two</span>
+              <span class="lod__far" aria-hidden="true"><i class="w52"></i></span></span></p>
+            <p class="pcard__m"><span class="lod">
+              <span class="lod__near">In stock</span>
+              <span class="lod__far" aria-hidden="true"><i class="w52"></i></span></span></p>
+            <div class="pcard__b"><span class="pcard__p">$18</span><span class="pcard__a">Add</span></div>
+          </div>
+          <div class="pcard">
+            <i class="pcard__img pcard__img--c"></i>
+            <p class="pcard__t"><span class="lod">
+              <span class="lod__near">Product three</span>
+              <span class="lod__far" aria-hidden="true"><i class="w76"></i></span></span></p>
+            <p class="pcard__m"><span class="lod">
+              <span class="lod__near">2 left</span>
+              <span class="lod__far" aria-hidden="true"><i class="w40"></i></span></span></p>
+            <div class="pcard__b"><span class="pcard__p">$24</span><span class="pcard__a">Add</span></div>
+          </div>
+          <div class="pcard">
+            <i class="pcard__img pcard__img--d"></i>
+            <p class="pcard__t"><span class="lod">
+              <span class="lod__near">Product four</span>
+              <span class="lod__far" aria-hidden="true"><i class="w64"></i></span></span></p>
+            <p class="pcard__m"><span class="lod">
+              <span class="lod__near">In stock</span>
+              <span class="lod__far" aria-hidden="true"><i class="w52"></i></span></span></p>
+            <div class="pcard__b"><span class="pcard__p">$9</span><span class="pcard__a">Add</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- snippet: station-deploy-responsive -->
+<!-- THE DEPLOY BEAT, user-chosen option C2 ("đầy đủ hơn"): the same app on two
+     screens. `.win--deploy` is the shell WITHOUT the toolbar and WITHOUT
+     ANCHORS — at this beat the claim is "it is live at an address", not "this
+     is where the data is"; the anchor marks belong to the derivation beat and
+     nowhere else. The checker enforces that: a `.win--deploy` station carrying
+     any [data-anchor] is a defect.
+     THREE THINGS make the phone read as the SAME app rather than a second
+     product, and dropping any one of them breaks it:
+       1. it carries the SAME address string in its own url bar;
+       2. its content is a RE-STACK of the window's own KPI row and first card
+          — nothing invented for the phone;
+       3. the tie is `.edge--soft`: dashed, NO marker, because nothing travels
+          along it. It is an annotation, not a handoff.
+     The tag reads "Same app / narrower screen" — English, on an element.
+     The `.url` pill below the pair is the existing css-station-url-pill at
+     role `infra`, plus the `Live` chip. -->
+<div class="win win--deploy" data-station="app-live" data-role="client" style="left:900px;top:106px">
+  <div class="win__tabs"><span class="win__tab"><i></i>Your app</span><span class="win__plus">+</span></div>
+  <div class="win__addr">
+    <span class="win__nav"><i></i><i></i><i></i></span>
+    <span class="win__url"><i class="lockglyph"></i>my-app.pages.dev</span>
+  </div>
+  <div class="win__body">
+    <div class="win__main webapp-skin--dashboard">
+      <div class="kpi">
+        <div class="kpi__t"><p class="kpi__l">Total items</p><p class="kpi__v">128</p></div>
+        <div class="kpi__t"><p class="kpi__l">This week</p><p class="kpi__v">12</p></div>
+        <div class="kpi__t"><p class="kpi__l">Growth</p><p class="kpi__v">↑ 8%</p></div>
+      </div>
+      <div class="chart">
+        <p class="chart__t">Items per day</p>
+        <div class="chart__plot">
+          <i class="chart__b" style="height:34%"></i>
+          <i class="chart__b" style="height:52%"></i>
+          <i class="chart__b" style="height:41%"></i>
+          <i class="chart__b" style="height:70%"></i>
+          <i class="chart__b" style="height:58%"></i>
+          <i class="chart__b chart__b--hi" style="height:88%"></i>
+        </div>
+        <div class="chart__x"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+      </div>
+      <div class="items">
+        <div class="icard">
+          <i class="icard__img"></i>
+          <span class="icard__x"><p class="icard__t">Item one</p><p class="icard__m">Added today</p></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="phone phone--mini" data-station="app-phone" data-role="client" style="left:1500px;top:150px">
+  <span class="phone__notch"></span>
+  <div class="phone__screen">
+    <div class="ph__url"><i class="lockglyph"></i>my-app.pages.dev</div>
+    <div class="ph__body">
+      <p class="ph__h">Your app</p>
+      <div class="ph__kpi">
+        <div><p>Total items</p><b>128</b></div>
+        <div><p>This week</p><b>12</b></div>
+        <div><p>Growth</p><b>↑ 8%</b></div>
+      </div>
+      <div class="ph__card"><i></i><span>Item one</span></div>
+      <p class="ph__more">+ 2 more</p>
+    </div>
+  </div>
+  <span class="phone__home"></span>
+</div>
+
+<!-- the annotation tie + its tag, and the shared address under the pair -->
+<svg class="edges" viewBox="0 0 1798 690" aria-hidden="true">
+  <path class="edge--soft" d="M1370 300 H 1500"/>
+</svg>
+<span class="tag" style="left:1374px;top:246px;width:122px;text-align:center">
+  <b>Same app</b><br>narrower screen</span>
+<div class="url" data-station="link" data-role="infra" style="left:1160px;top:520px">
+  <i class="lockglyph"></i>my-app.pages.dev<span class="url__live">Live</span>
+</div>
+
+<!-- snippet: mini-dashboard -->
+<!-- The UI piece's interior in station-snap-cartridge. Goes in a `.sp__body`.
+     It is the SAME dashboard station-webapp-dashboard draws, shrunk: same tab,
+     same address, same three KPI tiles, same item rows with a thumbnail. Every
+     string is texture-class SEED DATA, never a figure the source supplied, and
+     it is never read out in a caption. -->
+<div class="mn mui">
+  <div class="mui__chrome">
+    <span class="mui__tab" data-texture><i></i>Your app</span>
+    <span class="mui__url" data-texture>my-app.pages.dev</span>
+  </div>
+  <div class="mui__tbar"><b data-texture>Items</b><i class="sk"></i>
+    <span class="mui__new" data-texture>+ New</span></div>
+  <div class="mui__kpi">
+    <div class="mui__t"><i class="sk"></i><b data-texture>128</b></div>
+    <div class="mui__t"><i class="sk"></i><b data-texture>12</b></div>
+    <div class="mui__t"><i class="sk"></i><b data-texture>&#8593; 8%</b></div>
+  </div>
+  <div class="mui__rows">
+    <div class="mui__r"><em></em><span><i class="sk"></i><i class="sk"></i></span>
+      <u data-texture>today</u></div>
+    <div class="mui__r"><em></em><span><i class="sk"></i><i class="sk"></i></span>
+      <u data-texture>2d</u></div>
+  </div>
+</div>

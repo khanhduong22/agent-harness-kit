@@ -1,0 +1,743 @@
+{
+  "manifest": 1,
+  "target": {
+    "file": "jev-decision-agent-9x16.html",
+    "title": "AI agents: without Jev vs with Jev",
+    "type": "request-lifecycle",
+    "layout": "layered-tb",
+    "style": "flat-minimal",
+    "palette": "house",
+    "register": "educational",
+    "viewbox": [
+      0,
+      0,
+      1080,
+      1920
+    ],
+    "master_ms": 69600,
+    "beat_ms": 2400
+  },
+  "features": [
+    "beats",
+    "acts",
+    "staged-states",
+    "state-chips",
+    "spotlight",
+    "captions",
+    "legend",
+    "reduced-motion-mode",
+    "node-identity"
+  ],
+  "holds": [
+    {
+      "id": "t0",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        540.0,
+        960.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1080.0,
+        1920.0
+      ],
+      "fs_min": 13.0,
+      "p_min": 28.0,
+      "window": [
+        0.0,
+        2.8736
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "b1",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        540.0,
+        960.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1080.0,
+        1920.0
+      ],
+      "fs_min": 13.0,
+      "p_min": 28.0,
+      "window": [
+        3.4483,
+        10.3448
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "b2",
+      "kind": "camera",
+      "k": 1.75,
+      "tx": -220,
+      "ty": -408,
+      "center": [
+        434.0,
+        781.71
+      ],
+      "bbox": [
+        162.2,
+        556.0,
+        471.8,
+        247.0
+      ],
+      "fs_min": 16.0,
+      "p_min": 28.0,
+      "window": [
+        11.2069,
+        17.2414
+      ],
+      "gate": "read",
+      "fs_min_source": ".node__label"
+    },
+    {
+      "id": "b3",
+      "kind": "camera",
+      "k": 1.75,
+      "tx": -220,
+      "ty": -408,
+      "center": [
+        434.0,
+        781.71
+      ],
+      "bbox": [
+        162.2,
+        556.0,
+        471.8,
+        247.0
+      ],
+      "fs_min": 16.0,
+      "p_min": 28.0,
+      "window": [
+        17.2414,
+        24.1379
+      ],
+      "gate": "read",
+      "fs_min_source": ".node__label"
+    },
+    {
+      "id": "b4",
+      "kind": "camera",
+      "k": 1.75,
+      "tx": -220,
+      "ty": -408,
+      "center": [
+        434.0,
+        781.71
+      ],
+      "bbox": [
+        162.2,
+        556.0,
+        471.8,
+        247.0
+      ],
+      "fs_min": 16.0,
+      "p_min": 28.0,
+      "window": [
+        24.1379,
+        30.1724
+      ],
+      "gate": "read",
+      "fs_min_source": ".node__label"
+    },
+    {
+      "id": "b5",
+      "kind": "camera",
+      "k": 1.82,
+      "tx": -693,
+      "ty": -737,
+      "center": [
+        677.39,
+        932.19
+      ],
+      "bbox": [
+        416.0,
+        709.0,
+        453.7,
+        394.0
+      ],
+      "fs_min": 15.4,
+      "p_min": 28.0,
+      "window": [
+        31.8966,
+        37.069
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b5 text",
+      "anchor": "dispatcher"
+    },
+    {
+      "id": "b6",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        540.0,
+        960.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1080.0,
+        1920.0
+      ],
+      "fs_min": 13.0,
+      "p_min": 28.0,
+      "window": [
+        37.931,
+        44.8276
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "b7",
+      "kind": "camera",
+      "k": 1.8,
+      "tx": -293,
+      "ty": -444,
+      "center": [
+        462.56,
+        779.89
+      ],
+      "bbox": [
+        196.0,
+        556.0,
+        461.0,
+        247.0
+      ],
+      "fs_min": 15.6,
+      "p_min": 28.0,
+      "window": [
+        45.6897,
+        50.8621
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b7 text"
+    },
+    {
+      "id": "b8",
+      "kind": "camera",
+      "k": 2.2,
+      "tx": -847,
+      "ty": -1066,
+      "center": [
+        630.67,
+        920.77
+      ],
+      "bbox": [
+        416.0,
+        787.0,
+        373.8,
+        316.0
+      ],
+      "fs_min": 12.8,
+      "p_min": 28.0,
+      "window": [
+        52.5862,
+        57.7586
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b8 text"
+    },
+    {
+      "id": "b9",
+      "kind": "camera",
+      "k": 1.76,
+      "tx": -692,
+      "ty": -276,
+      "center": [
+        700.14,
+        702.34
+      ],
+      "bbox": [
+        430.0,
+        550.0,
+        469.0,
+        392.0
+      ],
+      "fs_min": 16.0,
+      "p_min": 28.0,
+      "window": [
+        59.4828,
+        64.6552
+      ],
+      "gate": "read",
+      "fs_min_source": ".node__label"
+    },
+    {
+      "id": "b10",
+      "kind": "camera",
+      "k": 1.75,
+      "tx": -679,
+      "ty": -408,
+      "center": [
+        696.29,
+        781.71
+      ],
+      "bbox": [
+        422.0,
+        635.0,
+        472.0,
+        315.0
+      ],
+      "fs_min": 16.0,
+      "p_min": 28.0,
+      "window": [
+        66.3793,
+        71.5517
+      ],
+      "gate": "read",
+      "fs_min_source": ".node__label"
+    },
+    {
+      "id": "b11",
+      "kind": "camera",
+      "k": 2.2,
+      "tx": -1155,
+      "ty": -1750,
+      "center": [
+        770.66,
+        1231.77
+      ],
+      "bbox": [
+        653.3,
+        1009.0,
+        240.7,
+        335.0
+      ],
+      "fs_min": 12.8,
+      "p_min": 28.0,
+      "window": [
+        73.2759,
+        78.4483
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b11 text"
+    },
+    {
+      "id": "b12",
+      "kind": "camera",
+      "k": 1.87,
+      "tx": -284,
+      "ty": -1561,
+      "center": [
+        440.83,
+        1348.0
+      ],
+      "bbox": [
+        185.3,
+        1015.0,
+        442.7,
+        396.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 28.0,
+      "window": [
+        80.1724,
+        85.3448
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b12 text"
+    },
+    {
+      "id": "b13a",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        540.0,
+        960.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1080.0,
+        1920.0
+      ],
+      "fs_min": 13.0,
+      "p_min": 28.0,
+      "window": [
+        86.2069,
+        93.1034
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "b13b",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        540.0,
+        960.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1080.0,
+        1920.0
+      ],
+      "fs_min": 13.0,
+      "p_min": 28.0,
+      "window": [
+        93.1034,
+        100.0
+      ],
+      "gate": "overview"
+    },
+    {
+      "element": ".act-1",
+      "kind": "act",
+      "keyframe": "act1",
+      "windows": [
+        [
+          0.0,
+          37.931
+        ]
+      ],
+      "source": "layouts:layered-tb"
+    },
+    {
+      "element": ".act-2",
+      "kind": "act",
+      "keyframe": "act2",
+      "windows": [
+        [
+          38.7931,
+          100.0
+        ]
+      ],
+      "source": "layouts:layered-tb"
+    },
+    {
+      "element": ".frost",
+      "kind": "act",
+      "keyframe": "frost",
+      "windows": [
+        [
+          0.0,
+          2.8736
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".t0-wash",
+      "kind": "state",
+      "keyframe": "t0-wash",
+      "windows": [
+        [
+          0.0,
+          2.8736
+        ]
+      ]
+    },
+    {
+      "element": ".edge__label",
+      "kind": "state",
+      "keyframe": "t0-labels",
+      "windows": [
+        [
+          3.4483,
+          100.0
+        ]
+      ]
+    },
+    {
+      "element": ".stage-overload",
+      "kind": "state",
+      "keyframe": "w-overload",
+      "windows": [
+        [
+          25.8621,
+          29.3103
+        ]
+      ],
+      "source": "states:is-overloaded"
+    },
+    {
+      "element": ".focus-b2",
+      "kind": "spotlight",
+      "keyframe": "focus-b2",
+      "windows": [
+        [
+          12.069,
+          15.5172
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b3",
+      "kind": "spotlight",
+      "keyframe": "focus-b3",
+      "windows": [
+        [
+          18.9655,
+          22.4138
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b4",
+      "kind": "spotlight",
+      "keyframe": "focus-b4",
+      "windows": [
+        [
+          25.8621,
+          29.3103
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b5",
+      "kind": "spotlight",
+      "keyframe": "focus-b5",
+      "windows": [
+        [
+          32.7586,
+          36.2069
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b7",
+      "kind": "spotlight",
+      "keyframe": "focus-b7",
+      "windows": [
+        [
+          46.5517,
+          50.0
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b8",
+      "kind": "spotlight",
+      "keyframe": "focus-b8",
+      "windows": [
+        [
+          53.4483,
+          56.8966
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b9",
+      "kind": "spotlight",
+      "keyframe": "focus-b9",
+      "windows": [
+        [
+          60.3448,
+          63.7931
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b10",
+      "kind": "spotlight",
+      "keyframe": "focus-b10",
+      "windows": [
+        [
+          67.2414,
+          70.6897
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b11",
+      "kind": "spotlight",
+      "keyframe": "focus-b11",
+      "windows": [
+        [
+          74.1379,
+          77.5862
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b12",
+      "kind": "spotlight",
+      "keyframe": "focus-b12",
+      "windows": [
+        [
+          81.0345,
+          84.4828
+        ]
+      ],
+      "source": "motion:camera-beat"
+    }
+  ],
+  "captions": [
+    {
+      "element": ".cap-t0",
+      "text": "Kiến trúc hệ thống AI Agents without Jev vs with Jev",
+      "window": [
+        0.0,
+        2.8736
+      ]
+    },
+    {
+      "element": ".cap-b1",
+      "text": "Một ticket vào: giao cho agent nào? Chưa có Jev, câu này phải hỏi LLM.",
+      "window": [
+        4.3103,
+        8.6207
+      ]
+    },
+    {
+      "element": ".cap-b2",
+      "text": "Code chỉ cần một chữ sales, nhưng LLM vẫn phải sinh từng token.",
+      "window": [
+        11.2069,
+        15.5172
+      ]
+    },
+    {
+      "element": ".cap-b3",
+      "text": "Agent chạy nhiều bước: những lần chờ nhỏ ở mỗi lựa chọn cứ thế cộng dồn.",
+      "window": [
+        18.1034,
+        22.4138
+      ]
+    },
+    {
+      "element": ".cap-b4",
+      "text": "Giả sử 50K ticket mỗi ngày: giờ cao điểm LLM phải gánh khoảng 34 call cùng lúc.",
+      "window": [
+        25.0,
+        29.3103
+      ]
+    },
+    {
+      "element": ".cap-b5",
+      "text": "Chỉ có nhãn, xác suất thì không đáng tin. Giao nhầm agent, code cũng không biết.",
+      "window": [
+        31.8966,
+        36.2069
+      ]
+    },
+    {
+      "element": ".cap-b6",
+      "text": "Thêm Jev: model chỉ chọn, không sinh text.",
+      "window": [
+        39.6552,
+        43.1034
+      ]
+    },
+    {
+      "element": ".cap-b7",
+      "text": "Một call, chấm 3 câu hỏi song song: khoảng 70–500 ms, có kèm xác suất.",
+      "window": [
+        45.6897,
+        50.0
+      ]
+    },
+    {
+      "element": ".cap-b8",
+      "text": "Code so xác suất với threshold: đủ cao thì giao thẳng cho agent đó.",
+      "window": [
+        52.5862,
+        56.8966
+      ]
+    },
+    {
+      "element": ".cap-b9",
+      "text": "Khách nhắn thêm lúc code đang quyết? State cũ thì dựng lại rồi mới giao.",
+      "window": [
+        59.4828,
+        63.7931
+      ]
+    },
+    {
+      "element": ".cap-b10",
+      "text": "Lưng chừng, hoặc Jev không trả lời kịp thì để triage LLM chọn agent.",
+      "window": [
+        66.3793,
+        70.6897
+      ]
+    },
+    {
+      "element": ".cap-b11",
+      "text": "Khiếu nại nặng, hoặc action rủi ro như refund thì luôn phải qua người duyệt.",
+      "window": [
+        73.2759,
+        77.5862
+      ]
+    },
+    {
+      "element": ".cap-b12",
+      "text": "Agent trả ticket về là một lần giao nhầm. Lấy log ra so, lệch thì siết threshold.",
+      "window": [
+        80.1724,
+        84.4828
+      ]
+    },
+    {
+      "element": ".cap-b13",
+      "text": "Việc của agent thì để agent làm. Chọn agent là Jev, luật giao việc ở code.",
+      "window": [
+        87.069,
+        91.3793
+      ]
+    }
+  ],
+  "glyphs": [],
+  "sources": {
+    "types": [
+      "request-lifecycle"
+    ],
+    "layouts": [
+      "layered-tb"
+    ],
+    "styles": [
+      "flat-minimal"
+    ],
+    "components": [
+      "agent-dispatcher",
+      "api-gateway",
+      "browser",
+      "config-server",
+      "decision-model",
+      "event-stream",
+      "llm-agent",
+      "message-queue",
+      "metrics-collector",
+      "microservice",
+      "sql-database",
+      "text-llm"
+    ],
+    "states": [
+      "is-overloaded"
+    ],
+    "motion": [
+      "dash-flow",
+      "queue-fill",
+      "camera-beat",
+      "shake-stress"
+    ]
+  }
+}

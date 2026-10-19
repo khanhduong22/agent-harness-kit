@@ -1,0 +1,34 @@
+<!-- =====================================================================
+     ACT DELTA CHIP — the act's own +N / −N, printed on its title card.
+     OPT-IN, ABSENT BY DEFAULT. The sheet's ACT DELTA row is the FACT; this
+     chip is one optional rendering of it. No frozen golden renders one, and
+     an act that renders none reports the `delta-chip` gate row as N-A
+     ("no chip rendered — optional scenery"), never a fail.
+     Pairs with templates/snippets/camera-beat.css → snippet: cb-delta-chip
+     and with the ACT DELTA row the numbers come from
+     (references/output-manifest.md → Node identity and the act delta).
+     ===================================================================== -->
+
+<!-- snippet: act-delta-chip
+     MEANING  a tier is an ARCHITECTURE BREAK POINT, so the cheapest honest
+              summary of one is how many components it added and how many it
+              retired. The chip says that in two numbers, beside the act
+              title, before the viewer has read a single caption.
+     STATIC   scenery, not interactivity: no JS, no hover, no transition.
+              The numbers are TYPED from the sheet's ACT DELTA row, and
+              `acts/delta-chip-mismatch` fails the cut if they stop matching
+              `len(delta.added)` / `len(delta.removed)`. Nothing computes
+              them at run time — a delivered diagram runs no code.
+     PLACE    the title band, right of the verdict pill: the emptiest strip
+              in every act, and the one region the camera frames in every
+              territory hold. Never over the canvas.
+     COLOUR   tokens only — `--ink` for the addition, `--muted` for the
+              retirement, `--surface` for the box. A retirement is not an
+              error, so it never takes the error role.
+     GLYPH    U+2212 MINUS SIGN, not a hyphen: at 13px a hyphen reads as
+              part of the number. -->
+<g class="act-chip" transform="translate(566,180)">
+  <rect class="act-chip__box" x="0" y="0" width="86" height="28" rx="14"/>
+  <text class="act-chip__add" x="22" y="19">+6</text>
+  <text class="act-chip__rm"  x="62" y="19">−1</text>
+</g>

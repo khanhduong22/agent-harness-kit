@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkout request flow — hand-drawn-sketch</title>
+
+<!-- =====================================================================
+     STYLE: hand-drawn-sketch  (data/styles.csv#hand-drawn-sketch)
+     Derived from templates/base/flat-minimal.html — the class names and
+     custom-property names are byte-identical. Only :root token values,
+     the SVG <defs>, and a few style-specific rules differ.
+
+     ***** THIS IS THE ONLY TEMPLATE THAT LOADS AN EXTERNAL SCRIPT *****
+
+     TWO RENDERING PATHS, BOTH SHIPPED IN THIS ONE FILE, SAME GEOMETRY
+       PATH A — rough.js from CDN (best fidelity, needs network + JS).
+                The inline script at the bottom of <body> re-draws every
+                [data-rough] shape as a rough.js shape IN PLACE, copying
+                the original class list, <title> and marker attributes so
+                CSS motion and accessibility keep working.
+       PATH B — CSS/SVG only: <filter id="sketch"> (feTurbulence +
+                feDisplacementMap) applied to .node__body and .layer-edges.
+                No script, no network. Works inside an Artifact.
+
+     HOW THE SWITCH WORKS (automatic, no editing required)
+       Path B is ON by default. If — and only if — rough.js actually
+       loaded, the script sets data-sketch="rough" on <html>, and the CSS
+       rule `html[data-sketch="rough"] … { filter:none }` turns Path B
+       off so the two wobble treatments never stack. If the CDN is
+       blocked, the script bails on its first line and Path B stays on:
+       you still get a sketch, never a blank or a flat diagram.
+       For an artifact build, delete the rough.js <script> tag at the
+       bottom of <body> — nothing else. The Google Fonts <link> stays:
+       fonts.googleapis.com (plus the fonts.gstatic.com files it pulls) is
+       the one external host a Claude Artifact permits, and the rough.js
+       CDN is not. For a hard OFFLINE build, drop the font link too — the
+       fallback stack below is real and still reads as handwriting.
+       The turbulence filter is deliberately NOT applied to label text:
+       roughness must never reduce legibility (styles.csv a11y note).
+
+     HOW TO ADAPT THIS FILE
+     1. TOKENS — edit only the :root block (and its dark-mode twin).
+        Colours verbatim from data/color-semantics.csv (hand-drawn-sketch).
+     2. NODES — between NODES:START / NODES:END; geometry from
+        templates/snippets/node-shapes.html; transform="translate(x,y)";
+        box 160x80, column gap 220, row gap 120. Put data-rough on any
+        shape you want hand-drawn. Colour comes from data-role only.
+     3. EDGES — between EDGES:START / EDGES:END; data-rough on the path.
+     4. MOTION classes available (templates/snippets/motion-blocks.css):
+          .anim-dash-flow (.anim-dash) · .anim-packet-travel (.anim-travel)
+          .anim-pulse-glow (.anim-pulse) · .anim-queue-fill (.anim-fill)
+          .anim-heartbeat (on .node__body) · .anim-connection-draw-in
+        A packet's offset-path `d` MUST be copied verbatim from its edge.
+        Packets are NOT rough-ified — a wobbling dot reads as a glitch.
+     5. ARTIFACT vs LOCAL — local file: keep everything. Artifact or any
+        CSP-restricted host: prefer another style, or delete the rough.js
+        script and ship Path B alone. Keep the Google Fonts <link> either
+        way; it is the one external host an Artifact allows.
+     6. Motion is non-interactive by design — no hover, click, or playback
+        controls. Do not add any.
+     ===================================================================== -->
+
+<!-- Typography per data/styles.csv -> hand-drawn-sketch: Caveat / Gochi Hand. Google Fonts is the
+     ONE external host the Claude Artifact sandbox permits (stylesheets from fonts.googleapis.com
+     plus the font files they pull from fonts.gstatic.com); every other CDN — rough.js included — is
+     blocked there. So this link is safe for BOTH targets and ships active; the fallback stack below
+     is real and still reads as handwriting if the request is blocked. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap">
+
+<style>
+:root{
+  /* ---- surface ------------------------------------------------------ */
+  --bg:#fdfaf3;                /* off-white paper (styles.csv Background) */
+  --surface:#fdfaf3;
+  --grid:color-mix(in srgb, #334155 7%, transparent);
+  --ink:#0f172a;
+  --muted:#334155;
+  --stroke:#334155;
+  --stroke-w:2px;              /* marker-thick ink line */
+  --radius:10px;
+
+  /* ---- typography --------------------------------------------------- */
+  --font-title:"Caveat","Gochi Hand","Segoe Print","Bradley Hand","Comic Sans MS",ui-rounded,cursive;
+  --font-label:"Caveat","Gochi Hand","Segoe Print","Bradley Hand","Comic Sans MS",ui-rounded,cursive;
+  --fs-title:1.75rem;
+  --fs-label:20px;             /* handwriting fonts run small: size up */
+  --fs-sub:16px;
+
+  /* ---- roles: fill / stroke / accent / on-colour -------------------- */
+  /* values verbatim from data/color-semantics.csv (Style ID hand-drawn-sketch) */
+  --role-client:#dbeafe;   --ink-client:#1d4ed8;   --accent-client:#3b82f6;   --on-client:#1e3a8a;
+  --role-service:#ffedd5;  --ink-service:#c2410c;  --accent-service:#f97316;  --on-service:#7c2d12;
+  --role-data:#dcfce7;     --ink-data:#15803d;     --accent-data:#22c55e;     --on-data:#14532d;
+  --role-async:#f3e8ff;    --ink-async:#7e22ce;    --accent-async:#a855f7;    --on-async:#581c87;
+  --role-external:#f3f4f6; --ink-external:#374151; --accent-external:#6b7280; --on-external:#111827;
+  --role-error:#fee2e2;    --ink-error:#b91c1c;    --accent-error:#ef4444;    --on-error:#7f1d1d;
+  --role-infra:#f1f5f9;    --ink-infra:#334155;    --accent-infra:#14b8a6;    --on-infra:#0f172a;
+
+  /* ---- motion (values from data/motion.csv) ------------------------- */
+  --dur-flow:1200ms;  --dur-pulse:1600ms; --dur-fill:2000ms;
+  --dur-beat:1000ms;  --dur-draw:800ms;
+  --ease-flow:ease-in-out; --ease-pulse:ease-in-out;
+  --stagger:200ms;
+  --dash:8; --dash-gap:6; --dash-cycle:56;
+  --empty:22%;
+  --glow:6px;
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#1e293b;
+    --surface:#1e293b;
+    --grid:color-mix(in srgb, #cbd5e1 10%, transparent);
+    --ink:#f8fafc;
+    --muted:#cbd5e1;
+    --stroke:#cbd5e1;
+    --role-client:#1e40af;   --ink-client:#93c5fd;   --accent-client:#60a5fa;   --on-client:#eff6ff;
+    --role-service:#9a3412;  --ink-service:#fdba74;  --accent-service:#fb923c;  --on-service:#fff7ed;
+    --role-data:#166534;     --ink-data:#86efac;     --accent-data:#4ade80;     --on-data:#f0fdf4;
+    --role-async:#6b21a8;    --ink-async:#d8b4fe;    --accent-async:#c084fc;    --on-async:#faf5ff;
+    --role-external:#374151; --ink-external:#d1d5db; --accent-external:#9ca3af; --on-external:#f9fafb;
+    --role-error:#991b1b;    --ink-error:#fca5a5;    --accent-error:#f87171;    --on-error:#fef2f2;
+    --role-infra:#1e293b;    --ink-infra:#cbd5e1;    --accent-infra:#2dd4bf;    --on-infra:#f8fafc;
+  }
+}
+
+/* ===== page ========================================================== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-label);
+     -webkit-text-size-adjust:100%}
+.diagram{max-width:1440px;margin:0 auto;padding:24px 16px 40px}
+.diagram__title{font-family:var(--font-title);font-size:var(--fs-title);font-weight:700;
+                letter-spacing:.01em;margin:0 0 2px}
+.diagram__subtitle{margin:0 0 14px;color:var(--muted);font-size:1.0625rem;line-height:1.5}
+/* paper, no grid — a whiteboard has no ruling */
+.diagram__canvas{display:block;width:100%;height:auto;background-color:var(--surface);
+                 border:1px solid var(--grid);border-radius:var(--radius)}
+.diagram__note{margin:14px 0 0;color:var(--muted);font-size:1.0625rem;line-height:1.5;max-width:60ch}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+         clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ===== role mapping (the ONLY place a role becomes a colour) ========= */
+[data-role]{--fill:var(--role-external);--line:var(--ink-external);
+            --accent:var(--accent-external);--on:var(--on-external)}
+[data-role="client"]  {--fill:var(--role-client);  --line:var(--ink-client);  --accent:var(--accent-client);  --on:var(--on-client)}
+[data-role="service"] {--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="data"]    {--fill:var(--role-data);    --line:var(--ink-data);    --accent:var(--accent-data);    --on:var(--on-data)}
+[data-role="async"]   {--fill:var(--role-async);   --line:var(--ink-async);   --accent:var(--accent-async);   --on:var(--on-async)}
+[data-role="external"]{--fill:var(--role-external);--line:var(--ink-external);--accent:var(--accent-external);--on:var(--on-external)}
+[data-role="error"]   {--fill:var(--role-error);   --line:var(--ink-error);   --accent:var(--accent-error);   --on:var(--on-error)}
+[data-role="infra"]   {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* ===== PATH B: css-only wobble (on by default, off when Path A wins)
+   Applied to GEOMETRY GROUPS ONLY. A filter renders its whole subtree as
+   one displaced image, so anything inside .node__body / .layer-edges gets
+   wobbled — which is why every label lives OUTSIDE both of them (edge
+   labels sit in .layer-nodes here). Roughness must never touch text.
+   Filter it at group level, never on a single straight <path>: a
+   horizontal line has a zero-height bounding box and an
+   objectBoundingBox filter region would collapse to nothing. ========== */
+.node__body,.layer-edges{filter:url(#sketch)}
+html[data-sketch="rough"] .node__body,
+html[data-sketch="rough"] .layer-edges{filter:none}
+
+/* ===== nodes ========================================================= */
+.node{color:var(--line)}
+.node__body{transform-box:fill-box;transform-origin:center}
+.node__shape{fill:var(--fill);stroke:var(--line);stroke-width:var(--stroke-w);
+             stroke-linejoin:round;stroke-linecap:round}
+.node__detail{fill:none;stroke:var(--line);stroke-width:1.5;opacity:.7;stroke-linecap:round}
+.node__detail--dashed{stroke-dasharray:7 5}
+.node__icon{fill:var(--line);stroke:none;opacity:.9}
+.node__icon .node__detail{opacity:.9}
+.node__icon-glyph{fill:var(--on);font-family:var(--font-title);font-size:20px;
+                  font-weight:700;text-anchor:middle}
+.node__label{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-label);
+             font-weight:700;text-anchor:middle}
+.node__sub{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-sub);
+           text-anchor:middle;opacity:.85}
+.node--primary .node__shape{stroke-width:calc(var(--stroke-w) * 1.3)}
+
+/* ===== queue ========================================================= */
+.queue__track{fill:var(--on);opacity:.16;stroke:none}
+.queue__fill{fill:var(--accent);stroke:none}
+.queue .node__detail{stroke:var(--fill);opacity:.9}
+
+/* ===== groups ======================================================== */
+.group__box{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:10 8;opacity:.6}
+.group__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+              text-anchor:middle}
+
+/* ===== edges ========================================================= */
+.edge{fill:none;stroke:var(--stroke);stroke-width:var(--stroke-w);
+      stroke-linecap:round;stroke-linejoin:round}
+.edge--primary{stroke-width:calc(var(--stroke-w) * 1.3)}
+.edge--async{stroke:var(--ink-async);stroke-dasharray:10 7}  /* dash = async, not colour alone */
+.edge--error{stroke:var(--ink-error);stroke-dasharray:14 5 4 5}
+.edge__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-sub);
+             text-anchor:middle}
+.marker{fill:var(--stroke);stroke:none}
+.marker--open{fill:none;stroke:var(--ink-async);stroke-width:1.6;stroke-linecap:round}
+
+/* ===== motion (source: templates/snippets/motion-blocks.css) =========
+   The extra `… path` selectors keep motion alive after Path A replaces
+   an element with a <g> of hand-drawn strokes. ======================== */
+.anim-dash-flow,.anim-dash,
+.anim-dash-flow path,.anim-dash path{
+  stroke-dasharray:var(--dash) var(--dash-gap);
+  stroke-dashoffset:var(--dash-cycle);
+  animation:dash-flow var(--dur-flow) linear infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes dash-flow{to{stroke-dashoffset:0}}
+
+.packet{fill:var(--line);stroke:var(--surface);stroke-width:2;offset-distance:0%;offset-rotate:auto}
+.anim-packet-travel,.anim-travel{
+  animation:packet-travel var(--dur-flow) var(--ease-flow) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes packet-travel{to{offset-distance:100%}}
+/* !! COPY THESE `d` STRINGS VERBATIM FROM THE MATCHING EDGE PATH !!
+   If they drift, the packet travels a route that does not exist.
+   Note: use the ORIGINAL straight `d`, not a rough-generated one.        */
+.packet--e1{offset-path:path("M 220 180 L 440 180")}
+.packet--e3{offset-path:path("M 980 180 L 1200 180")}
+
+.anim-pulse-glow,.anim-pulse{
+  animation:pulse-glow var(--dur-pulse) var(--ease-pulse) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes pulse-glow{
+  0%,100%{opacity:1;filter:drop-shadow(0 0 2px currentColor)}
+  50%{opacity:.72;filter:drop-shadow(0 0 var(--glow) currentColor)}
+}
+
+.anim-queue-fill,.anim-fill{
+  clip-path:inset(0 100% 0 0);
+  animation:queue-fill var(--dur-fill) ease-out infinite alternate;
+}
+@keyframes queue-fill{
+  from{clip-path:inset(0 100% 0 0)}
+  to{clip-path:inset(0 var(--empty) 0 0)}
+}
+
+.anim-heartbeat{animation:heartbeat var(--dur-beat) var(--ease-pulse) infinite}
+@keyframes heartbeat{
+  0%,100%{transform:scale(1)}25%{transform:scale(1.06)}
+  40%{transform:scale(1)}55%{transform:scale(1.04)}
+}
+
+.anim-connection-draw-in{
+  stroke-dasharray:var(--draw-len,400);stroke-dashoffset:var(--draw-len,400);
+  animation:connection-draw-in var(--dur-draw) ease-out forwards;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes connection-draw-in{to{stroke-dashoffset:0}}
+
+/* ===== reduced motion: render the INFORMATIVE END STATE ============== */
+@media (prefers-reduced-motion: reduce){
+  .anim-dash-flow,.anim-dash,.anim-connection-draw-in,
+  .anim-dash-flow path,.anim-dash path{
+    animation:none !important;stroke-dasharray:none !important;stroke-dashoffset:0 !important}
+  .edge--async{stroke-dasharray:10 7 !important}
+  .edge--error{stroke-dasharray:14 5 4 5 !important}
+  .packet,.anim-packet-travel,.anim-travel{
+    animation:none !important;offset-distance:100% !important}
+  .anim-pulse-glow,.anim-pulse{
+    animation:none !important;opacity:1 !important;filter:drop-shadow(0 0 2px currentColor)}
+  .anim-queue-fill,.anim-fill{
+    animation:none !important;clip-path:inset(0 var(--empty) 0 0) !important}
+  .anim-heartbeat{animation:none !important;transform:none !important}
+}
+
+/* ===== small screens ================================================= */
+@media (max-width:640px){
+  :root{--fs-title:1.375rem}
+  .diagram{padding:16px 12px 32px}
+  .legend{gap:8px 14px}
+}
+
+/* ===== legend ======================================================== */
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:16px 0 0;padding:0}
+.legend__item{display:flex;align-items:center;gap:8px;font-size:1rem;color:var(--muted);
+              min-height:24px}
+.legend__swatch{inline-size:18px;block-size:18px;border-radius:6px;flex:none;
+                background:var(--fill);border:2px solid var(--line)}
+.legend__label{line-height:1.35}
+</style>
+</head>
+
+<body>
+<main class="diagram">
+  <h1 class="diagram__title">Checkout request flow</h1>
+  <p class="diagram__subtitle">hand-drawn-sketch style &middot; whiteboard draft &middot; six components</p>
+
+  <svg class="diagram__canvas" viewBox="20 60 1390 440" role="img"
+       aria-labelledby="dgm-title dgm-desc">
+    <title id="dgm-title">Checkout request flow</title>
+    <desc id="dgm-desc">A browser sends a checkout request to the api-gateway, which forwards it
+      over HTTP to orders-service. Orders-service reads and writes redis-cache, persists orders to
+      sql-database, and publishes an order-placed event asynchronously to message-queue. Animated
+      dashes on the connectors indicate live traffic, the moving dots are individual in-flight
+      requests, the pulsing orders-service node is actively processing, and the filling bar inside
+      message-queue shows queue depth growing.</desc>
+
+    <defs>
+      <!-- DEFS:START -->
+      <!-- PATH B: css-only hand-drawn jitter. baseFrequency controls the
+           wobble wavelength, scale its amplitude. Above scale 4 the shapes
+           start to look broken rather than drawn. -->
+      <filter id="sketch" x="-6%" y="-6%" width="112%" height="112%"
+              color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="7"
+                      result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5"
+                           xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+      <marker id="arrow" class="marker" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10 z" />
+      </marker>
+      <marker id="arrow-open" class="marker marker--open" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10" fill="none" />
+      </marker>
+      <!-- DEFS:END -->
+    </defs>
+
+    <g class="layer-groups">
+      <!-- GROUPS:START -->
+      <g class="group" data-role="infra">
+        <rect class="group__box" x="790" y="100" width="220" height="360" rx="14" ry="14" />
+        <text class="group__label" x="900" y="126">orders bounded context</text>
+      </g>
+      <!-- GROUPS:END -->
+    </g>
+
+    <g class="layer-edges">
+      <!-- EDGES:START -->
+      <path class="edge edge--primary anim-dash-flow" data-rough d="M 220 180 L 440 180"
+            marker-end="url(#arrow)"><title>browser calls api-gateway</title></path>
+
+      <g class="edge-group">
+        <path class="edge edge--primary anim-dash-flow" data-rough d="M 600 180 L 820 180"
+              marker-end="url(#arrow)"><title>api-gateway calls orders-service over HTTP</title></path>
+      </g>
+
+      <path class="edge anim-dash-flow" data-rough d="M 980 180 L 1200 180"
+            marker-end="url(#arrow)"><title>orders-service writes to sql-database</title></path>
+
+      <g class="edge-group">
+        <path class="edge" data-rough d="M 900 220 L 900 340"
+              marker-start="url(#arrow)" marker-end="url(#arrow)"><title>orders-service reads from
+          and writes to redis-cache</title></path>
+      </g>
+
+      <g class="edge-group">
+        <path class="edge edge--async" data-rough d="M 940 220 L 940 280 L 1280 280 L 1280 340"
+              marker-end="url(#arrow-open)"><title>orders-service publishes order-placed to
+          message-queue asynchronously</title></path>
+      </g>
+      <!-- EDGES:END -->
+    </g>
+
+    <g class="layer-nodes">
+      <!-- Edge labels live in this layer, NOT in .layer-edges: the sketch
+           filter is applied to that layer and would wobble the text. -->
+      <text class="edge__label" x="710" y="164">HTTP &middot; p99 40ms</text>
+      <text class="edge__label" x="866" y="306" style="text-anchor:end">read-through</text>
+      <text class="edge__label" x="1110" y="266">async &middot; order-placed</text>
+
+      <!-- NODES:START -->
+      <g class="node" data-role="client" transform="translate(60,140)">
+        <title>browser — customer web client</title>
+        <g class="node__body">
+          <rect class="node__shape" data-rough x="0" y="0" width="160" height="80" rx="10" ry="10" />
+          <path class="node__detail" d="M 0 20 H 160" />
+          <circle class="node__icon" cx="14" cy="10" r="3" />
+          <circle class="node__icon" cx="26" cy="10" r="3" />
+          <circle class="node__icon" cx="38" cy="10" r="3" />
+        </g>
+        <text class="node__label" x="80" y="52">browser</text>
+        <text class="node__sub" x="80" y="72">checkout SPA</text>
+      </g>
+
+      <g class="node node--primary" data-role="service" transform="translate(440,140)">
+        <title>api-gateway — edge entry point, health-checked every second</title>
+        <g class="node__body anim-heartbeat">
+          <polygon class="node__shape" data-rough points="20,0 140,0 160,40 140,80 20,80 0,40" />
+        </g>
+        <text class="node__label" x="80" y="42">api-gateway</text>
+        <text class="node__sub" x="80" y="62">TLS &middot; authn</text>
+      </g>
+
+      <g class="node node--primary anim-pulse-glow" data-role="service" transform="translate(820,140)">
+        <title>orders-service — application service, currently processing checkout requests</title>
+        <g class="node__body">
+          <rect class="node__shape" data-rough x="0" y="0" width="160" height="80" rx="10" ry="10" />
+          <rect class="node__detail node__detail--dashed" x="8" y="8" width="144" height="64"
+                rx="4" ry="4" />
+        </g>
+        <text class="node__label" x="80" y="42">orders-service</text>
+        <text class="node__sub" x="80" y="62">REST &middot; 2 replicas</text>
+      </g>
+
+      <g class="node" data-role="data" transform="translate(1200,140)">
+        <title>sql-database — primary relational datastore</title>
+        <g class="node__body">
+          <path class="node__shape" data-rough
+                d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z" />
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14" />
+        </g>
+        <text class="node__label" x="80" y="48">sql-database</text>
+        <text class="node__sub" x="80" y="66">primary</text>
+      </g>
+
+      <g class="node" data-role="data" transform="translate(820,340)">
+        <title>redis-cache — read-through cache with a 60 second time to live</title>
+        <g class="node__body">
+          <rect class="node__shape" data-rough x="0" y="0" width="160" height="80" rx="10" ry="10" />
+          <polygon class="node__icon" points="140,8 128,26 136,26 130,42 146,22 138,22 144,8" />
+        </g>
+        <text class="node__label" x="80" y="48">redis-cache</text>
+        <text class="node__sub" x="80" y="66">TTL 60s</text>
+      </g>
+
+      <g class="node" data-role="async" transform="translate(1200,340)">
+        <title>message-queue — durable buffer; the bar shows queue depth growing</title>
+        <g class="node__body">
+          <rect class="node__shape" data-rough x="0" y="0" width="160" height="80" rx="8" ry="8" />
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="136" height="14" rx="4" ry="4" />
+            <rect class="queue__fill anim-queue-fill" x="12" y="52" width="136" height="14"
+                  rx="4" ry="4" />
+            <path class="node__detail" d="M 46 52 V 66 M 80 52 V 66 M 114 52 V 66" />
+          </g>
+        </g>
+        <text class="node__label" x="80" y="30">message-queue</text>
+        <text class="node__sub" x="80" y="48">depth</text>
+      </g>
+      <!-- NODES:END -->
+    </g>
+
+    <g class="layer-motion">
+      <!-- MOTION:START -->
+      <circle class="packet anim-packet-travel packet--e1" data-role="client" r="7" />
+      <circle class="packet anim-packet-travel packet--e3" data-role="data" r="7" style="--i:1" />
+      <!-- MOTION:END -->
+    </g>
+  </svg>
+
+  <!-- LEGEND:START -->
+  <ul class="legend">
+    <li class="legend__item"><span class="legend__swatch" data-role="client"></span>
+      <span class="legend__label">client — browser, mobile, or device</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="service"></span>
+      <span class="legend__label">service — application code we own</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="data"></span>
+      <span class="legend__label">data — database, cache, object store</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="async"></span>
+      <span class="legend__label">async — queue or worker (dashed edge)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="external"></span>
+      <span class="legend__label">external — third party we do not run</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="error"></span>
+      <span class="legend__label">error — failure path (long-short dash)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="infra"></span>
+      <span class="legend__label">infra — platform and observability</span></li>
+  </ul>
+  <!-- LEGEND:END -->
+
+  <p class="diagram__note">Reading the motion: marching dashes mean traffic is flowing on that
+    connector, a moving dot is one in-flight request, a pulsing node is actively processing, and a
+    filling bar is queue depth. With <em>reduced motion</em> enabled every one of those renders as
+    its end state — solid strokes, dots parked at their destination, the queue bar at its resting
+    depth — so nothing in this diagram depends on animation to be understood.</p>
+</main>
+
+<!-- PATH A — rough.js. The ONLY external script in this repo, pinned to a
+     major version over https. Delete this block for an offline/artifact
+     build; Path B (the #sketch filter) then renders the wobble instead. -->
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4/bundled/rough.js"></script>
+<script>
+(function () {
+  if (!window.rough) return;                    // CDN blocked -> keep Path B
+  var svg = document.querySelector('.diagram__canvas');
+  var rc = rough.svg(svg), seed = 1;
+  document.querySelectorAll('[data-rough]').forEach(function (el) {
+    var cs = getComputedStyle(el), tag = el.tagName.toLowerCase(), out = null;
+    var opt = {
+      roughness: 1.5, bowing: 1.4, seed: seed++, strokeWidth: 2,
+      stroke: cs.stroke !== 'none' ? cs.stroke : 'currentColor',
+      fill: cs.fill !== 'none' ? cs.fill : undefined,
+      fillStyle: 'hachure', hachureGap: 7, fillWeight: 1.2
+    };
+    var n = function (a) { return parseFloat(el.getAttribute(a)) || 0; };
+    if (tag === 'rect') out = rc.rectangle(n('x'), n('y'), n('width'), n('height'), opt);
+    else if (tag === 'path') out = rc.path(el.getAttribute('d'), opt);
+    else if (tag === 'polygon') out = rc.polygon(
+      el.getAttribute('points').trim().split(/\s+/).map(function (p) {
+        var c = p.split(','); return [parseFloat(c[0]), parseFloat(c[1])];
+      }), opt);
+    if (!out) return;
+    out.setAttribute('class', el.getAttribute('class') || '');   // keep motion classes
+    ['marker-start', 'marker-end'].forEach(function (a) {
+      if (!el.hasAttribute(a)) return;
+      out.querySelectorAll('path').forEach(function (p) { p.setAttribute(a, el.getAttribute(a)); });
+    });
+    var t = el.querySelector('title');                            // keep the accessible name
+    if (t) out.insertBefore(t, out.firstChild);
+    el.replaceWith(out);
+  });
+  document.documentElement.setAttribute('data-sketch', 'rough');  // switch Path B off
+})();
+</script>
+</body>
+</html>

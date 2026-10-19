@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ecommerce checkout — request lifecycle — hand-drawn-sketch</title>
+
+<!-- =====================================================================
+     Scenario 1 acceptance example — diagram-director skill.
+     Prompt (verbatim, bilingual): "vẽ request lifecycle của hệ thống
+     ecommerce, style sketch" (draw the ecommerce system's request
+     lifecycle, sketch style). Target: local.
+
+     Produced by: python3 scripts/search.py "<prompt>" --blueprint
+     --target local -f markdown, then copying templates/base/
+     hand-drawn-sketch.html and substituting content between its markers
+     per the blueprint spec (type=request-lifecycle, layout=swimlane,
+     style=hand-drawn-sketch, motion=dash-flow only).
+
+     Structure kept byte-identical to the base template outside the
+     marked regions: :root tokens, role mapping, motion CSS, reduced-
+     motion block, rough.js switch script. Only the SVG content (nodes,
+     edges, legend, viewBox, copy) was replaced, to the swimlane layout's
+     Spacing Rules: lane height 140px, lane label column width 200px,
+     step column gap 130px, node 160x80. Every node below is a verbatim
+     copy of its templates/snippets/node-shapes.html block -- one node
+     size, no per-layout re-computation of shape coordinates.
+
+     EDGE-ANCHOR AUDIT (scripts/verify_edge_anchors.py) -- geometry unchanged.
+     Every hop lands ON its lane's .lane-line rather than on the actor box back
+     in the lane-label column, which is the swimlane/UML idiom, not a floating
+     endpoint: the lifeline is the participant's extension. Verified in-browser
+     (each lane line runs exactly through its actor's vertical centre), so the
+     checker learned the lifeline rule -- a lane line anchors only while it runs
+     through some node's span and extends out of it -- instead of this file
+     relocating eight arrows onto one 160x80 box.
+     ===================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap">
+
+<style>
+:root{
+  /* ---- surface ------------------------------------------------------ */
+  --bg:#fdfaf3;
+  --surface:#fdfaf3;
+  --grid:color-mix(in srgb, #334155 7%, transparent);
+  --ink:#0f172a;
+  --muted:#334155;
+  --stroke:#334155;
+  --stroke-w:2px;
+  --radius:10px;
+
+  /* ---- typography --------------------------------------------------- */
+  --font-title:"Caveat","Gochi Hand","Segoe Print","Bradley Hand","Comic Sans MS",ui-rounded,cursive;
+  --font-label:"Caveat","Gochi Hand","Segoe Print","Bradley Hand","Comic Sans MS",ui-rounded,cursive;
+  --fs-title:1.75rem;
+  --fs-label:19px;
+  --fs-sub:14px;
+  --fs-edge:15px;
+
+  /* ---- roles: fill / stroke / accent / on-colour -------------------- */
+  /* values verbatim from data/color-semantics.csv (Style ID hand-drawn-sketch) */
+  --role-client:#dbeafe;   --ink-client:#1d4ed8;   --accent-client:#3b82f6;   --on-client:#1e3a8a;
+  --role-service:#ffedd5;  --ink-service:#c2410c;  --accent-service:#f97316;  --on-service:#7c2d12;
+  --role-data:#dcfce7;     --ink-data:#15803d;     --accent-data:#22c55e;     --on-data:#14532d;
+  --role-async:#f3e8ff;    --ink-async:#7e22ce;    --accent-async:#a855f7;    --on-async:#581c87;
+  --role-external:#f3f4f6; --ink-external:#374151; --accent-external:#6b7280; --on-external:#111827;
+  --role-error:#fee2e2;    --ink-error:#b91c1c;    --accent-error:#ef4444;    --on-error:#7f1d1d;
+  --role-infra:#f1f5f9;    --ink-infra:#334155;    --accent-infra:#14b8a6;    --on-infra:#0f172a;
+
+  /* ---- motion (values from data/motion.csv, blueprint motion set: dash-flow only) */
+  --dur-flow:1200ms; --ease-flow:ease-in-out; --stagger:200ms;
+  --dash:8; --dash-gap:6; --dash-cycle:56;
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#1e293b;
+    --surface:#1e293b;
+    --grid:color-mix(in srgb, #cbd5e1 10%, transparent);
+    --ink:#f8fafc;
+    --muted:#cbd5e1;
+    --stroke:#cbd5e1;
+    --role-client:#1e40af;   --ink-client:#93c5fd;   --accent-client:#60a5fa;   --on-client:#eff6ff;
+    --role-service:#9a3412;  --ink-service:#fdba74;  --accent-service:#fb923c;  --on-service:#fff7ed;
+    --role-data:#166534;     --ink-data:#86efac;     --accent-data:#4ade80;     --on-data:#f0fdf4;
+    --role-async:#6b21a8;    --ink-async:#d8b4fe;    --accent-async:#c084fc;    --on-async:#faf5ff;
+    --role-external:#1f2937; --ink-external:#d1d5db; --accent-external:#9ca3af; --on-external:#f9fafb;
+    --role-error:#991b1b;    --ink-error:#fca5a5;    --accent-error:#f87171;    --on-error:#fef2f2;
+    --role-infra:#1e293b;    --ink-infra:#cbd5e1;    --accent-infra:#2dd4bf;    --on-infra:#f8fafc;
+  }
+}
+
+/* ===== page ========================================================== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-label);
+     -webkit-text-size-adjust:100%}
+.diagram{max-width:1440px;margin:0 auto;padding:24px 16px 40px}
+.diagram__title{font-family:var(--font-title);font-size:var(--fs-title);font-weight:700;
+                letter-spacing:.01em;margin:0 0 2px}
+.diagram__subtitle{margin:0 0 14px;color:var(--muted);font-size:1.0625rem;line-height:1.5}
+.diagram__canvas{display:block;width:100%;height:auto;background-color:var(--surface);
+                 border:1px solid var(--grid);border-radius:var(--radius)}
+.diagram__note{margin:14px 0 0;color:var(--muted);font-size:1.0625rem;line-height:1.5;max-width:68ch}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+         clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ===== role mapping (the ONLY place a role becomes a colour) ========= */
+[data-role]{--fill:var(--role-external);--line:var(--ink-external);
+            --accent:var(--accent-external);--on:var(--on-external)}
+[data-role="client"]  {--fill:var(--role-client);  --line:var(--ink-client);  --accent:var(--accent-client);  --on:var(--on-client)}
+[data-role="service"] {--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="data"]    {--fill:var(--role-data);    --line:var(--ink-data);    --accent:var(--accent-data);    --on:var(--on-data)}
+[data-role="infra"]   {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* ===== PATH B: css-only wobble (on by default, off when rough.js wins) */
+.node__body,.layer-edges{filter:url(#sketch)}
+html[data-sketch="rough"] .node__body,
+html[data-sketch="rough"] .layer-edges{filter:none}
+
+/* ===== nodes ========================================================= */
+.node{color:var(--line)}
+.node__body{transform-box:fill-box;transform-origin:center}
+.node__shape{fill:var(--fill);stroke:var(--line);stroke-width:var(--stroke-w);
+             stroke-linejoin:round;stroke-linecap:round}
+.node__detail{fill:none;stroke:var(--line);stroke-width:1.5;opacity:.7;stroke-linecap:round}
+.node__icon{fill:var(--line);stroke:none;opacity:.9}
+.node__label{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-label);
+             font-weight:700;text-anchor:middle}
+.node__sub{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-sub);
+           text-anchor:middle;opacity:.85}
+.node--primary .node__shape{stroke-width:calc(var(--stroke-w) * 1.3)}
+
+/* ===== lifelines (per-lane dashed baseline the hop arrows land on) === */
+/* NOTE: --line is only defined on [data-role] elements; a lane line has no role, so it must use
+   the global --stroke token. With var(--line) here the stroke resolved to unset -> inherit -> the
+   SVG default of none, and all eight lifelines rendered invisibly. */
+.lane-line{fill:none;stroke:var(--stroke);stroke-width:1.5;stroke-dasharray:3 7;opacity:.5}
+
+/* ===== edges ========================================================= */
+.edge{fill:none;stroke:var(--stroke);stroke-width:var(--stroke-w);
+      stroke-linecap:round;stroke-linejoin:round}
+.edge--primary{stroke-width:calc(var(--stroke-w) * 1.3)}
+.edge__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-edge);
+             text-anchor:start}
+.marker{fill:var(--stroke);stroke:none}
+
+/* ===== motion: dash-flow only (the blueprint's sole motion assignment) */
+.anim-dash-flow,.anim-dash-flow path{
+  stroke-dasharray:var(--dash) var(--dash-gap);
+  stroke-dashoffset:var(--dash-cycle);
+  animation:dash-flow var(--dur-flow) linear infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes dash-flow{to{stroke-dashoffset:0}}
+
+/* ===== reduced motion: render the INFORMATIVE END STATE ============== */
+@media (prefers-reduced-motion: reduce){
+  .anim-dash-flow,.anim-dash-flow path{
+    animation:none !important;stroke-dasharray:none !important;stroke-dashoffset:0 !important}
+}
+
+/* ===== small screens ================================================= */
+@media (max-width:640px){
+  :root{--fs-title:1.375rem}
+  .diagram{padding:16px 12px 32px}
+  .legend{gap:8px 14px}
+}
+
+/* ===== legend ======================================================== */
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:16px 0 0;padding:0}
+.legend__item{display:flex;align-items:center;gap:8px;font-size:1rem;color:var(--muted);
+              min-height:24px}
+.legend__swatch{inline-size:18px;block-size:18px;border-radius:6px;flex:none;
+                background:var(--fill);border:2px solid var(--line)}
+.legend__label{line-height:1.35}
+</style>
+</head>
+
+<body>
+<main class="diagram">
+  <h1 class="diagram__title">Ecommerce checkout — request lifecycle</h1>
+  <p class="diagram__subtitle">hand-drawn-sketch style · one request, hop by hop, browser to
+    database and back · 8 lanes</p>
+
+  <svg class="diagram__canvas" viewBox="0 0 1390 1160" role="img"
+       aria-labelledby="dgm-title dgm-desc">
+    <title id="dgm-title">Ecommerce checkout — request lifecycle</title>
+    <desc id="dgm-desc">A browser's checkout request travels hop by hop through eight actors, top to
+      bottom by call order: browser to CDN, CDN to WAF, WAF to load balancer, load balancer to API
+      gateway, API gateway to the orders microservice (the primary hop, drawn thicker), orders to a
+      Redis cache, cache miss to Postgres, and finally the response returns directly from Postgres
+      back up to the browser. Each hop is annotated with its own latency. Animated marching dashes on
+      every connector indicate live traffic on that hop; with reduced motion the connectors render as
+      solid parked lines instead.</desc>
+
+    <defs>
+      <!-- PATH B: css-only hand-drawn jitter. -->
+      <filter id="sketch" x="-6%" y="-6%" width="112%" height="112%"
+              color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="7"
+                      result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5"
+                           xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+      <marker id="arrow" class="marker" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10 z" />
+      </marker>
+    </defs>
+
+    <g class="layer-groups"><!-- no sub-grouping needed: 8 lanes are the only grouping in this diagram --></g>
+
+    <g class="layer-edges">
+      <!-- Lane lifelines: one dashed baseline per actor, starting at the 200px lane-label column
+           and running to the right edge at the actor's own vertical centre (lane height 140px, so
+           lane centres are 140px apart). Hops below land ON these lines. -->
+      <path class="lane-line" d="M 200 90   H 1370" />
+      <path class="lane-line" d="M 200 230  H 1370" />
+      <path class="lane-line" d="M 200 370  H 1370" />
+      <path class="lane-line" d="M 200 510  H 1370" />
+      <path class="lane-line" d="M 200 650  H 1370" />
+      <path class="lane-line" d="M 200 790  H 1370" />
+      <path class="lane-line" d="M 200 930  H 1370" />
+      <path class="lane-line" d="M 200 1070 H 1370" />
+
+      <!-- Step columns are 130px apart (swimlane Spacing Rule), so each hop drops 140px and steps
+           130px right: the staircase reads as one continuous trace instead of scattered arrows. -->
+      <!-- Hop 1: browser -> cdn -->
+      <path class="edge anim-dash-flow" data-rough d="M 240 90 L 240 230" marker-end="url(#arrow)">
+        <title>browser calls cdn: GET /checkout</title></path>
+      <!-- Hop 2: cdn -> waf -->
+      <path class="edge anim-dash-flow" data-rough d="M 370 230 L 370 370" marker-end="url(#arrow)">
+        <title>cdn forwards past-cache request to waf</title></path>
+      <!-- Hop 3: waf -> load-balancer -->
+      <path class="edge anim-dash-flow" data-rough d="M 500 370 L 500 510" marker-end="url(#arrow)">
+        <title>waf passes inspected request to load-balancer</title></path>
+      <!-- Hop 4: load-balancer -> api-gateway -->
+      <path class="edge anim-dash-flow" data-rough d="M 630 510 L 630 650" marker-end="url(#arrow)">
+        <title>load-balancer routes request to api-gateway</title></path>
+      <!-- Hop 5 (PRIMARY): api-gateway -> microservice -->
+      <path class="edge edge--primary anim-dash-flow" data-rough d="M 760 650 L 760 790"
+            marker-end="url(#arrow)">
+        <title>api-gateway authenticates and forwards POST /orders to orders-service</title></path>
+      <!-- Hop 6: microservice -> cache -->
+      <path class="edge anim-dash-flow" data-rough d="M 890 790 L 890 930" marker-end="url(#arrow)">
+        <title>orders-service reads orders cache (cache-aside)</title></path>
+      <!-- Hop 7: cache -> sql-database -->
+      <path class="edge anim-dash-flow" data-rough d="M 1020 930 L 1020 1070" marker-end="url(#arrow)">
+        <title>cache miss falls through to postgres query</title></path>
+      <!-- Hop 8 (RETURN): sql-database -> browser, response goes all the way back -->
+      <path class="edge anim-dash-flow" data-rough d="M 1160 1070 L 1160 90" marker-end="url(#arrow)">
+        <title>response returns from postgres all the way back to browser: 200 OK</title></path>
+    </g>
+
+    <g class="layer-nodes">
+      <!-- Edge labels live outside .layer-edges so the sketch filter never wobbles text. -->
+      <text class="edge__label" x="252" y="164">GET /checkout · edge miss ~8ms</text>
+      <text class="edge__label" x="382" y="304">inspect ~2ms</text>
+      <text class="edge__label" x="512" y="444">pass ~1ms</text>
+      <text class="edge__label" x="642" y="584">route ~3ms</text>
+      <text class="edge__label" x="772" y="724">POST /orders · authn ~15ms</text>
+      <text class="edge__label" x="902" y="864">cache-aside read ~4ms</text>
+      <text class="edge__label" x="1032" y="1004">miss → query ~22ms</text>
+      <text class="edge__label" x="1172" y="580">response · 200 OK · total ~65ms</text>
+
+      <!-- NODES:START — every shape below is templates/snippets/node-shapes.html at its native
+           160x80, unmodified. Swimlane's Spacing Rules use the same 160x80 box, so a node is
+           positioned with translate() and nothing inside it is ever re-computed. Each node sits
+           in the 200px lane-label column, vertically centred on its lane line (lane centre - 40). -->
+
+      <!-- lane 0: browser (shape-device, role client) -->
+      <g class="node" data-role="client" transform="translate(20,50)">
+        <title>browser — customer web client, origin of the checkout request</title>
+        <g class="node__body">
+          <rect class="node__shape" data-rough x="0" y="0" width="160" height="80" rx="8" ry="8" />
+          <path class="node__detail" d="M 0 20 H 160" />
+          <circle class="node__icon" cx="14" cy="10" r="3" />
+          <circle class="node__icon" cx="26" cy="10" r="3" />
+          <circle class="node__icon" cx="38" cy="10" r="3" />
+        </g>
+        <text class="node__label" x="80" y="50">Browser</text>
+        <text class="node__sub" x="80" y="68">checkout SPA</text>
+      </g>
+
+      <!-- lane 1: cdn (shape-hexagon, role infra) -->
+      <g class="node" data-role="infra" transform="translate(20,190)">
+        <title>cdn — edge cache and static-asset delivery in front of the origin</title>
+        <g class="node__body">
+          <polygon class="node__shape" data-rough points="20,0 140,0 160,40 140,80 20,80 0,40" />
+        </g>
+        <text class="node__label" x="80" y="42">CDN</text>
+        <text class="node__sub" x="80" y="60">Cloudflare</text>
+      </g>
+
+      <!-- lane 2: waf (shape-hexagon, role infra) -->
+      <g class="node" data-role="infra" transform="translate(20,330)">
+        <title>waf — inspects the request for malicious payloads before it reaches the origin</title>
+        <g class="node__body">
+          <polygon class="node__shape" data-rough points="20,0 140,0 160,40 140,80 20,80 0,40" />
+        </g>
+        <text class="node__label" x="80" y="42">WAF</text>
+        <text class="node__sub" x="80" y="60">Cloudflare WAF</text>
+      </g>
+
+      <!-- lane 3: load-balancer (shape-hexagon, role service) -->
+      <g class="node" data-role="service" transform="translate(20,470)">
+        <title>load-balancer — distributes the request across api-gateway instances</title>
+        <g class="node__body">
+          <polygon class="node__shape" data-rough points="20,0 140,0 160,40 140,80 20,80 0,40" />
+        </g>
+        <text class="node__label" x="80" y="42">Load Balancer</text>
+        <text class="node__sub" x="80" y="60">ALB</text>
+      </g>
+
+      <!-- lane 4: api-gateway (shape-hexagon, role service, PRIMARY) -->
+      <g class="node node--primary" data-role="service" transform="translate(20,610)">
+        <title>api-gateway — edge entry point; authenticates before forwarding to orders-service</title>
+        <g class="node__body">
+          <polygon class="node__shape" data-rough points="20,0 140,0 160,40 140,80 20,80 0,40" />
+        </g>
+        <text class="node__label" x="80" y="42">API Gateway</text>
+        <text class="node__sub" x="80" y="60">Kong</text>
+      </g>
+
+      <!-- lane 5: microservice (shape-rounded-rect, role service, PRIMARY) -->
+      <g class="node node--primary" data-role="service" transform="translate(20,750)">
+        <title>orders-service — application service that owns the checkout business logic</title>
+        <g class="node__body">
+          <rect class="node__shape" data-rough x="0" y="0" width="160" height="80" rx="8" ry="8" />
+        </g>
+        <text class="node__label" x="80" y="42">Orders Service</text>
+        <text class="node__sub" x="80" y="60">REST · 2 replicas</text>
+      </g>
+
+      <!-- lane 6: cache (shape-cache, role data) -->
+      <g class="node" data-role="data" transform="translate(20,890)">
+        <title>cache — read-through orders cache checked before hitting postgres</title>
+        <g class="node__body">
+          <rect class="node__shape" data-rough x="0" y="0" width="160" height="80" rx="8" ry="8" />
+          <polygon class="node__icon" points="140,8 128,26 136,26 130,42 146,22 138,22 144,8" />
+        </g>
+        <text class="node__label" x="80" y="46">Redis</text>
+        <text class="node__sub" x="80" y="64">orders cache</text>
+      </g>
+
+      <!-- lane 7: sql-database (shape-cylinder, role data) -->
+      <g class="node" data-role="data" transform="translate(20,1030)">
+        <title>sql-database — primary relational store for orders, source of truth on a cache miss</title>
+        <g class="node__body">
+          <path class="node__shape" data-rough
+                d="M 0 14 A 80 14 0 0 1 160 14 V 66 A 80 14 0 0 1 0 66 Z" />
+          <path class="node__detail" d="M 0 14 A 80 14 0 0 0 160 14" />
+        </g>
+        <text class="node__label" x="80" y="46">Postgres</text>
+        <text class="node__sub" x="80" y="64">orders</text>
+      </g>
+      <!-- NODES:END -->
+    </g>
+  </svg>
+
+  <!-- LEGEND:START — only the four roles actually present in this diagram -->
+  <ul class="legend">
+    <li class="legend__item"><span class="legend__swatch" data-role="client"></span>
+      <span class="legend__label">client — the browser issuing the checkout request</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="infra"></span>
+      <span class="legend__label">infra — edge/network infrastructure (CDN, WAF)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="service"></span>
+      <span class="legend__label">service — application/gateway compute we run</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="data"></span>
+      <span class="legend__label">data — cache or database</span></li>
+  </ul>
+  <!-- LEGEND:END -->
+
+  <p class="diagram__note">Reading the motion: every connector shows marching dashes because this
+    diagram traces a single request end to end — there is no secondary path here, the whole hop-by-hop
+    trip <em>is</em> the primary flow. The thicker connector marks the hop where business logic runs
+    (api-gateway to orders-service). The long right-hand connector is the response returning all the
+    way back to the browser, not a ninth actor. With <em>reduced motion</em> enabled every connector
+    renders as a solid, parked line — nothing here depends on animation to be understood.</p>
+</main>
+
+<!-- PATH A — rough.js. The ONLY external script in this file, pinned to a major version over
+     https, per templates/base/hand-drawn-sketch.html. Delete this block for an offline/artifact
+     build; Path B (the #sketch filter) then renders the wobble instead. -->
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4/bundled/rough.js"></script>
+<script>
+(function () {
+  if (!window.rough) return;                    // CDN blocked -> keep Path B
+  var svg = document.querySelector('.diagram__canvas');
+  var rc = rough.svg(svg), seed = 1;
+  document.querySelectorAll('[data-rough]').forEach(function (el) {
+    var cs = getComputedStyle(el), tag = el.tagName.toLowerCase(), out = null;
+    var opt = {
+      roughness: 1.5, bowing: 1.4, seed: seed++, strokeWidth: 2,
+      stroke: cs.stroke !== 'none' ? cs.stroke : 'currentColor',
+      fill: cs.fill !== 'none' ? cs.fill : undefined,
+      fillStyle: 'hachure', hachureGap: 7, fillWeight: 1.2
+    };
+    var n = function (a) { return parseFloat(el.getAttribute(a)) || 0; };
+    if (tag === 'rect') out = rc.rectangle(n('x'), n('y'), n('width'), n('height'), opt);
+    else if (tag === 'path') out = rc.path(el.getAttribute('d'), opt);
+    else if (tag === 'polygon') out = rc.polygon(
+      el.getAttribute('points').trim().split(/\s+/).map(function (p) {
+        var c = p.split(','); return [parseFloat(c[0]), parseFloat(c[1])];
+      }), opt);
+    if (!out) return;
+    out.setAttribute('class', el.getAttribute('class') || '');   // keep motion classes
+    ['marker-start', 'marker-end'].forEach(function (a) {
+      if (!el.hasAttribute(a)) return;
+      out.querySelectorAll('path').forEach(function (p) { p.setAttribute(a, el.getAttribute(a)); });
+    });
+    var t = el.querySelector('title');                            // keep the accessible name
+    if (t) out.insertBefore(t, out.firstChild);
+    el.replaceWith(out);
+  });
+  document.documentElement.setAttribute('data-sketch', 'rough');  // switch Path B off
+})();
+</script>
+</body>
+</html>

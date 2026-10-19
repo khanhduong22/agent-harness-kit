@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkout request flow — ascii-terminal</title>
+
+<!-- =====================================================================
+     STYLE: ascii-terminal  (data/styles.csv#ascii-terminal)
+     Derived from templates/base/flat-minimal.html, but this is the one
+     style with a DIFFERENT OUTPUT PATH: the diagram is Unicode
+     box-drawing text inside a <pre>, not SVG. Select it, copy it, paste
+     it into a README or a code comment and it still works — nothing is
+     drawn, everything is characters.
+
+     >>> THIS TEMPLATE DOES NOT USE templates/snippets/node-shapes.html. <<<
+     Those snippets are SVG geometry on a 160x80 box; there is no SVG
+     here. The box-drawn equivalents live in this file's <pre> and are the
+     canonical ASCII forms. connectors.html and legend-and-a11y.html do
+     still apply in spirit: same edge vocabulary (sync / async / labelled)
+     and the same legend + a11y contract.
+
+     WHAT CHANGES vs flat-minimal, AND WHY
+     - Every class name and every custom-property name from flat-minimal
+       is still declared here, so the shared vocabulary is intact. What
+       changes is the PROPERTY each rule sets: `fill` -> `color`,
+       `stroke` -> `color`, because text has no fill or stroke. Rules that
+       cannot mean anything in this medium (.node__body, .node__icon,
+       .node__detail--dashed, .group__box, .marker--open) are declared
+       inert and flagged in place.
+     - No class name is ADDED. `.node__shape` is the run of box-drawing
+       characters, `.node__icon-glyph` is the `[role]` tag, `.marker` is
+       the arrowhead character.
+     - Exactly two are DROPPED: `.packet--e1` / `.packet--e3`. Those exist
+       only to hang an offset-path on a packet, and there is no path here
+       — the dot rides the connector span itself. `.packet` survives as
+       the dot's colour rule; note the dot is a ::before, so it is never
+       included when you copy the block.
+     - Tokens whose only meaning is vector (--stroke-w, --radius, --dash,
+       --dash-gap, --dash-cycle) are kept declared for portability but are
+       inert; they are marked below.
+
+     THE CHARACTER GRID IS THE LAYOUT ENGINE
+     The art is 82 columns wide and 15 rows tall. Columns are 16 wide with
+     6-wide gutters: col1 at 0, col2 at 22, col3 at 44, col4 at 66. Every
+     connector is routed on that grid. If you edit a line, KEEP IT 82
+     CHARACTERS or the boxes stop lining up — there is no layout engine to
+     catch you. Count before you commit.
+
+     MOTION IN THIS MEDIUM (what is implemented, and what is not)
+     The class names come from templates/snippets/motion-blocks.css and
+     keep their meanings, but the mechanism has to change: there is no
+     stroke to dash and no path to follow, so each one is re-expressed as
+     a stepped transform or a clip on a pseudo-element. Pseudo-element
+     content is never copied, so the copy-paste output stays clean.
+       .anim-dash-flow      a bright `━━` marching along the connector,
+                            translateX in steps() so it snaps to cells
+       .anim-packet-travel  a `●` stepping cell by cell along a connector
+       .anim-pulse-glow     text-shadow bloom on the working node's tag.
+                            NOTE it does NOT dip opacity the way the SVG
+                            version does — dimming text is the one thing
+                            that would cost this style its contrast.
+       .anim-queue-fill     a `░` mask retracting off the `▓▓▓▓▓▓░░` bar
+       .anim-heartbeat      a stepped scale on the liveness tag
+       .anim-connection-draw-in  declared, unused here (see below)
+     DELIBERATELY LEFT OUT — do not try to add these back:
+       * true marching-ants dashes. There is no stroke-dasharray on text.
+       * a per-frame character cycle (─ ╌ ═ ...). CSS cannot animate
+         `content`, and this style is Runtime=css-only, so the only way to
+         get it would be a script. Not worth it.
+       * offset-path packet travel. Packets move on the character grid, in
+         whole cells, which is the honest terminal behaviour anyway.
+       * glow/blur filters on the boxes. A terminal has no compositor
+         blur; text-shadow on one tag is the whole budget.
+       * .anim-connection-draw-in is declared but unused: a typewriter
+         reveal reads as "the diagram is still loading", not as "a new
+         dependency appeared", so it misleads in this medium.
+     ASYNC IS NOT SIGNALLED BY COLOUR. The async route is drawn with the
+     dashed box-drawing characters `╎` and `╌` against the solid `│` and
+     `─` of the sync routes, so it survives a monochrome terminal.
+
+     HOW TO ADAPT THIS FILE
+     1. TOKENS — edit only the :root block and its light-mode twin.
+        Colours come from data/color-semantics.csv (Style ID
+        ascii-terminal). See the note on that block: the dark scheme uses
+        the Stroke/Accent/On columns, the light scheme collapses to the
+        Fill column, because the mid and light ANSI tones do not reach AA
+        on a white page.
+     2. NODES — edit the boxes inside <pre>. Keep 82 columns per line.
+     3. EDGES — same grid. Sync = `─ │ ▶ ▼ ▲`, async = `╌ ╎`.
+     4. ARTIFACT vs LOCAL — css-only, zero <script>. The Google Fonts
+        <link> below is the ONE external host a Claude Artifact permits
+        (fonts.googleapis.com + fonts.gstatic.com), so it ships active and
+        the file is artifact-safe as-is; the --font-* fallback stacks are
+        real monospace stacks, so the grid survives if it is blocked.
+     5. Motion is non-interactive by design — no hover, click, or playback
+        controls. Do not add any.
+     ===================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+
+<style>
+:root{
+  /* ---- surface: terminal black ------------------------------------- */
+  --bg:#0f172a;
+  --surface:#0f172a;
+  --grid:color-mix(in srgb, #94a3b8 14%, transparent);
+  --ink:#f8fafc;
+  --muted:#94a3b8;
+  --stroke:#cbd5e1;
+  --stroke-w:1.5px;      /* INERT in this medium (no vector strokes) */
+  --radius:8px;
+
+  /* ---- typography: monospace only, fixed-width grid ----------------- */
+  --font-title:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --font-label:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --fs-title:1.25rem;
+  --fs-label:16px;
+  --fs-sub:13px;
+
+  /* ---- roles ------------------------------------------------------- */
+  /* data/color-semantics.csv (Style ID ascii-terminal), DARK scheme:
+     --ink-* is the row's Stroke, --accent-* its Accent, --on-* its On
+     Color, --role-* its Fill. Every one of those is checked against the
+     terminal background #0f172a here, not against Fill, because nothing
+     in this style has a fill to sit on: worst pair is
+     --ink-client #60a5fa on #0f172a = 7.2:1. */
+  --role-client:#1e3a8a;   --ink-client:#60a5fa;   --accent-client:#93c5fd;   --on-client:#eff6ff;
+  --role-service:#7c2d12;  --ink-service:#fb923c;  --accent-service:#fdba74;  --on-service:#fff7ed;
+  --role-data:#14532d;     --ink-data:#4ade80;     --accent-data:#86efac;     --on-data:#f0fdf4;
+  --role-async:#581c87;    --ink-async:#c084fc;    --accent-async:#d8b4fe;    --on-async:#faf5ff;
+  --role-external:#374151; --ink-external:#9ca3af; --accent-external:#d1d5db; --on-external:#f9fafb;
+  --role-error:#7f1d1d;    --ink-error:#f87171;    --accent-error:#fca5a5;    --on-error:#fef2f2;
+  --role-infra:#0f172a;    --ink-infra:#94a3b8;    --accent-infra:#5eead4;    --on-infra:#f8fafc;
+
+  /* ---- motion ------------------------------------------------------ */
+  --dur-flow:1200ms;  --dur-pulse:1600ms; --dur-fill:2000ms;
+  --dur-beat:1000ms;  --dur-draw:800ms;
+  --ease-flow:steps(6); --ease-pulse:ease-in-out;
+  --stagger:200ms;
+  --dash:8; --dash-gap:6; --dash-cycle:56;   /* INERT: no stroke-dasharray on text */
+  --empty:25%;          /* quantised to the grid: 2 empty cells of 8 */
+  --glow:8px;
+}
+
+/* The other three base templates put the DARK scheme in this block. Here the
+   terminal is dark by default (data/styles.csv -> Dark Mode: native) and the
+   light scheme is the override: a plain white markdown page.
+   In light mode every role collapses to its Fill column, because the Stroke
+   and Accent tones (#60a5fa, #93c5fd, ...) only reach ~2.3:1 on white and
+   would fail AA. Role is then carried by hue + the `[role]` tag + weight,
+   never by hue alone. Worst light pair: #7c2d12 on #f8fafc = 8.6:1. */
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f8fafc;
+    --surface:#f8fafc;
+    --grid:color-mix(in srgb, #334155 14%, transparent);
+    --ink:#0f172a;
+    --muted:#334155;
+    --stroke:#334155;
+    --role-client:#1e3a8a;   --ink-client:#1e3a8a;   --accent-client:#1e3a8a;   --on-client:#0f172a;
+    --role-service:#7c2d12;  --ink-service:#7c2d12;  --accent-service:#7c2d12;  --on-service:#0f172a;
+    --role-data:#14532d;     --ink-data:#14532d;     --accent-data:#14532d;     --on-data:#0f172a;
+    --role-async:#581c87;    --ink-async:#581c87;    --accent-async:#581c87;    --on-async:#0f172a;
+    --role-external:#111827; --ink-external:#111827; --accent-external:#111827; --on-external:#0f172a;
+    --role-error:#7f1d1d;    --ink-error:#7f1d1d;    --accent-error:#7f1d1d;    --on-error:#0f172a;
+    --role-infra:#0f172a;    --ink-infra:#0f172a;    --accent-infra:#0f172a;    --on-infra:#0f172a;
+  }
+}
+
+/* ===== page ========================================================== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-label);
+     -webkit-text-size-adjust:100%}
+.diagram{max-width:1080px;margin:0 auto;padding:24px 16px 40px}
+.diagram__title{font-family:var(--font-title);font-size:var(--fs-title);font-weight:700;
+                letter-spacing:-.01em;margin:0 0 4px}
+.diagram__subtitle{margin:0 0 18px;color:var(--muted);font-size:.875rem;line-height:1.55}
+/* THE CANVAS IS A <pre>. white-space:pre holds the fixed-width grid;
+   line-height 1.15 is the compromise the style guide asks for — high enough
+   that the glyphs do not visually merge, low enough that the vertical
+   box-drawing runs still join up between rows. Do not raise it past ~1.2.
+   font-size scales with the viewport so 82 columns fill the column; below
+   ~640px it bottoms out and the block scrolls sideways rather than
+   reflowing, because reflowing a character grid destroys the diagram. */
+.diagram__canvas{display:block;margin:0;overflow-x:auto;
+                 font-family:var(--font-label);
+                 font-size:clamp(10px, 1.9vw, 20px);
+                 line-height:1.15;white-space:pre;tab-size:4;
+                 color:var(--stroke);background:var(--surface);
+                 padding:18px 16px;border-radius:var(--radius);
+                 border:1px solid var(--grid)}
+.diagram__note{margin:16px 0 0;color:var(--muted);font-size:.8125rem;line-height:1.6;max-width:72ch}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+         clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ===== role mapping (the ONLY place a role becomes a colour) ========= */
+[data-role]{--fill:var(--role-external);--line:var(--ink-external);
+            --accent:var(--accent-external);--on:var(--on-external)}
+[data-role="client"]  {--fill:var(--role-client);  --line:var(--ink-client);  --accent:var(--accent-client);  --on:var(--on-client)}
+[data-role="service"] {--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="data"]    {--fill:var(--role-data);    --line:var(--ink-data);    --accent:var(--accent-data);    --on:var(--on-data)}
+[data-role="async"]   {--fill:var(--role-async);   --line:var(--ink-async);   --accent:var(--accent-async);   --on:var(--on-async)}
+[data-role="external"]{--fill:var(--role-external);--line:var(--ink-external);--accent:var(--accent-external);--on:var(--on-external)}
+[data-role="error"]   {--fill:var(--role-error);   --line:var(--ink-error);   --accent:var(--accent-error);   --on:var(--on-error)}
+[data-role="infra"]   {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* ===== nodes ========================================================= */
+/* `fill`/`stroke` become `color`: the box IS text. */
+.node{color:var(--line)}
+.node__body{}                       /* INERT: no transform target in text */
+.node__shape{color:var(--line)}     /* the box-drawing run */
+.node__detail{color:var(--line);opacity:.72}
+.node__detail--dashed{}             /* INERT: async uses ╎ ╌ characters instead */
+.node__icon{}                       /* INERT: no icon geometry in this medium */
+.node__icon-glyph{color:var(--accent);font-weight:700}   /* the [role] tag */
+.node__label{color:var(--on);font-weight:700}
+.node__sub{color:var(--on);opacity:.82}
+.node--primary .node__shape{font-weight:700}
+
+/* ===== queue ========================================================= */
+.queue{position:relative;display:inline-block}
+.queue__track{color:var(--muted)}
+.queue__fill{color:var(--accent)}
+
+/* ===== groups ======================================================== */
+.group__box{color:var(--line);opacity:.6}   /* a group is drawn with ┄ ┊ characters */
+.group__label{color:var(--muted)}
+
+/* ===== edges ========================================================= */
+.edge{color:var(--stroke);position:relative;display:inline-block}
+.edge--primary{font-weight:700}
+.edge--async{color:var(--ink-async)}   /* the ╎ ╌ characters carry it, not the colour */
+.edge--error{color:var(--ink-error)}
+.edge__label{color:var(--muted)}
+.marker{color:var(--stroke)}           /* the ▶ ▼ ▲ characters */
+.marker--open{}                        /* INERT: one arrow glyph set only */
+
+/* ===== motion (names from templates/snippets/motion-blocks.css; the
+   mechanism is re-expressed for a character grid — see header) ========= */
+.anim-dash-flow,.anim-dash{}
+.anim-dash-flow::after,.anim-dash::after{
+  content:"━━";position:absolute;left:0;top:0;color:var(--accent);
+  animation:dash-flow var(--dur-flow) var(--ease-flow) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes dash-flow{from{transform:translateX(0)}to{transform:translateX(5ch)}}
+
+.packet{color:var(--accent)}   /* rendered as a ::before, never copied */
+.anim-packet-travel,.anim-travel{}
+.anim-packet-travel::before,.anim-travel::before{
+  content:"●";position:absolute;left:0;top:0;color:var(--accent);
+  animation:packet-travel var(--dur-flow) var(--ease-flow) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes packet-travel{from{transform:translateX(0)}to{transform:translateX(5ch)}}
+
+/* glow only — never opacity. Dimming text is what breaks this style's AA. */
+.anim-pulse-glow,.anim-pulse{
+  animation:pulse-glow var(--dur-pulse) var(--ease-pulse) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes pulse-glow{
+  0%,100%{text-shadow:0 0 1px currentColor}
+  50%{text-shadow:0 0 var(--glow) currentColor, 0 0 calc(var(--glow) * 2) currentColor}
+}
+
+/* the bar's RESTING state (▓▓▓▓▓▓░░) is the real text, so it is what gets
+   copied and what reduced-motion shows. The animation is an opaque ░ mask
+   that retracts off it. */
+.anim-queue-fill,.anim-fill{position:relative;display:inline-block}
+.anim-queue-fill::after,.anim-fill::after{
+  content:"░░░░░░░░";position:absolute;left:0;top:0;
+  color:var(--muted);background:var(--surface);
+  animation:queue-fill var(--dur-fill) ease-out infinite alternate;
+}
+@keyframes queue-fill{
+  from{clip-path:inset(0 0 0 0)}
+  to{clip-path:inset(0 0 0 calc(100% - var(--empty)))}
+}
+
+.anim-heartbeat{display:inline-block;animation:heartbeat var(--dur-beat) var(--ease-pulse) infinite}
+@keyframes heartbeat{
+  0%,100%{transform:scale(1)}25%{transform:scale(1.12)}
+  40%{transform:scale(1)}55%{transform:scale(1.08)}
+}
+
+.anim-connection-draw-in{
+  animation:connection-draw-in var(--dur-draw) steps(16) forwards;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes connection-draw-in{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+
+/* ===== reduced motion: render the INFORMATIVE END STATE ============== */
+@media (prefers-reduced-motion: reduce){
+  /* the connector's end state is the plain solid run of characters */
+  .anim-dash-flow::after,.anim-dash::after{display:none !important}
+  /* the packet's end state is parked on the last cell, at the arrowhead */
+  .anim-packet-travel::before,.anim-travel::before{
+    animation:none !important;transform:translateX(4ch) !important}   /* on the last
+    line cell, NOT on top of the ▶ — parking on the arrowhead hides the direction cue */
+  /* a working node stays lit, it does not blink out */
+  .anim-pulse-glow,.anim-pulse{animation:none !important;text-shadow:0 0 1px currentColor}
+  /* the bar's end state is the ▓▓▓▓▓▓░░ already in the text */
+  .anim-queue-fill::after,.anim-fill::after{display:none !important}
+  .anim-heartbeat{animation:none !important;transform:none !important}
+  .anim-connection-draw-in{animation:none !important;clip-path:none !important}
+}
+
+/* ===== small screens ================================================= */
+@media (max-width:640px){
+  :root{--fs-title:1.0625rem}
+  .diagram{padding:16px 12px 32px}
+  .legend{gap:8px 14px}
+}
+
+/* ===== legend ======================================================== */
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0 0;padding:0}
+.legend__item{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);
+              min-height:24px;font-family:var(--font-label)}
+/* the swatch is the same colour the box-drawing characters use for that role */
+.legend__swatch{inline-size:14px;block-size:14px;border-radius:2px;flex:none;
+                background:var(--line);border:1px solid var(--grid)}
+.legend__label{line-height:1.4}
+</style>
+</head>
+
+<body>
+<main class="diagram">
+  <h1 class="diagram__title">Checkout request flow</h1>
+  <p class="diagram__subtitle">ascii-terminal style &middot; 82-column character grid &middot; copy the block straight into a README</p>
+
+  <!-- role="img" + aria-labelledby is the right call even though the content
+       is real text: a screen reader spelling out ┌──────────────┐ is noise.
+       The <span> and <p> below are the <title>/<desc> pair the SVG templates
+       carry, in their HTML form — same contract, same job. -->
+  <span id="dgm-title" class="sr-only">Checkout request flow</span>
+  <p id="dgm-desc" class="sr-only">Six components drawn with Unicode box-drawing characters on a
+    fixed character grid. A browser sends a checkout request to the api-gateway, which forwards it
+    over HTTP to orders-service. Orders-service reads from and writes back to redis-cache, writes
+    orders to sql-database, and publishes an order-placed event asynchronously to message-queue;
+    the asynchronous route is drawn with dashed box-drawing characters rather than solid ones. A
+    thickened segment marching along a connector means traffic is flowing, a moving dot is one in-flight
+    request, the glowing service tag is actively processing, and the shaded bar inside
+    message-queue is queue depth, currently six of eight cells full.</p>
+
+  <pre class="diagram__canvas" role="img" aria-labelledby="dgm-title dgm-desc">
+<span class="node" data-role="client">┌──────────────┐</span>      <span class="node" data-role="service">┌──────────────┐</span>      <span class="node" data-role="service">┌──────────────┐</span>      <span class="node" data-role="data">┌──────────────┐</span>
+<span class="node" data-role="client">│<span class="node__label"> browser      </span>│</span>      <span class="node" data-role="service">│<span class="node__label"> api-gateway  </span>│</span>      <span class="node" data-role="service">│<span class="node__label">orders-service</span>│</span>      <span class="node" data-role="data">│<span class="node__label"> sql-database </span>│</span>
+<span class="node" data-role="client">├──────────────┤</span><span class="edge__label"> HTTP </span><span class="node" data-role="service">├──────────────┤</span><span class="edge__label"> p99  </span><span class="node node--primary" data-role="service">├──────────────┤</span><span class="edge__label"> write</span><span class="node" data-role="data">├──────────────┤</span>
+<span class="node" data-role="client">│<span class="node__icon-glyph"> [client]     </span>├</span><span class="edge edge--primary anim-packet-travel" data-role="client">─────<span class="marker">▶</span></span><span class="node" data-role="service">│<span class="node__icon-glyph anim-heartbeat"> [service]</span><span class="node__icon-glyph">    </span>├</span><span class="edge edge--primary anim-dash-flow" data-role="service">─────<span class="marker">▶</span></span><span class="node" data-role="service">│<span class="node__icon-glyph anim-pulse-glow"> [service]</span><span class="node__icon-glyph">    </span>├</span><span class="edge anim-packet-travel" data-role="data" style="--i:1">─────<span class="marker">▶</span></span><span class="node" data-role="data">│<span class="node__icon-glyph"> [data]       </span>│</span>
+<span class="node" data-role="client">│<span class="node__sub"> checkout SPA </span>│</span>      <span class="node" data-role="service">│<span class="node__sub"> TLS · authn  </span>│</span><span class="edge__label"> 40ms </span><span class="node" data-role="service">│<span class="node__sub"> REST · x2    </span>│</span>      <span class="node" data-role="data">│<span class="node__sub"> primary      </span>│</span>
+<span class="node" data-role="client">└──────────────┘</span>      <span class="node" data-role="service">└──────────────┘</span>      <span class="node" data-role="service">└──┬──┬─────┬──┘</span>      <span class="node" data-role="data">└──────────────┘</span>
+                                               <span class="edge" data-role="data">│</span>  <span class="edge marker" data-role="data">▲</span>     <span class="edge edge--async" data-role="async">╎</span>  <span class="edge__label">async · order-placed</span>
+                                  <span class="edge__label">read-through</span> <span class="edge" data-role="data">│</span>  <span class="edge" data-role="data">│</span>     <span class="edge edge--async" data-role="async">└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐</span>
+                                               <span class="edge marker" data-role="data">▼</span>  <span class="edge" data-role="data">│</span>                      <span class="edge marker edge--async" data-role="async">▼</span>
+                                            <span class="node" data-role="data">┌─────┴────────┐</span>      <span class="node" data-role="async">┌──────────────┐</span>
+                                            <span class="node" data-role="data">│<span class="node__label"> redis-cache  </span>│</span>      <span class="node" data-role="async">│<span class="node__label"> message-queue</span>│</span>
+                                            <span class="node" data-role="data">├──────────────┤</span>      <span class="node" data-role="async">├──────────────┤</span>
+                                            <span class="node" data-role="data">│<span class="node__icon-glyph"> [data]       </span>│</span>      <span class="node" data-role="async">│<span class="node__icon-glyph"> [async]      </span>│</span>
+                                            <span class="node" data-role="data">│<span class="node__sub"> TTL 60s      </span>│</span>      <span class="node" data-role="async">│ <span class="queue anim-queue-fill"><span class="queue__fill">▓▓▓▓▓▓</span><span class="queue__track">░░</span></span><span class="node__sub"> 75% </span>│</span>
+                                            <span class="node" data-role="data">└──────────────┘</span>      <span class="node" data-role="async">└──────────────┘</span></pre>
+
+  <!-- LEGEND:START -->
+  <ul class="legend">
+    <li class="legend__item"><span class="legend__swatch" data-role="client"></span>
+      <span class="legend__label">[client] — browser, mobile, or device</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="service"></span>
+      <span class="legend__label">[service] — application code we own</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="data"></span>
+      <span class="legend__label">[data] — database, cache, object store</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="async"></span>
+      <span class="legend__label">[async] — queue or worker (╎ ╌ dashed route)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="external"></span>
+      <span class="legend__label">[external] — third party we do not run</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="error"></span>
+      <span class="legend__label">[error] — failure path</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="infra"></span>
+      <span class="legend__label">[infra] — platform and observability</span></li>
+  </ul>
+  <!-- LEGEND:END -->
+
+  <p class="diagram__note">Reading the picture: role is written into every box as a <code>[tag]</code>
+    and the asynchronous route uses the dashed characters <code>╎ ╌</code> instead of <code>│ ─</code>,
+    so the diagram survives a monochrome terminal, a greyscale print and a plain
+    <code>cat</code> in a pipe. Reading the motion: a marching <code>━━</code> means traffic is
+    flowing on that connector, a stepping <code>●</code> is one in-flight request, the glowing
+    service tag is actively processing, and the shaded bar is queue depth. With
+    <em>reduced motion</em> enabled every one of those renders as its end state — plain connectors,
+    the dot parked at the arrowhead, the bar at <code>▓▓▓▓▓▓░░</code> — and that end state is also
+    exactly what you get if you select this block and paste it into a README.</p>
+</main>
+</body>
+</html>

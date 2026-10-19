@@ -1,0 +1,841 @@
+{
+  "manifest": 1,
+  "target": {
+    "file": "jev-browser-agent-9x16.html",
+    "title": "Browser agent: LLM vs Jev",
+    "type": "request-lifecycle",
+    "layout": "layered-tb",
+    "style": "flat-minimal",
+    "palette": "house",
+    "register": "educational",
+    "viewbox": [
+      0,
+      0,
+      1080,
+      1920
+    ],
+    "master_ms": 64800,
+    "beat_ms": 2400
+  },
+  "features": [
+    "beats",
+    "acts",
+    "staged-states",
+    "spotlight",
+    "captions",
+    "legend",
+    "reduced-motion-mode",
+    "node-identity"
+  ],
+  "holds": [
+    {
+      "id": "t0",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        540.0,
+        960.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1080.0,
+        1920.0
+      ],
+      "fs_min": 20.8,
+      "p_min": 28.0,
+      "window": [
+        0.0,
+        3.0864
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "b1",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        540.0,
+        960.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1080.0,
+        1920.0
+      ],
+      "fs_min": 20.8,
+      "p_min": 28.0,
+      "window": [
+        3.7037,
+        11.1111
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "b2",
+      "kind": "camera",
+      "k": 1.79,
+      "tx": -504,
+      "ty": -220,
+      "center": [
+        583.17,
+        659.35
+      ],
+      "bbox": [
+        317.3,
+        229.6,
+        461.4,
+        494.4
+      ],
+      "fs_min": 15.7,
+      "p_min": 28.0,
+      "window": [
+        12.037,
+        17.5926
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b2 text"
+    },
+    {
+      "id": "b3",
+      "kind": "camera",
+      "k": 1.77,
+      "tx": -511,
+      "ty": -493,
+      "center": [
+        593.96,
+        821.07
+      ],
+      "bbox": [
+        323.7,
+        466.2,
+        468.0,
+        405.6
+      ],
+      "fs_min": 15.9,
+      "p_min": 28.0,
+      "window": [
+        19.4444,
+        25.0
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b3 text"
+    },
+    {
+      "id": "b4",
+      "kind": "camera",
+      "k": 2.01,
+      "tx": -686,
+      "ty": -1089,
+      "center": [
+        609.77,
+        1019.36
+      ],
+      "bbox": [
+        372.7,
+        734.0,
+        411.2,
+        341.9
+      ],
+      "fs_min": 14.0,
+      "p_min": 28.0,
+      "window": [
+        26.8519,
+        32.4074
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b4 text"
+    },
+    {
+      "id": "b5",
+      "kind": "camera",
+      "k": 1.35,
+      "tx": -282,
+      "ty": -224,
+      "center": [
+        609.14,
+        876.92
+      ],
+      "bbox": [
+        281.2,
+        276.9,
+        587.2,
+        1027.8
+      ],
+      "fs_min": 20.8,
+      "p_min": 28.0,
+      "window": [
+        34.2593,
+        39.8148
+      ],
+      "gate": "read",
+      "fs_min_source": ".node__label",
+      "anchor": "page"
+    },
+    {
+      "id": "b6",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        540.0,
+        960.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1080.0,
+        1920.0
+      ],
+      "fs_min": 20.8,
+      "p_min": 28.0,
+      "window": [
+        40.7407,
+        48.1481
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "b7",
+      "kind": "camera",
+      "k": 1.8,
+      "tx": -512,
+      "ty": -226,
+      "center": [
+        584.26,
+        658.99
+      ],
+      "bbox": [
+        317.8,
+        229.6,
+        460.9,
+        494.4
+      ],
+      "fs_min": 15.6,
+      "p_min": 28.0,
+      "window": [
+        49.0741,
+        54.6296
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b7 text"
+    },
+    {
+      "id": "b8",
+      "kind": "camera",
+      "k": 1.9,
+      "tx": -614,
+      "ty": -592,
+      "center": [
+        607.49,
+        816.63
+      ],
+      "bbox": [
+        354.9,
+        466.2,
+        436.8,
+        405.6
+      ],
+      "fs_min": 14.8,
+      "p_min": 28.0,
+      "window": [
+        56.4815,
+        62.037
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b8 text"
+    },
+    {
+      "id": "b9",
+      "kind": "camera",
+      "k": 1.37,
+      "tx": -91,
+      "ty": -183,
+      "center": [
+        460.83,
+        834.19
+      ],
+      "bbox": [
+        110.5,
+        648.2,
+        605.8,
+        211.9
+      ],
+      "fs_min": 20.5,
+      "p_min": 28.0,
+      "window": [
+        63.8889,
+        69.4444
+      ],
+      "gate": "read",
+      "fs_min_source": ".cap-b9 text"
+    },
+    {
+      "id": "b10",
+      "kind": "camera",
+      "k": 1.35,
+      "tx": -170,
+      "ty": -457,
+      "center": [
+        525.94,
+        1049.29
+      ],
+      "bbox": [
+        172.9,
+        734.0,
+        612.3,
+        345.8
+      ],
+      "fs_min": 20.8,
+      "p_min": 28.0,
+      "window": [
+        71.2963,
+        76.8519
+      ],
+      "gate": "read",
+      "fs_min_source": ".node__label"
+    },
+    {
+      "id": "b11",
+      "kind": "camera",
+      "k": 1.35,
+      "tx": -282,
+      "ty": -224,
+      "center": [
+        609.14,
+        876.92
+      ],
+      "bbox": [
+        311.7,
+        276.9,
+        556.7,
+        1027.8
+      ],
+      "fs_min": 20.8,
+      "p_min": 28.0,
+      "window": [
+        78.7037,
+        84.2593
+      ],
+      "gate": "read",
+      "fs_min_source": ".node__label"
+    },
+    {
+      "id": "b12a",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        540.0,
+        960.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1080.0,
+        1920.0
+      ],
+      "fs_min": 20.8,
+      "p_min": 28.0,
+      "window": [
+        85.1852,
+        92.5926
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "b12b",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        540.0,
+        960.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1080.0,
+        1920.0
+      ],
+      "fs_min": 20.8,
+      "p_min": 28.0,
+      "window": [
+        92.5926,
+        100.0
+      ],
+      "gate": "overview"
+    },
+    {
+      "element": ".act-1",
+      "kind": "act",
+      "keyframe": "act1",
+      "windows": [
+        [
+          0.0,
+          40.7407
+        ]
+      ],
+      "source": "layouts:layered-tb"
+    },
+    {
+      "element": ".act-2",
+      "kind": "act",
+      "keyframe": "act2",
+      "windows": [
+        [
+          41.6667,
+          100.0
+        ]
+      ],
+      "source": "layouts:layered-tb"
+    },
+    {
+      "element": ".frost",
+      "kind": "act",
+      "keyframe": "frost",
+      "windows": [
+        [
+          0.0,
+          3.0864
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".t0-wash",
+      "kind": "state",
+      "keyframe": "t0-wash",
+      "windows": [
+        [
+          0.0,
+          3.0864
+        ]
+      ]
+    },
+    {
+      "element": ".edge__label",
+      "kind": "state",
+      "keyframe": "t0-labels",
+      "windows": [
+        [
+          3.7037,
+          100.0
+        ]
+      ]
+    },
+    {
+      "element": ".morph-json",
+      "kind": "state",
+      "keyframe": "w-json",
+      "windows": [
+        [
+          20.3704,
+          24.0741
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".sum-json",
+      "kind": "state",
+      "keyframe": "w-sum-json",
+      "windows": [
+        [
+          0.0,
+          19.4444
+        ],
+        [
+          25.0,
+          100.0
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".morph-bars",
+      "kind": "state",
+      "keyframe": "w-bars",
+      "windows": [
+        [
+          57.4074,
+          61.1111
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".sum-bars",
+      "kind": "state",
+      "keyframe": "w-sum-bars",
+      "windows": [
+        [
+          0.0,
+          56.4815
+        ],
+        [
+          62.037,
+          100.0
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".page-react-a1",
+      "kind": "state",
+      "keyframe": "w-react-a1",
+      "windows": [
+        [
+          35.1852,
+          38.8889
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".page-react-a2",
+      "kind": "state",
+      "keyframe": "w-react-a2",
+      "windows": [
+        [
+          79.6296,
+          83.3333
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".lf-e-text-back",
+      "kind": "state",
+      "keyframe": "w-lf-e-text-back",
+      "windows": [
+        [
+          0.0,
+          48.1481
+        ],
+        [
+          62.963,
+          100.0
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".lf-text-helper-label",
+      "kind": "state",
+      "keyframe": "w-lf-text-helper-label",
+      "windows": [
+        [
+          0.0,
+          48.1481
+        ],
+        [
+          55.5556,
+          100.0
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".lf-text-helper-sub",
+      "kind": "state",
+      "keyframe": "w-lf-text-helper-sub",
+      "windows": [
+        [
+          0.0,
+          48.1481
+        ],
+        [
+          62.963,
+          77.7778
+        ],
+        [
+          85.1852,
+          100.0
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".lf-e-return-2",
+      "kind": "state",
+      "keyframe": "w-lf-e-return-2",
+      "windows": [
+        [
+          0.0,
+          62.963
+        ],
+        [
+          70.3704,
+          100.0
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".lf-e-stale",
+      "kind": "state",
+      "keyframe": "w-lf-e-stale",
+      "windows": [
+        [
+          0.0,
+          70.3704
+        ],
+        [
+          85.1852,
+          100.0
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b2",
+      "kind": "spotlight",
+      "keyframe": "focus-b2",
+      "windows": [
+        [
+          12.963,
+          16.6667
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b3",
+      "kind": "spotlight",
+      "keyframe": "focus-b3",
+      "windows": [
+        [
+          20.3704,
+          24.0741
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b4",
+      "kind": "spotlight",
+      "keyframe": "focus-b4",
+      "windows": [
+        [
+          27.7778,
+          31.4815
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b5",
+      "kind": "spotlight",
+      "keyframe": "focus-b5",
+      "windows": [
+        [
+          35.1852,
+          38.8889
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b7",
+      "kind": "spotlight",
+      "keyframe": "focus-b7",
+      "windows": [
+        [
+          50.0,
+          53.7037
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b8",
+      "kind": "spotlight",
+      "keyframe": "focus-b8",
+      "windows": [
+        [
+          57.4074,
+          61.1111
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b9",
+      "kind": "spotlight",
+      "keyframe": "focus-b9",
+      "windows": [
+        [
+          64.8148,
+          68.5185
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b10",
+      "kind": "spotlight",
+      "keyframe": "focus-b10",
+      "windows": [
+        [
+          72.2222,
+          75.9259
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b11",
+      "kind": "spotlight",
+      "keyframe": "focus-b11",
+      "windows": [
+        [
+          79.6296,
+          83.3333
+        ]
+      ],
+      "source": "motion:camera-beat"
+    }
+  ],
+  "captions": [
+    {
+      "element": ".cap-t0",
+      "text": "Agent điều khiển browser LLM viết action · Jev chọn action",
+      "window": [
+        0.0,
+        3.0864
+      ]
+    },
+    {
+      "element": ".cap-b1",
+      "text": "Mục tiêu: tìm chuyến bay Zürich → London. Agent phải tự bấm trên trang, từng bước một.",
+      "window": [
+        4.6296,
+        9.2593
+      ]
+    },
+    {
+      "element": ".cap-b2",
+      "text": "Mỗi bước, code đọc cây DOM thành danh sách element có đánh số, kèm screenshot khi cần.",
+      "window": [
+        12.037,
+        16.6667
+      ]
+    },
+    {
+      "element": ".cap-b3",
+      "text": "LLM nhận cả trang làm prompt, rồi sinh JSON từng token: thinking, next_goal, action.",
+      "window": [
+        19.4444,
+        24.0741
+      ]
+    },
+    {
+      "element": ".cap-b4",
+      "text": "Action chỉ là text JSON: code phải parse, rồi tự kiểm tra xem element còn trên trang.",
+      "window": [
+        26.8519,
+        31.4815
+      ]
+    },
+    {
+      "element": ".cap-b5",
+      "text": "Bấm xong lại đọc trang, lặp N bước — bước nào cũng phải chờ LLM sinh chữ.",
+      "window": [
+        34.2593,
+        38.8889
+      ]
+    },
+    {
+      "element": ".cap-b6",
+      "text": "Với Jev: cùng trang, cùng mục tiêu, nhưng model chỉ chọn, không sinh text.",
+      "window": [
+        42.5926,
+        46.2963
+      ]
+    },
+    {
+      "element": ".cap-b7",
+      "text": "Một lần gọi browser đọc hết control đang hiện: tên, giá trị, text — không cần screenshot.",
+      "window": [
+        49.0741,
+        53.7037
+      ]
+    },
+    {
+      "element": ".cap-b8",
+      "text": "Jev trả lời hai câu hỏi trong một round trip: làm gì, với element nào — kèm xác suất.",
+      "window": [
+        56.4815,
+        61.1111
+      ]
+    },
+    {
+      "element": ".cap-b9",
+      "text": "Chỉ với TYPE_TEXT, một LLM nhỏ mới viết chữ cần gõ — và phải ra đúng JSON.",
+      "window": [
+        63.8889,
+        68.5185
+      ]
+    },
+    {
+      "element": ".cap-b10",
+      "text": "Trước khi gõ, code kiểm tra: trang còn mới, element còn hiện, không bị che.",
+      "window": [
+        71.2963,
+        75.9259
+      ]
+    },
+    {
+      "element": ".cap-b11",
+      "text": "Gõ Zurich, đợi gợi ý tối đa 200 ms, rồi đọc trang tiếp — cả task 7,1 giây.",
+      "window": [
+        78.7037,
+        83.3333
+      ]
+    },
+    {
+      "element": ".cap-b12",
+      "text": "LLM thì viết câu trả lời, code phải parse. Jev chỉ chọn trong menu trang, kèm xác suất.",
+      "window": [
+        86.1111,
+        90.7407
+      ]
+    }
+  ],
+  "glyphs": [],
+  "sources": {
+    "types": [
+      "request-lifecycle"
+    ],
+    "layouts": [
+      "layered-tb"
+    ],
+    "styles": [
+      "flat-minimal"
+    ],
+    "components": [
+      "browser",
+      "decision-model",
+      "guardrail-filter",
+      "microservice",
+      "text-llm"
+    ],
+    "states": [
+      "is-selected"
+    ],
+    "motion": [
+      "dash-flow",
+      "pulse-glow",
+      "camera-beat"
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+element	kind	keyframe	windows	lead	tail	wipe	park	seam	text	source
+.act-1	act	act1	0ms:26400ms	600ms	600ms		translate(0px,-2400px)			layouts:layered-tb
+.act-2	act	act2	27000ms:100%	600ms			translate(0px,-4800px)			layouts:layered-tb
+.frost	act	frost	0ms:2000ms	600ms	400ms		translate(0px,-4800px)			motion:camera-beat
+.t0-wash	state	t0-wash	0ms:2000ms:0ms:400ms							
+.edge__label	state	t0-labels	2400ms:100%:100ms							
+.morph-json	state	w-json	13200ms:15600ms							motion:camera-beat
+.sum-json	state	w-sum-json	0ms:12600ms 16200ms:100%							motion:camera-beat
+.morph-bars	state	w-bars	37200ms:39600ms							motion:camera-beat
+.sum-bars	state	w-sum-bars	0ms:36600ms 40200ms:100%							motion:camera-beat
+.page-react-a1	state	w-react-a1	22800ms:25200ms							motion:camera-beat
+.page-react-a2	state	w-react-a2	51600ms:54000ms							motion:camera-beat
+.lf-e-text-back	state	w-lf-e-text-back	0ms:31200ms 40800ms:100%							motion:camera-beat
+.lf-text-helper-label	state	w-lf-text-helper-label	0ms:31200ms 36000ms:100%							motion:camera-beat
+.lf-text-helper-sub	state	w-lf-text-helper-sub	0ms:31200ms 40800ms:50400ms 55200ms:100%							motion:camera-beat
+.lf-e-return-2	state	w-lf-e-return-2	0ms:40800ms 45600ms:100%							motion:camera-beat
+.lf-e-stale	state	w-lf-e-stale	0ms:45600ms 55200ms:100%							motion:camera-beat
+.focus-b2	spotlight	focus-b2	8400ms:10800ms							motion:camera-beat
+.focus-b3	spotlight	focus-b3	13200ms:15600ms							motion:camera-beat
+.focus-b4	spotlight	focus-b4	18000ms:20400ms							motion:camera-beat
+.focus-b5	spotlight	focus-b5	22800ms:25200ms							motion:camera-beat
+.focus-b7	spotlight	focus-b7	32400ms:34800ms							motion:camera-beat
+.focus-b8	spotlight	focus-b8	37200ms:39600ms							motion:camera-beat
+.focus-b9	spotlight	focus-b9	42000ms:44400ms							motion:camera-beat
+.focus-b10	spotlight	focus-b10	46800ms:49200ms							motion:camera-beat
+.focus-b11	spotlight	focus-b11	51600ms:54000ms							motion:camera-beat
+.cap-t0	caption	cap-t0	0ms:2000ms	600ms	400ms	0ms			Agent điều khiển browser LLM viết action · Jev chọn action	motion:camera-beat
+.cap-b1	caption	cap-b1	3000ms:6000ms	600ms	432ms	408ms			Mục tiêu: tìm chuyến bay Zürich → London. Agent phải tự bấm trên trang, từng bước một.	motion:camera-beat
+.cap-b2	caption	cap-b2	7800ms:10800ms	600ms	432ms	408ms			Mỗi bước, code đọc cây DOM thành danh sách element có đánh số, kèm screenshot khi cần.	motion:camera-beat
+.cap-b3	caption	cap-b3	12600ms:15600ms	600ms	432ms	408ms			LLM nhận cả trang làm prompt, rồi sinh JSON từng token: thinking, next_goal, action.	motion:camera-beat
+.cap-b4	caption	cap-b4	17400ms:20400ms	600ms	432ms	408ms			Action chỉ là text JSON: code phải parse, rồi tự kiểm tra xem element còn trên trang.	motion:camera-beat
+.cap-b5	caption	cap-b5	22200ms:25200ms	600ms	432ms	408ms			Bấm xong lại đọc trang, lặp N bước — bước nào cũng phải chờ LLM sinh chữ.	motion:camera-beat
+.cap-b6	caption	cap-b6	27600ms:30000ms	600ms	432ms	408ms			Với Jev: cùng trang, cùng mục tiêu, nhưng model chỉ chọn, không sinh text.	motion:camera-beat
+.cap-b7	caption	cap-b7	31800ms:34800ms	600ms	432ms	408ms			Một lần gọi browser đọc hết control đang hiện: tên, giá trị, text — không cần screenshot.	motion:camera-beat
+.cap-b8	caption	cap-b8	36600ms:39600ms	600ms	432ms	408ms			Jev trả lời hai câu hỏi trong một round trip: làm gì, với element nào — kèm xác suất.	motion:camera-beat
+.cap-b9	caption	cap-b9	41400ms:44400ms	600ms	432ms	408ms			Chỉ với TYPE_TEXT, một LLM nhỏ mới viết chữ cần gõ — và phải ra đúng JSON.	motion:camera-beat
+.cap-b10	caption	cap-b10	46200ms:49200ms	600ms	432ms	408ms			Trước khi gõ, code kiểm tra: trang còn mới, element còn hiện, không bị che.	motion:camera-beat
+.cap-b11	caption	cap-b11	51000ms:54000ms	600ms	432ms	408ms			Gõ Zurich, đợi gợi ý tối đa 200 ms, rồi đọc trang tiếp — cả task 7,1 giây.	motion:camera-beat
+.cap-b12	caption	cap-b12	55800ms:58800ms	600ms	432ms	408ms			LLM thì viết câu trả lời, code phải parse. Jev chỉ chọn trong menu trang, kèm xác suất.	motion:camera-beat

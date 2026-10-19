@@ -1,0 +1,97 @@
+<!-- =====================================================================
+     connectors.html — canonical edge geometry for diagram-director
+     ---------------------------------------------------------------------
+     Copy a block into the EDGES:START / EDGES:END region of a base
+     template. Markers go in the DEFS:START / DEFS:END region.
+
+     RULES
+     - An edge is always a <path class="edge …">. Straight lines are
+       paths too (never <line>) so a packet can reuse the same `d`.
+     - Colour + stroke come from tokens via the modifier class:
+         .edge            default sync call      var(--stroke)
+         .edge--async     queued / fire-and-forget, DASHED + open arrow
+         .edge--error     failure path, error colour AND a dash pattern
+         .edge--primary   the happy path, thicker (and glowing on neon)
+       Never signal a state with colour alone — the dash pattern and the
+       <title>/label carry the same information.
+     - ORTHOGONAL ROUTING (mandatory for blueprint, recommended elsewhere):
+           M x1 y1  H mx  V y2  H x2      with mx = (x1 + x2) / 2
+       Write it as an explicit L-command path so packets can reuse it:
+           d="M 220 180 L 330 180 L 330 380 L 440 380"
+     - Every edge carries a <title> so screen readers get "A calls B".
+     - If a packet travels this edge, COPY THE `d` STRING VERBATIM into
+       the packet's offset-path. See motion-blocks.css#motion-packet-travel.
+     ===================================================================== -->
+
+<!-- snippet: marker-arrow -->
+<!-- solid filled arrowhead — default for synchronous calls. Lives in <defs>. -->
+<marker id="arrow" class="marker" viewBox="0 0 10 10" refX="9" refY="5"
+        markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth">
+  <path d="M 0 0 L 10 5 L 0 10 z" />
+</marker>
+
+<!-- snippet: marker-arrow-open -->
+<!-- open V arrowhead — async / non-blocking, and the blueprint default. -->
+<marker id="arrow-open" class="marker marker--open" viewBox="0 0 10 10" refX="9" refY="5"
+        markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="strokeWidth">
+  <path d="M 0 0 L 10 5 L 0 10" fill="none" />
+</marker>
+
+<!-- snippet: marker-dot -->
+<!-- dot terminator — attachment / association, no direction implied. -->
+<marker id="dot" class="marker" viewBox="0 0 10 10" refX="5" refY="5"
+        markerWidth="5" markerHeight="5" orient="auto" markerUnits="strokeWidth">
+  <circle cx="5" cy="5" r="4" />
+</marker>
+
+<!-- snippet: edge-straight -->
+<!-- simplest sync call between two nodes on the same axis. -->
+<path class="edge" d="M 220 180 L 440 180" marker-end="url(#arrow)">
+  <title>browser calls api-gateway</title>
+</path>
+
+<!-- snippet: edge-orthogonal -->
+<!-- Manhattan routing. mx = (220 + 440) / 2 = 330. Right angles only. -->
+<path class="edge" d="M 220 180 L 330 180 L 330 380 L 440 380" marker-end="url(#arrow)">
+  <title>api-gateway calls orders-service</title>
+</path>
+
+<!-- snippet: edge-curved -->
+<!-- soft bezier for flat-minimal / sketch. Control points at the midpoint
+     x keep the curve symmetric. NOT for blueprint (curves are banned there). -->
+<path class="edge" d="M 220 180 C 330 180, 330 380, 440 380" marker-end="url(#arrow)">
+  <title>api-gateway calls orders-service</title>
+</path>
+
+<!-- snippet: edge-bidirectional -->
+<!-- read + write, request + response. Arrowheads on BOTH ends. -->
+<path class="edge" d="M 900 220 L 900 340" marker-start="url(#arrow)" marker-end="url(#arrow)">
+  <title>orders-service reads from and writes to redis-cache</title>
+</path>
+
+<!-- snippet: edge-async-dashed -->
+<!-- queued / fire-and-forget. Dash pattern is the primary signal, the
+     async colour is the secondary one. Open arrowhead = non-blocking. -->
+<path class="edge edge--async" d="M 940 220 L 940 280 L 1280 280 L 1280 340"
+      marker-end="url(#arrow-open)">
+  <title>orders-service publishes an event to message-queue (asynchronous)</title>
+</path>
+
+<!-- snippet: edge-error -->
+<!-- failure / fallback path. Error colour PLUS a distinct long-short dash
+     so it survives greyscale printing and colour-vision differences. -->
+<path class="edge edge--error" d="M 980 180 L 1200 180" marker-end="url(#arrow)">
+  <title>orders-service returns 503 when sql-database is unreachable (error path)</title>
+</path>
+
+<!-- snippet: edge-labeled -->
+<!-- protocol / latency annotation. The label is a sibling <text>, placed
+     just above the midpoint of the edge (label offset 12px per
+     data/layouts.csv). Keep it to protocol + one metric. -->
+<g class="edge-group">
+  <path class="edge edge--primary" id="edge-checkout" d="M 600 180 L 820 180"
+        marker-end="url(#arrow)">
+    <title>api-gateway calls orders-service over HTTP, p99 40 milliseconds</title>
+  </path>
+  <text class="edge__label" x="710" y="168">HTTP · p99 40ms</text>
+</g>

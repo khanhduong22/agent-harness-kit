@@ -1,0 +1,488 @@
+{
+  "manifest": 1,
+  "genre": "process",
+  "target": {
+    "file": "vibe-code-voi-ai.html",
+    "title": "Vibe-code với AI",
+    "type": "process-loop",
+    "layout": "timeline-sequence",
+    "style": "flat-minimal",
+    "palette": "house",
+    "register": "educational",
+    "viewbox": [
+      0,
+      0,
+      1920,
+      1080
+    ],
+    "master_ms": 38400,
+    "beat_ms": 4800
+  },
+  "features": [
+    "beats",
+    "staged-states",
+    "spotlight",
+    "captions",
+    "state-chips",
+    "legend",
+    "reduced-motion-mode"
+  ],
+  "holds": [
+    {
+      "id": "b1",
+      "kind": "camera",
+      "window": [
+        0,
+        10.9375
+      ],
+      "k": 0.69,
+      "tx": 215.0,
+      "ty": 43.0,
+      "center": [
+        1080.0,
+        720.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        2160.0,
+        1440.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "gate": "overview"
+    },
+    {
+      "id": "b2",
+      "kind": "camera",
+      "window": [
+        14.0625,
+        23.4375
+      ],
+      "k": 1.75,
+      "tx": 146.0,
+      "ty": -247.0,
+      "center": [
+        465.0,
+        449.8
+      ],
+      "bbox": [
+        100.0,
+        260.0,
+        730.0,
+        379.6
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "gate": "read"
+    },
+    {
+      "id": "b3",
+      "kind": "camera",
+      "window": [
+        26.5625,
+        30.4688
+      ],
+      "k": 1.6,
+      "tx": -1143.0,
+      "ty": -192.0,
+      "center": [
+        1314.375,
+        457.5
+      ],
+      "bbox": [
+        868.3,
+        142.5,
+        892.2,
+        629.5
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "gate": "read"
+    },
+    {
+      "id": "b3b",
+      "kind": "camera",
+      "window": [
+        33.5938,
+        37.5
+      ],
+      "k": 1.6,
+      "tx": -680.0,
+      "ty": -192.0,
+      "center": [
+        1025.0,
+        457.5
+      ],
+      "bbox": [
+        530.0,
+        142.5,
+        990.0,
+        629.5
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "gate": "read"
+    },
+    {
+      "id": "b4",
+      "kind": "camera",
+      "window": [
+        39.0625,
+        48.4375
+      ],
+      "k": 1.6,
+      "tx": -1360.0,
+      "ty": -169.0,
+      "center": [
+        1450.0,
+        443.2
+      ],
+      "bbox": [
+        880.0,
+        170.0,
+        1140.0,
+        546.4
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "gate": "read"
+    },
+    {
+      "id": "b5",
+      "kind": "camera",
+      "window": [
+        51.5625,
+        60.9375
+      ],
+      "k": 2.0,
+      "tx": -90.0,
+      "ty": -1502.0,
+      "center": [
+        525.0,
+        1021.0
+      ],
+      "bbox": [
+        120.0,
+        880.0,
+        810.0,
+        282.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "gate": "read"
+    },
+    {
+      "id": "b6",
+      "kind": "camera",
+      "window": [
+        64.0625,
+        73.4375
+      ],
+      "k": 1.85,
+      "tx": -1774.0,
+      "ty": -1555.0,
+      "center": [
+        1478.0,
+        1132.5
+      ],
+      "bbox": [
+        1060.0,
+        880.0,
+        836.0,
+        505.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "gate": "read"
+    },
+    {
+      "id": "b7",
+      "kind": "camera",
+      "window": [
+        75,
+        100
+      ],
+      "k": 0.69,
+      "tx": 215.0,
+      "ty": 43.0,
+      "center": [
+        1080.0,
+        720.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        2160.0,
+        1440.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "gate": "overview"
+    },
+    {
+      "element": ".stage-dim-b1",
+      "kind": "state",
+      "keyframe": "w-dim-b1",
+      "windows": [
+        [
+          0.0,
+          12.5
+        ],
+        [
+          98.6979,
+          100.0
+        ]
+      ],
+      "source": "states:flow-attention"
+    },
+    {
+      "element": ".traffic-b2",
+      "kind": "traffic",
+      "keyframe": "w-traffic-b2",
+      "windows": [
+        [
+          14.0625,
+          23.4375
+        ]
+      ],
+      "source": "motion:packet-travel"
+    },
+    {
+      "element": ".traffic-b3",
+      "kind": "traffic",
+      "keyframe": "w-traffic-b3",
+      "windows": [
+        [
+          26.5625,
+          37.5
+        ]
+      ],
+      "source": "motion:packet-travel"
+    },
+    {
+      "element": ".traffic-b4",
+      "kind": "traffic",
+      "keyframe": "w-traffic-b4",
+      "windows": [
+        [
+          39.0625,
+          48.4375
+        ]
+      ],
+      "source": "motion:packet-travel"
+    },
+    {
+      "element": ".traffic-b5",
+      "kind": "traffic",
+      "keyframe": "w-traffic-b5",
+      "windows": [
+        [
+          51.5625,
+          60.9375
+        ]
+      ],
+      "source": "motion:packet-travel"
+    },
+    {
+      "element": ".traffic-b6",
+      "kind": "traffic",
+      "keyframe": "w-traffic-b6",
+      "windows": [
+        [
+          64.0625,
+          73.4375
+        ]
+      ],
+      "source": "motion:packet-travel"
+    },
+    {
+      "element": ".arc-halo",
+      "kind": "state",
+      "keyframe": "halo-b3",
+      "windows": [
+        [
+          26.5625,
+          37.5
+        ]
+      ],
+      "source": "states:flow-attention"
+    },
+    {
+      "element": ".focus-b1",
+      "kind": "spotlight",
+      "keyframe": "focus-b1",
+      "windows": [
+        [
+          1.75,
+          11.55
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b2",
+      "kind": "spotlight",
+      "keyframe": "focus-b2",
+      "windows": [
+        [
+          15.1375,
+          22.75
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b3",
+      "kind": "spotlight",
+      "keyframe": "focus-b3",
+      "windows": [
+        [
+          27.65,
+          35.2625
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b4",
+      "kind": "spotlight",
+      "keyframe": "focus-b4",
+      "windows": [
+        [
+          40.1625,
+          47.775
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b5",
+      "kind": "spotlight",
+      "keyframe": "focus-b5",
+      "windows": [
+        [
+          52.675,
+          60.2875
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b6",
+      "kind": "spotlight",
+      "keyframe": "focus-b6",
+      "windows": [
+        [
+          65.1875,
+          72.8
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b3b",
+      "kind": "spotlight",
+      "keyframe": "focus-b3b",
+      "windows": [
+        [
+          33.5938,
+          37.5
+        ]
+      ],
+      "source": "motion:camera-beat"
+    }
+  ],
+  "captions": [
+    {
+      "element": ".cap-b1",
+      "text": "Quy trình là một dây chuyền: bạn cung cấp brief cần thiết, nhận về một app chạy thật.",
+      "window": [
+        1.75,
+        11.55
+      ]
+    },
+    {
+      "element": ".cap-b2",
+      "text": "Bạn soạn một bản brief gọn — mục tiêu, người dùng, luồng chính — rồi giao cho AI.",
+      "window": [
+        15.1375,
+        22.75
+      ]
+    },
+    {
+      "element": ".cap-b3",
+      "text": "AI dựng xong màn hình bấm được; nếu thấy chưa ổn, bạn prompt để AI sửa lại.",
+      "window": [
+        27.65,
+        35.2625
+      ]
+    },
+    {
+      "element": ".cap-b4",
+      "text": "Từ chính UI, AI suy ra được cấu trúc dữ liệu phù hợp nhất — không cần bạn mô tả bảng.",
+      "window": [
+        40.1625,
+        47.775
+      ]
+    },
+    {
+      "element": ".cap-b5",
+      "text": "Từ bảng items vừa suy ra, AI dựng back-end: UI có trước, rồi DB, rồi BE.",
+      "window": [
+        52.675,
+        60.2875
+      ]
+    },
+    {
+      "element": ".cap-b6",
+      "text": "Deploy xong là bạn có app chạy thật — mở trên điện thoại vẫn là đúng app đó.",
+      "window": [
+        65.1875,
+        72.8
+      ]
+    },
+    {
+      "element": ".cap-b7",
+      "text": "Front-end đi trước là để chốt ý cho nhanh, không phải để bỏ back-end đi.",
+      "window": [
+        76.5625,
+        85.3125
+      ]
+    }
+  ],
+  "glyphs": [],
+  "sources": {
+    "types": [
+      "process-loop"
+    ],
+    "layouts": [
+      "timeline-sequence"
+    ],
+    "styles": [
+      "flat-minimal"
+    ],
+    "components": [
+      "document-spec",
+      "ai-assistant",
+      "prototype-screen",
+      "decision-point",
+      "feedback-note",
+      "test-checklist",
+      "deploy-url"
+    ],
+    "states": [
+      "flow-attention",
+      "flow-active"
+    ],
+    "motion": [
+      "packet-travel",
+      "dash-flow",
+      "camera-beat"
+    ],
+    "payloads": [
+      "file",
+      "feedback"
+    ]
+  }
+}

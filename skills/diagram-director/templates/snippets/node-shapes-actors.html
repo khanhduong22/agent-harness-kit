@@ -1,0 +1,116 @@
+<!-- =====================================================================
+     node-shapes-actors.html — the ACTORS of the `process` genre
+     ---------------------------------------------------------------------
+     WHY THIS FILE EXISTS
+     In `--genre process` the cast is people, work items and acts, not
+     deployed software (SKILL.md STEP 0). An actor drawn as a rounded-rect
+     service reads as a service — the whole reason the genre exists is that
+     mislabelling every participant on the canvas is not a styling problem,
+     it is a wrong diagram. The three blocks here are the participants:
+     one person, a group, and the AI/tool a modern loop actually contains.
+
+     REFERENCED BY data/components.csv rows whose `Genres` cell is `process`
+     (`snippets/node-shapes-actors.html#shape-<id>`).
+
+     ROLE MAPPING (the WHY is in references/genres/process.md → Role mapping)
+     Semantic Role stays the fixed 7-slot engine palette; the pack-local kind
+     lives in components.Category (`actor`). Here: an actor INSIDE the owning
+     team, driving the work, is `client` (the same slot a browser occupies:
+     the origin of intent). An actor OUTSIDE it — the end user trying the
+     thing, an external reviewer — is `external`, for the same reason an AI
+     or external tool is: not yours, not on your clock, not yours to direct.
+     The `data-role` below is the inside-the-team default; change it at the
+     call site when the actor is outside, and record the slot in the sheet's
+     ROLE column. The LEGEND text is derived from Category and Name — a
+     viewer reads "actor", never "client".
+     Valid roles: client service data async external error infra
+
+     RULES (inherited from node-shapes.html — read its header first)
+     - Nominal box 160 x 80; positioned by the caller with translate(x,y);
+       never scale/rotate `.node` itself. Colour via data-role only.
+     - FAMILY CONVENTION, and it is a hard one: the silhouette occupies the
+       LEFT band (x 12..48) and both text lines are centred at x=104. That
+       keeps every actor card diffable against every other and keeps the
+       label out of the silhouette. An actor label wider than ~90px must be
+       shortened, not re-centred — a name that collides with its own
+       silhouette is the containment defect checklist item 7 fails on.
+     - A silhouette keeps >=3px from EVERY text in its own node, measured on
+       the rendered boxes (the containment sweeps check text-vs-shape and
+       text-vs-foreign-node, so glyph-vs-own-label passes silently). The
+       geometry below leaves ~20px at the stated label origin; re-measure
+       after any font swap — mono runs ~20% wider than sans.
+     - Never icon-only: the label restates the identity the silhouette shows.
+     - A person is never STACKED (node-shapes.html → shape-replica-stack).
+       Multiplicity of people is a GROUP (shape-group-silhouette) with the
+       count in its sub-label — three ghost copies of a human read as "three
+       identical humans", which is a claim no process sheet ever makes.
+     - Actors do not MOVE. In this genre the artifact travels and the actor
+       stays put (references/genres/process.md → Artifact-passes-as-payload);
+       attention moves via the camera and `flow-attention`, never by
+       animating a person along an edge.
+     ===================================================================== -->
+
+<!-- snippet: shape-person-silhouette -->
+<!-- person-actor: head + shoulders = one named human doing one act.
+     Label is the ROLE ("PM"), not the job title; the name is optional and
+     rides the sub-label only when the story needs to tell two apart. -->
+<g class="node" data-role="client" transform="translate(0,0)">
+  <title>PM — the person who writes the brief</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <circle class="node__detail" cx="30" cy="26" r="10" />
+      <path class="node__detail" d="M 12 62 a 18 15 0 0 1 36 0" />
+    </g>
+  </g>
+  <text class="node__label" x="104" y="44">PM</text>
+  <text class="node__sub" x="104" y="62">writes the brief</text>
+</g>
+
+<!-- snippet: shape-group-silhouette -->
+<!-- team-stakeholder: two heads over two shoulder arcs = a group acting as
+     one participant. The COUNT belongs in the sub-label ("Design (3)") --
+     two heads are the idiom for "more than one", never a headcount.
+     GEOMETRY: the whole group fits the family band x 12..48, same as
+     shape-person-silhouette — heads 13..27 and 33..47, shoulder arcs 12..36
+     and 24..48. It did not: the shoulders used to run 6..58, 10px past the
+     band on the right, and the label budget this file's header promises was
+     10px short of true for every actor drawn as a group. A Vietnamese
+     two-line label found it at 2.4px / -1.4px against MIN_GAP 3. Two heads
+     inside 36px means smaller heads (r 7) and shoulders that lean inward;
+     that is the cost of the band, and the band is the rule. -->
+<g class="node" data-role="client" transform="translate(0,0)">
+  <title>Design team — three people acting as one participant</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <circle class="node__detail" cx="20" cy="24" r="7" />
+      <circle class="node__detail" cx="40" cy="24" r="7" />
+      <path class="node__detail" d="M 12 60 a 12 11 0 0 1 24 0" />
+      <path class="node__detail" d="M 24 62 a 12 11 0 0 1 24 0" />
+    </g>
+  </g>
+  <text class="node__label" x="104" y="44">Design</text>
+  <text class="node__sub" x="104" y="62">3 people</text>
+</g>
+
+<!-- snippet: shape-assistant-spark -->
+<!-- ai-assistant: a four-point spark = a tool that produces work but owns
+     no decision. data-role="external" on purpose (AI/external tool ->
+     external): it is not on your clock and not yours to fix. Category is
+     still `actor` -- it performs acts -- so the legend reads "actor (AI)".
+     NEVER give it a decision diamond: if the model's answer decides the
+     branch, the DECIDER is the human who accepted it, and that is the node
+     the diagram must show (references/genres/process.md → Cast ontology). -->
+<g class="node" data-role="external" transform="translate(0,0)">
+  <title>AI assistant — drafts the copy; a human still accepts or rejects it</title>
+  <g class="node__body">
+    <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+    <g class="node__icon">
+      <path class="node__detail" d="M 30 22 Q 33 37 48 40 Q 33 43 30 58
+                                    Q 27 43 12 40 Q 27 37 30 22 Z" />
+    </g>
+  </g>
+  <text class="node__label" x="104" y="44">Claude</text>
+  <text class="node__sub" x="104" y="62">drafts the copy</text>
+</g>

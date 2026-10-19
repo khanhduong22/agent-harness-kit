@@ -1,0 +1,435 @@
+{
+  "manifest": 1,
+  "target": {
+    "file": "compare-chat-pubsub.html",
+    "title": "Realtime chat fanout",
+    "type": "comparison",
+    "layout": "split-compare",
+    "style": "flat-minimal",
+    "palette": "house",
+    "register": "educational",
+    "viewbox": [
+      0,
+      0,
+      1920,
+      1080
+    ],
+    "master_ms": 33600,
+    "beat_ms": 4800
+  },
+  "features": [
+    "beats",
+    "staged-states",
+    "spotlight",
+    "captions",
+    "payload-glyphs",
+    "state-chips",
+    "legend",
+    "multi-pane",
+    "reduced-motion-mode"
+  ],
+  "holds": [
+    {
+      "id": "b1",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        960.0,
+        540.0
+      ],
+      "bbox": [
+        0,
+        0,
+        1920,
+        1080
+      ],
+      "fs_min": 12.5,
+      "p_min": 28.0,
+      "window": [
+        0,
+        14.2857
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "b2",
+      "kind": "camera",
+      "k": 1.4,
+      "tx": 295,
+      "ty": -216,
+      "center": [
+        475.0,
+        540.0
+      ],
+      "bbox": [
+        110,
+        240,
+        730,
+        540
+      ],
+      "fs_min": 12.5,
+      "p_min": 28.0,
+      "window": [
+        16.0714,
+        26.7857
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "b3-b5",
+      "kind": "camera",
+      "k": 2.2,
+      "tx": -74,
+      "ty": -714,
+      "center": [
+        470.0,
+        570.0
+      ],
+      "bbox": [
+        88,
+        422,
+        804,
+        318.4
+      ],
+      "fs_min": 13,
+      "p_min": 28.0,
+      "window": [
+        30.3571,
+        69.6429
+      ],
+      "gate": "read"
+    },
+    {
+      "id": "b6",
+      "kind": "camera",
+      "k": 1.4,
+      "tx": -783,
+      "ty": -216,
+      "center": [
+        1245.0,
+        540.0
+      ],
+      "bbox": [
+        680,
+        240,
+        1130,
+        598.4
+      ],
+      "fs_min": 12.5,
+      "p_min": 28.0,
+      "window": [
+        73.2143,
+        83.9286
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "b7",
+      "kind": "camera",
+      "k": 1.05,
+      "tx": -31,
+      "ty": 68,
+      "center": [
+        943.8095,
+        449.5238
+      ],
+      "bbox": [
+        110,
+        122,
+        1730,
+        658
+      ],
+      "fs_min": 13,
+      "p_min": 28.0,
+      "window": [
+        87.5,
+        98.2143
+      ],
+      "gate": "overview"
+    },
+    {
+      "element": ".traffic-a",
+      "kind": "traffic",
+      "keyframe": "w-traffic-a",
+      "windows": [
+        [
+          0.0,
+          42.8571
+        ],
+        [
+          99.1,
+          100.0
+        ]
+      ],
+      "source": "motion:dash-flow"
+    },
+    {
+      "element": ".traffic-b",
+      "kind": "traffic",
+      "keyframe": "w-traffic-b",
+      "windows": [
+        [
+          0.0,
+          71.4286
+        ],
+        [
+          99.1,
+          100.0
+        ]
+      ],
+      "source": "motion:dash-flow"
+    },
+    {
+      "element": ".stage-oload-a1",
+      "kind": "state",
+      "keyframe": "w-oload-a1",
+      "windows": [
+        [
+          28.5714,
+          42.8571
+        ]
+      ],
+      "source": "states:is-overloaded"
+    },
+    {
+      "element": ".stage-down-a1",
+      "kind": "state",
+      "keyframe": "w-down-a1",
+      "windows": [
+        [
+          42.8571,
+          98.5
+        ]
+      ],
+      "source": "states:is-down"
+    },
+    {
+      "element": ".stage-break-a",
+      "kind": "state",
+      "keyframe": "w-down-a1",
+      "windows": [
+        [
+          42.8571,
+          98.5
+        ]
+      ],
+      "source": "states:flow-broken"
+    },
+    {
+      "element": ".stage-oload-a2",
+      "kind": "state",
+      "keyframe": "w-oload-a2",
+      "windows": [
+        [
+          50.0,
+          57.1429
+        ]
+      ],
+      "source": "states:is-overloaded"
+    },
+    {
+      "element": ".stage-down-a2",
+      "kind": "state",
+      "keyframe": "w-down-a2",
+      "windows": [
+        [
+          57.1429,
+          98.5
+        ]
+      ],
+      "source": "states:is-down"
+    },
+    {
+      "element": ".stage-down-b1",
+      "kind": "state",
+      "keyframe": "w-down-b1",
+      "windows": [
+        [
+          71.4286,
+          98.5
+        ]
+      ],
+      "source": "states:is-down"
+    },
+    {
+      "element": ".stage-reconnect",
+      "kind": "state",
+      "keyframe": "w-down-b1",
+      "windows": [
+        [
+          71.4286,
+          98.5
+        ]
+      ],
+      "source": "payloads:message"
+    },
+    {
+      "element": ".focus-b2",
+      "kind": "spotlight",
+      "keyframe": "focus-b2",
+      "windows": [
+        [
+          17.8571,
+          25.0
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b3",
+      "kind": "spotlight",
+      "keyframe": "focus-b3",
+      "windows": [
+        [
+          32.1429,
+          39.2857
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b4",
+      "kind": "spotlight",
+      "keyframe": "focus-b4",
+      "windows": [
+        [
+          46.4286,
+          53.5714
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b5",
+      "kind": "spotlight",
+      "keyframe": "focus-b5",
+      "windows": [
+        [
+          60.7143,
+          67.8571
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b6",
+      "kind": "spotlight",
+      "keyframe": "focus-b6",
+      "windows": [
+        [
+          75.0,
+          82.1429
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-b7",
+      "kind": "spotlight",
+      "keyframe": "focus-b7",
+      "windows": [
+        [
+          89.2857,
+          97.1429
+        ]
+      ],
+      "source": "motion:camera-beat"
+    }
+  ],
+  "captions": [
+    {
+      "element": ".cap-b1",
+      "text": "One message must reach every room member on every server.",
+      "window": [
+        0.0,
+        12.5
+      ]
+    },
+    {
+      "element": ".cap-b2",
+      "text": "Without pub/sub, the origin server forwards a copy to each of the 19 peers itself.",
+      "window": [
+        16.0714,
+        25.0
+      ]
+    },
+    {
+      "element": ".cap-b3",
+      "text": "Every server links to every other: 190 standing connections at 20 servers.",
+      "window": [
+        30.3571,
+        39.2857
+      ]
+    },
+    {
+      "element": ".cap-b4",
+      "text": "ws-1 dies. Every copy it owed now re-routes through its peers.",
+      "window": [
+        44.6429,
+        53.5714
+      ]
+    },
+    {
+      "element": ".cap-b5",
+      "text": "ws-2 inherits the load and follows — the mesh dominoes.",
+      "window": [
+        58.9286,
+        67.8571
+      ]
+    },
+    {
+      "element": ".cap-b6",
+      "text": "The same server dies in B: clients reconnect; the stream never notices.",
+      "window": [
+        73.2143,
+        82.1429
+      ]
+    },
+    {
+      "element": ".cap-b7",
+      "text": "190 links become 20 subscriptions — and a dead server becomes a non-event.",
+      "window": [
+        87.5,
+        97.1429
+      ]
+    }
+  ],
+  "glyphs": [
+    "message",
+    "event"
+  ],
+  "sources": {
+    "types": [
+      "comparison"
+    ],
+    "layouts": [
+      "split-compare"
+    ],
+    "styles": [
+      "flat-minimal"
+    ],
+    "components": [
+      "browser",
+      "websocket-server",
+      "event-bus"
+    ],
+    "states": [
+      "is-overloaded",
+      "is-down",
+      "flow-broken",
+      "flow-backpressure"
+    ],
+    "motion": [
+      "dash-flow",
+      "packet-travel",
+      "queue-fill",
+      "camera-beat"
+    ],
+    "payloads": [
+      "message",
+      "event"
+    ]
+  }
+}

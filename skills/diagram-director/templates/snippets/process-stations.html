@@ -1,0 +1,506 @@
+<!-- =====================================================================
+     process-stations.html — the STATION MARKUP of the `process` genre
+     ---------------------------------------------------------------------
+     WHAT THIS IS
+     The canonical HTML blocks referenced by data/components.csv → Snippet
+     Ref for every row whose `Genres` cell is `process`
+     (`snippets/process-stations.html#station-<id>`). Copy a block into a
+     .stage and adapt. Styles: snippets/process-stations.css; the stage /
+     overlay / edge contract: snippets/process-stage-and-edges.css.
+     Doctrine and the WHY: references/genres/process.md.
+
+     PROVENANCE
+     Distilled from the element sampler v2, approved by the user on
+     2026-08-26 ("chuẩn rồi, style cũng đẹp"). That board has been deleted:
+     these snippets carry its grammar, and the worked example is now
+     examples/vibe-code-voi-ai.html, the genre's frozen golden.
+
+     WHY HTML AND NOT <g class="node">
+     The system-design genre draws SVG nodes (snippets/node-shapes.html).
+     This genre does not, and the split is probe-proven rather than a
+     preference: a process station is a small VIGNETTE with wrapped
+     Vietnamese text, glass, grids and inline mono texture, all of which
+     are painful-to-impossible in SVG; connectors are the mirror image.
+     So: STATIONS ARE HTML, CONNECTORS ARE A THIN SVG OVERLAY. There is no
+     `--genre process` node that is drawn as SVG geometry.
+
+     THE DOCTRINE THAT SHAPES EVERY BLOCK BELOW
+     - NO HUMAN FIGURES. No silhouettes, no heads, no shoulders — object
+       vignettes only. When a source insists on naming a person or a team,
+       the answer is `station-role-chip`, a labelled chip. The old
+       silhouettes in node-shapes-actors.html stay on disk for history and
+       for other genres; NOTHING in `process` points at them any more.
+     - NO HANDWRITING FONT anywhere. Vietnamese stacked diacritics go
+       mushy in a script face. The genre is locked flat-minimal.
+     - CONTENT STAYS GENERIC: "Your app", `items`, "Item one". A concrete
+       invented product steals attention from the process.
+     - EVERY WORD ON AN ELEMENT IS ENGLISH. Station titles, mock-UI chrome,
+       table and column names, pills, tags: English, always. Only the
+       EXPLANATORY voice — captions, narration, page heading — follows the
+       audience's language. Unaccented Vietnamese identifiers (`bang_du_lieu`,
+       `gia_tri`) are BANNED outright: user review 2026-08-27, "kì lắm".
+     - A STATION TITLE CARRIES A VERB where the station acts:
+       "AI · builds the UI", "AI · infers DB + BE" — never a bare noun.
+     - Colour enters through data-role ONLY.
+       Valid roles: client service data async external error infra
+     ===================================================================== -->
+
+<!-- snippet: station-stage-contract -->
+<!-- THE SKELETON EVERY BEAT IS BUILT IN. The two numbers that must agree —
+     the stage's px size and the svg's viewBox — are one line apart on
+     purpose, so they diff together and never drift.
+     a11y: the <figure aria-label> carries what the frame SHOWS; the
+     overlay is aria-hidden because it is pure geometry.
+     THE LANGUAGE SPLIT IS DEMONSTRATED HERE, not just stated: every string
+     ON an element in this file is English, while the aria-label and the
+     figcaption below — the EXPLANATORY voice — are in the audience's
+     language, Vietnamese in this sample. That is the whole rule. -->
+<figure class="beat" aria-label="Brief một trang đi vào AI, AI dựng ra UI bấm được">
+  <div class="stage" style="width:854px;height:400px">
+
+    <svg class="edges" viewBox="0 0 854 400" aria-hidden="true">
+      <!-- markers are declared INLINE per svg with a suffixed id -->
+      <defs>
+        <marker id="arrow-fwd-b3" viewBox="0 0 10 10" refX="9.2" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
+        <marker id="arrow-back-b3" viewBox="0 0 10 10" refX="9.2" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 Z" fill="#ea580c"/></marker>
+      </defs>
+      <!-- gray solid = forward handoff -->
+      <path class="edge" d="M206 176 H 242" marker-end="url(#arrow-fwd-b3)"/>
+      <!-- orange dashed = return / loop; ends pointing back INTO the station
+           that must act again, never into the artifact -->
+      <path class="edge edge--back"
+            d="M540 252 V 302 Q 540 330 512 330 H 143 Q 115 330 115 302 V 204"
+            marker-end="url(#arrow-back-b3)"/>
+    </svg>
+
+    <!-- stations go here: absolutely positioned, z-index 2, so the edges
+         above are OCCLUDED by them rather than clipped by hand.
+         CHECK FOR DEAD GEOMETRY: an edge whose entire run passes under an
+         opaque station is invisible — it must surface somewhere. -->
+
+  </div>
+  <figcaption class="beat__cap">Bạn viết một trang · AI dựng ra màn hình bấm được</figcaption>
+</figure>
+
+<!-- snippet: station-role-chip -->
+<!-- person-actor. The no-actors doctrine's answer when the source names a
+     PERSON: a role word in a chip. Role first; a name only when the story
+     must tell two of them apart. data-role="client" is the
+     inside-the-owning-team default — an actor OUTSIDE the team is drawn
+     `external` at the call site and the sheet's ROLE column records it. -->
+<span class="chip-role" data-role="client" style="left:40px;top:120px">
+  <span class="chip-role__tag">role</span>
+  <span class="chip-role__txt">
+    <p class="chip-role__t">Brief writer</p>
+    <p class="chip-role__s">one page, no more</p>
+  </span>
+</span>
+
+<!-- snippet: station-role-chip-group -->
+<!-- team-stakeholder. Same chip, plus a COUNT SLOT. The count is a NUMBER
+     and it only appears when the source states one; where it does not, the
+     slot carries context instead ("trên máy của họ") and the sheet records
+     `NO NUMBER IN SOURCE -- headcount`. Never repeated glyphs: three copies
+     of anything reads "three identical things". -->
+<span class="chip-role" data-role="external" style="left:40px;top:120px;width:280px">
+  <span class="chip-role__tag">group</span>
+  <span class="chip-role__txt">
+    <p class="chip-role__t">Test users</p>
+    <p class="chip-role__s">on their own device</p>
+  </span>
+  <span class="chip-role__n">3</span>
+</span>
+
+<!-- snippet: station-ai-spark -->
+<!-- ai-assistant. A four-point spark in the left cell of a box on the rail:
+     an OBJECT, which is why the no-figures doctrine allows it where a
+     silhouette is banned. It has an input side and an output side, so it
+     reads "work passes through here", not "mascot".
+     THREE SIZES, one glyph — full (rail hero), --sm (busy beat), --xs
+     (process strip). THE TITLE CARRIES THE VERB.
+     NEVER give it a decision diamond: if a model's answer decides the
+     branch, the DECIDER is the human who accepted it. -->
+<div class="ai" data-role="external" style="left:232px;top:80px;width:300px">
+  <span class="ai__glyph"><i></i><i></i></span>
+  <span class="ai__txt">
+    <p class="ai__t">AI</p>
+    <p class="ai__s">builds the UI</p>
+  </span>
+</div>
+<div class="ai ai--sm" data-role="external" style="left:40px;top:222px;width:240px">
+  <span class="ai__glyph"><i></i><i></i></span>
+  <span class="ai__txt"><p class="ai__t">AI</p><p class="ai__s">infers DB + BE</p></span>
+</div>
+<div class="ai ai--xs" data-role="external" style="left:318px;top:232px">
+  <span class="ai__glyph"><i></i><i></i></span>
+  <span class="ai__txt"><p class="ai__t">AI</p></span>
+</div>
+
+<!-- snippet: station-brief-sheet -->
+<!-- document-spec. A one-page brief: tab + paper + a struck-through
+     out-of-scope line, which is the half of a brief that does the work.
+     Label is the artifact name + VERSION the sheet can name ("Brief v2").
+     Keep it SHORT and NARROW — it is a station on the rail, not a poster. -->
+<div class="brd" data-role="data" style="left:270px;top:46px">
+  <p class="brd__tab">Brief · 1 page</p>
+  <div class="brd__paper">
+    <h3 class="brd__h">Your app</h3>
+    <p class="brd__line"><b>Who uses it:</b> someone who opens this every day</p>
+    <p class="brd__line"><b>What it does:</b> one main job, done properly</p>
+    <p class="brd__rule"></p>
+    <p class="brd__line brd__line--out"><b>Not now:</b> everything else</p>
+  </div>
+</div>
+
+<!-- snippet: station-brd-doc -->
+<!-- document-spec, PRODUCT-FIRST cut: the same brief drawn as a real one-page
+     DOCUMENT instead of a labelled box. Use this one when the brief is a beat
+     the camera zooms into; keep station-brief-sheet for a brief that only ever
+     appears at strip scale.
+     WHY A GRID. The paper is a label column + a value column. Only a grid lets
+     the FAR tier skeletonise the values while the section names still read as
+     structure — a stack of "<b>label:</b> value" lines cannot do that.
+     THE CLOSE TIER MUST PAY. "Core flow" resolves into three numbered steps at
+     the zoom: new information, not the same sentence in bigger type. A zoom
+     that only enlarges has not rewarded the viewer for looking.
+     Needs css-process-lod (in process-stage-and-edges.css) for the two tiers.
+     data-lod-tier goes on an ANCESTOR — the beat wrapper — not on the station,
+     so one camera hold flips every station in the frame at once. -->
+<div class="doc" data-station="brief" data-role="data" style="left:270px;top:46px">
+  <p class="doc__tab">BRD · 1 page</p>
+  <div class="doc__paper">
+    <div class="doc__hd">
+      <h3 class="doc__h">Your app · BRD</h3>
+      <p class="doc__v">v1 · 1 page</p>
+    </div>
+    <div class="doc__r">
+      <p class="doc__k">Goal</p>
+      <div class="doc__val"><span class="lod">
+        <span class="lod__near"><p>One screen where you add an item and see the list.</p></span>
+        <span class="lod__far" aria-hidden="true"><i class="w95"></i><i class="w64"></i></span>
+      </span></div>
+    </div>
+    <div class="doc__r">
+      <p class="doc__k">Users</p>
+      <div class="doc__val"><span class="lod">
+        <span class="lod__near"><p>Anyone who opens the app every day.</p></span>
+        <span class="lod__far" aria-hidden="true"><i class="w88"></i><i class="w52"></i></span>
+      </span></div>
+    </div>
+    <div class="doc__r">
+      <p class="doc__k">Core flow</p>
+      <div class="doc__val"><span class="lod">
+        <span class="lod__near"><ul class="doc__flow">
+          <li><b>1</b>Add an item</li>
+          <li><b>2</b>See the list</li>
+          <li><b>3</b>Edit or delete</li>
+        </ul></span>
+        <span class="lod__far" aria-hidden="true"><i class="w76"></i><i class="w88"></i><i class="w64"></i></span>
+      </span></div>
+    </div>
+    <div class="doc__r">
+      <p class="doc__k">Main screen</p>
+      <div class="doc__val"><span class="lod">
+        <span class="lod__near"><p>One list, one add form.</p></span>
+        <span class="lod__far" aria-hidden="true"><i class="w76"></i></span>
+      </span></div>
+    </div>
+    <p class="doc__cut"><b>Not now:</b> everything else</p>
+  </div>
+</div>
+
+<!-- snippet: station-screen -->
+<!-- LO-FI WIREFRAME ONLY. For a screen that is a real app in the story, use
+     snippets/process-webapp-templates.html#station-webapp-dashboard (browser
+     chrome + address + semantic anchors). This block stays for the case the
+     source really is describing a wireframe or a paper sketch — and for the
+     `.field`/`.cta` vocabulary a form still needs.
+     ONE screen, never three: a chrome bar, a paper body, skeleton rows and
+     exactly one real CTA. Label is the screen name + fidelity. -->
+<div class="scr" data-role="client" style="left:176px;top:50px;width:268px">
+  <div class="scr__bar"><i></i><i></i><i></i><span>main screen</span></div>
+  <div class="scr__body">
+    <p class="scr__h">Items</p>
+    <div class="line"><span class="line__box"></span><span class="line__txt">Item one<i class="bar bar--m"></i></span></div>
+    <div class="line"><span class="line__box"></span><span class="line__txt">Item two<i class="bar bar--l"></i></span></div>
+    <div class="line line--ghost"><span class="line__box"></span><span class="line__txt"><i class="bar bar--m"></i></span></div>
+    <button class="cta" type="button">Submit</button>
+  </div>
+</div>
+<!-- the FORM variant: one .field per thing the user types -->
+<div class="scr" data-role="client" style="left:60px;top:56px;width:330px">
+  <div class="scr__bar"><i></i><i></i><i></i><span>form the user sees</span></div>
+  <div class="scr__body">
+    <p class="scr__h">Add new item</p>
+    <div class="field" data-role="client"><b>Name</b><span>text</span></div>
+    <div class="field" data-role="client"><b>Amount</b><span>number</span></div>
+    <div class="field" data-role="client"><b>Date</b><span>date</span></div>
+    <button class="cta" type="button">Submit</button>
+  </div>
+</div>
+
+<!-- snippet: station-data-jar -->
+<!-- Seed / fake data as an OBJECT that plugs in behind a screen. The arrow
+     always runs JAR → SCREEN: the data feeds the UI, the UI does not emit
+     it. The json rows are TEXTURE-class text (12px, exempt from the 15px
+     floor) — they say "json lives here", nobody reads them. -->
+<div class="jar" data-role="data" style="left:570px;top:118px">
+  <div class="jar__lid"></div>
+  <div class="jar__neck"></div>
+  <div class="jar__body">
+    <div class="jar__liquid"></div>
+    <code class="jar__code">{"id":1,"name":".."}</code>
+    <code class="jar__code">{"id":2,"name":".."}</code>
+    <code class="jar__code jar__code--dim">{"id":3, ... }</code>
+  </div>
+  <p class="jar__label">mock data · json</p>
+</div>
+
+<!-- snippet: station-decision-diamond -->
+<!-- decision-point. A rotate(45deg) SQUARE with a counter-rotated label —
+     not a clip-path, which would throw the 1.5px border away.
+     THE DIAMOND CARRIES THE QUESTION; THE EDGES CARRY THE ANSWERS. Both
+     branches are always drawn: the untaken one parks at reduced opacity
+     with its condition still legible. -->
+<div class="dia" data-role="service" style="left:486px;top:122px">
+  <span class="dia__in">Looks right?</span>
+</div>
+<span class="pill" data-role="service" style="left:626px;top:146px">OK</span>
+<span class="pill" data-role="service" style="left:552px;top:262px">not yet</span>
+
+<!-- snippet: station-sticky-note -->
+<!-- feedback-note. It rides the RETURN ARC and it names the INCREMENT —
+     what is different on the next lap. "quay lại bước 1" is not an
+     increment; "fix the main button" is. This is the genre's one sanctioned
+     idle animation; keep it to a single note per frame. -->
+<span class="sticky sticky--pulse" style="left:296px;top:300px;width:200px">
+  fix the main button<em>one sentence, no need to open code</em>
+</span>
+
+<!-- snippet: station-schema-table -->
+<!-- Where a derivation LANDS. One row per column, mono names, a role dot at
+     the right edge so the eye can pair a row with the pull-line that
+     reached it. Row count must EQUAL the field count it was derived from —
+     an extra column is a claim the form never made. -->
+<div class="tbl" data-role="data" style="left:900px;top:92px;width:430px">
+  <div class="tbl__h"><b>items</b><span>table · AI-named</span></div>
+  <div class="tbl__r"><b>name</b><span>text</span><i></i></div>
+  <div class="tbl__r"><b>amount</b><span>number</span><i></i></div>
+  <div class="tbl__r"><b>created_at</b><span>date</span><i></i></div>
+</div>
+
+<!-- snippet: station-list-card -->
+<!-- test-checklist, and the back-end block it shares a shell with (the
+     rule-of-two harvest: one shell, two proven jobs).
+     A checklist label states what is checked + the count, and the count
+     traces to the sheet's NUMBERS block like every other figure. -->
+<div class="lst" data-role="data" style="left:1420px;top:108px;width:320px">
+  <p class="lst__t">Acceptance <span class="lst__n">2/3</span></p>
+  <p class="lst__l lst__l--done"><i></i>opens from the link</p>
+  <p class="lst__l lst__l--done"><i></i>can add an item</p>
+  <p class="lst__l lst__l--todo"><i></i>data survives a reload</p>
+</div>
+<!-- same shell, back-end job -->
+<div class="lst" data-role="service" style="left:1420px;top:108px;width:320px">
+  <p class="lst__t">Back-end</p>
+  <p class="lst__l"><i></i>receive what you send</p>
+  <p class="lst__l"><i></i>check it is valid</p>
+  <p class="lst__l"><i></i>save it to the table</p>
+</div>
+
+<!-- snippet: station-code-card -->
+<!-- code-artifact. A code change as a work ITEM: header names the scope +
+     the change ("checkout/ · PR #42"), body is mono TEXTURE with one row
+     marked as the change. Never a bare "code" label — the scope is what
+     makes a diff arguable. -->
+<div class="code" data-role="data" style="left:60px;top:96px;width:320px">
+  <div class="code__h">items.sql<span>+1 line</span></div>
+  <div class="code__b">
+    <code class="code__r">name           text</code>
+    <code class="code__r code__r--add">amount         number</code>
+    <code class="code__r code__r--dim">created_at     date</code>
+  </div>
+</div>
+
+<!-- snippet: station-snap-cartridge -->
+<!-- CARTRIDGE MODULES — three pieces BUILT SEPARATELY, snapped together, with
+     one record running through all three. Approved from the V2 enrichment
+     board, 2026-08-27; doctrine entry: references/genres/process.md →
+     *Vocabulary — mộng / ổ / port band*. Supersedes station-snap-seam.
+
+     WHO OWNS WHAT AT A JOINT, and it is not symmetric:
+       the piece on the LEFT  owns the KNOB  (mộng) — and the knob wears the
+                              LEFT piece's data-role, because the record leaves
+                              THAT piece
+       the piece on the RIGHT owns the SOCKET (ổ)   — it receives
+     Both are drawn in ONE `.seamlayer` over the whole set, positioned at the
+     seam's own x (270 / 540 for the default 270px pieces), so neither piece
+     clips the other's half of the joint.
+
+     The interior of each piece is a MINIATURE module, not new vocabulary:
+     #mini-dashboard (in process-webapp-templates.html), #mini-api-card,
+     #mini-items-table below. Shell + module, exactly like station-webapp +
+     a skin.
+
+     THE PACKET IS NOT IN THIS SNIPPET. It runs at STAGE level along the port
+     band's centre line = block BOTTOM − 23px; see css-station-snap-cartridge's
+     geometry contract. -->
+<div class="snapset" style="left:60px;top:96px">
+  <div class="sp sp--a" data-station="snap-ui" data-role="client">
+    <div class="sp__hd"><p class="sp__t">UI</p><p class="sp__s">clickable screen</p>
+      <span class="grip"><i></i><i></i><i></i></span></div>
+    <div class="sp__body"><!-- #mini-dashboard here --></div>
+    <div class="sp__port"><span class="portlbl portlbl--out" data-texture>out</span></div>
+  </div>
+  <div class="sp sp--b" data-station="snap-be" data-role="service">
+    <div class="sp__hd"><p class="sp__t">BE</p><p class="sp__s">receive · validate · save</p>
+      <span class="grip"><i></i><i></i><i></i></span></div>
+    <div class="sp__body"><!-- #mini-api-card here --></div>
+    <div class="sp__port"><span class="portlbl portlbl--in" data-texture>in</span>
+      <span class="portlbl portlbl--out" data-texture>out</span></div>
+  </div>
+  <div class="sp sp--c" data-station="snap-db" data-role="data">
+    <div class="sp__hd"><p class="sp__t">DB</p><p class="sp__s">real data table</p>
+      <span class="grip"><i></i><i></i><i></i></span></div>
+    <div class="sp__body"><!-- #mini-items-table here --></div>
+    <div class="sp__port"><span class="portlbl portlbl--in" data-texture>in</span></div>
+  </div>
+  <div class="seamlayer">
+    <span class="socket" style="left:270px"></span>
+    <span class="knob" data-role="client" style="left:270px"></span>
+    <span class="click" style="left:270px"></span>
+    <span class="socket" style="left:540px"></span>
+    <span class="knob" data-role="service" style="left:540px"></span>
+    <span class="click" style="left:540px"></span>
+  </div>
+</div>
+
+<!-- snippet: mini-api-card -->
+<!-- The BE piece's interior. Goes in a `.sp__body`. Routes read as "an API"
+     in one glance; every string is texture-class, so none of it is a claim the
+     source made. Method badge colours come from the piece's own role tokens. -->
+<div class="mn mbe">
+  <div class="mn__hd"><b>API</b><span data-texture>3 routes</span></div>
+  <div class="mbe__r"><span class="mbe__m" data-texture>POST</span>
+    <span class="mbe__p" data-texture>/items</span><i class="mbe__ok"></i></div>
+  <div class="mbe__r"><span class="mbe__m mbe__m--get" data-texture>GET</span>
+    <span class="mbe__p" data-texture>/items</span><i class="mbe__ok"></i></div>
+  <div class="mbe__r"><span class="mbe__m mbe__m--get" data-texture>GET</span>
+    <span class="mbe__p" data-texture>/items/:id</span><i class="mbe__ok"></i></div>
+</div>
+
+<!-- snippet: mini-items-table -->
+<!-- The DB piece's interior: the SAME table station-schema-table draws full
+     size, at station-inside-a-station scale. Columns, a dashed rule, then two
+     skeleton data rows — the rule is what separates schema from data. -->
+<div class="mn mdb">
+  <div class="mn__hd"><b class="mono">items</b><span data-texture>table</span></div>
+  <div class="mdb__c"><b data-texture>name</b><span data-texture>text</span></div>
+  <div class="mdb__c"><b data-texture>amount</b><span data-texture>number</span></div>
+  <div class="mdb__c"><b data-texture>created_at</b><span data-texture>date</span></div>
+  <div class="mdb__data">
+    <div class="mdb__d"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>
+    <div class="mdb__d"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>
+  </div>
+</div>
+
+<!-- snippet: station-url-pill -->
+<!-- deploy-url. In this genre a deployable is an ARTIFACT — a work item
+     somebody produced — not a running service. Label is the address itself
+     plus its environment. The lock is drawn, never an icon font. -->
+<div class="url" data-role="infra" style="left:1030px;top:133px;width:300px">
+  <i class="lockglyph"></i>my-app.pages.dev
+</div>
+
+<!-- snippet: station-phone-ripple -->
+<!-- The "it is real now" station. THE RIPPLE ANCHORS TO THE BUTTON WRAPPER
+     (.ctaw), not to the screen body: .app's height depends on how many
+     skeleton rows sit above it, so a body-anchored ripple drifts off the
+     button every time the content changes. Rings sit BEHIND the button. -->
+<div class="phone" data-role="client" style="left:1462px;top:26px;width:250px;height:308px">
+  <span class="phone__notch"></span>
+  <div class="phone__screen">
+    <div class="urlbar"><i class="lockglyph"></i><span>my-app.pages.dev</span></div>
+    <div class="app">
+      <p class="app__h">Items</p>
+      <div class="line"><span class="line__box"></span><span class="line__txt">Item one<i class="bar bar--m"></i></span></div>
+      <div class="line"><span class="line__box"></span><span class="line__txt">Item two<i class="bar bar--l"></i></span></div>
+      <span class="ctaw">
+        <button class="cta" type="button">Submit</button>
+        <span class="ripple"><i></i><i></i><i></i></span>
+      </span>
+    </div>
+  </div>
+  <span class="phone__home"></span>
+</div>
+
+<!-- snippet: station-strip-card -->
+<!-- THE 5-SECOND FRAME: the whole workflow on one line at small scale.
+     Numbered badge (the eye catches reading order before it reads a word),
+     one bold noun, one short qualifier carrying the VERB.
+     SHAPE-CUE RULE: infra grey and external grey are near-identical, so
+     when they sit adjacent one borrows a glyph from the sheet's existing
+     vocabulary (.st__key = the seam square). Never invent a colour to
+     solve an adjacency problem. -->
+<div class="st" data-role="data" style="left:40px;top:46px">
+  <span class="st__no">1</span>
+  <p class="st__t">Brief</p>
+  <p class="st__s">one page, you write it</p>
+</div>
+<div class="st" data-role="external" style="left:316px;top:46px">
+  <span class="st__no">2</span>
+  <p class="st__t"><span class="st__spark"><i></i><i></i></span>AI</p>
+  <p class="st__s">builds the UI</p>
+</div>
+<div class="st" data-role="infra" style="left:1300px;top:46px">
+  <span class="st__no">5</span>
+  <p class="st__t"><span class="st__key"></span>Snap &amp; Deploy</p>
+  <p class="st__s">out to a shareable link</p>
+</div>
+<div class="st__phone" data-role="client" style="left:1576px;top:24px">
+  <span class="phone__notch"></span>
+  <div class="st__scr"><i></i><i></i><i></i><b>Submit</b></div>
+  <span class="phone__home"></span>
+</div>
+<span class="st__cap" style="left:1576px;top:182px">the real app</span>
+
+<!-- snippet: station-pull-lines -->
+<!-- THE DERIVATION IDIOM, and the only thing green edges mean: one line
+     from the MEASURED RIGHT EDGE of each semantic anchor to ITS OWN row in
+     the table. Three anchors, three lines, three rows — the pairing IS the
+     argument ("suy ngược từ UI"). A bundle of lines converging on a table
+     says nothing; a line per pair says which came from which.
+     THE ANCHORS ARE NOT NECESSARILY FORM FIELDS: any UI element that
+     visibly carries a data field will do — a KPI number, a row title, a
+     price pill, a "2h" timestamp. See process-webapp-templates.html →
+     template contract v2. Write each `d` from the measurement, never from
+     arithmetic; the sampler's numbers were rewritten three times as the
+     layout settled.
+     Lives in the overlay, so it is geometry only; both endpoints are HTML. -->
+<svg class="edges" viewBox="0 0 1798 430" aria-hidden="true">
+  <defs>
+    <marker id="arrow-deriv-b5" viewBox="0 0 10 10" refX="9.2" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#16a34a"/></marker>
+  </defs>
+  <path class="edge edge--pull" d="M392 160 C 570 160, 740 159, 890 159" marker-end="url(#arrow-deriv-b5)"/>
+  <path class="edge edge--pull" d="M392 209 C 570 209, 740 205, 890 205" marker-end="url(#arrow-deriv-b5)"/>
+  <path class="edge edge--pull" d="M392 258 C 570 258, 740 251, 890 251" marker-end="url(#arrow-deriv-b5)"/>
+  <!-- an annotation tie: "this station taps that bundle". No marker on
+       purpose — nothing travels along it. -->
+  <path class="edge edge--soft" d="M580 96 V 154"/>
+</svg>
+
+<!-- snippet: station-edge-labels -->
+<!-- Everything with WORDS on it is HTML at z-index 3, above both layers —
+     never an SVG <text>. .pill = a branch condition, .tag = a short aside
+     pointing at a station, .cap = a caption under a group, .packet = one
+     dot resting mid-path (implies flow in a STILL frame, no animation). -->
+<span class="tag" style="left:28px;top:118px;width:200px">you write <b>one page</b></span>
+<span class="pill" data-role="data" style="left:474px;top:164px">mock data</span>
+<span class="cap" style="left:270px;top:262px;width:560px">a station on the line, not a poster</span>
+<span class="packet" style="left:1395px;top:161px"></span>

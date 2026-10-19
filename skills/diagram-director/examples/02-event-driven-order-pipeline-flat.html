@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Event-driven order pipeline — flat-minimal</title>
+
+<!-- =====================================================================
+     Scenario 2 acceptance example — diagram-director skill.
+     Prompt (verbatim): "event-driven order pipeline with queue and workers"
+     Target: artifact (published Claude Artifact -- CSP-restricted).
+
+     Produced by: python3 scripts/search.py "<prompt>" --blueprint
+     --style flat-minimal --target artifact -f markdown, then copying
+     templates/base/flat-minimal.html and substituting content between its
+     markers per the blueprint spec (type=event-driven-pubsub,
+     layout=hub-spoke, style=flat-minimal, motion=pulse-glow only --
+     fanout-broadcast was in the type's Recommended Motion but is a
+     needs-js technique, correctly filtered out for --target artifact).
+
+     ARTIFACT SAFETY: zero external <script> tags and no CDN assets.
+     Google Fonts is the one external host the Artifact sandbox does
+     permit (fonts.googleapis.com stylesheets plus the fonts.gstatic.com
+     files they pull), so the Inter <link> below ships active; the
+     --font-title/--font-label stacks still render cleanly if it is blocked.
+
+     Structure kept byte-identical to the base template outside the
+     marked regions: :root tokens, role mapping, motion CSS, reduced-
+     motion block. Only the SVG content (nodes, edges, legend, viewBox,
+     copy) was replaced, to the hub-spoke layout's Spacing Rules: spoke
+     node 160x80 straight out of node-shapes.html with no re-computation,
+     spoke radius 360px (the rule's floor; 6 spokes at 60deg need only
+     100/sin(30deg) = 200px for clearance, but 360px is what leaves room
+     for a full edge label between hub and spoke), and a 200x100 hub --
+     the one sanctioned size exception, produced by the documented
+     scale-wrapper mechanism (uniform scale(1.25) on the node body only,
+     vector-effect="non-scaling-stroke" so the stroke stays 1.5px, labels
+     outside the wrapper at 1.25x their native y).
+
+     EDGE-ANCHOR AUDIT (scripts/verify_edge_anchors.py) -- geometry unchanged.
+     All six hub endpoints already sat on the SCALED hub border (620..820 x
+     410..510), confirmed by measuring the rendered box in a browser. The
+     checker had been reading the hub at its unscaled 160x80 because it never
+     looked past the group's translate() at the scale wrapper described above,
+     and reported three correct endpoints as floating; it now composes nested
+     <g transform> translate/scale, so the sanctioned resize mechanism is
+     visible to it. -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  /* ---- surface ------------------------------------------------------ */
+  --bg:#f8fafc;
+  --surface:#f8fafc;
+  --grid:color-mix(in srgb, #475569 10%, transparent);
+  --ink:#1e293b;
+  --muted:#475569;
+  --stroke:#475569;
+  --stroke-w:1.5px;
+  --radius:8px;
+
+  /* ---- typography ---------------------------------------------------
+     Inter via the Google Fonts <link> above (the one host an artifact
+     allows), with a system stack behind it if that request is blocked. */
+  --font-title:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-label:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --fs-title:1.375rem;
+  --fs-label:16px;
+  --fs-sub:13px;
+  --fs-edge:13px;
+
+  /* ---- roles: fill / stroke / accent / on-colour -------------------- */
+  /* values verbatim from data/color-semantics.csv (Style ID flat-minimal) */
+  --role-service:#ffedd5;  --ink-service:#ea580c;  --accent-service:#f97316;  --on-service:#9a3412;
+  --role-async:#f3e8ff;    --ink-async:#9333ea;    --accent-async:#a855f7;    --on-async:#6b21a8;
+  --role-error:#fee2e2;    --ink-error:#dc2626;    --accent-error:#ef4444;    --on-error:#991b1b;
+  --role-infra:#f1f5f9;    --ink-infra:#475569;    --accent-infra:#14b8a6;    --on-infra:#1e293b;
+
+  /* ---- motion (values from data/motion.csv, blueprint motion set: pulse-glow only) */
+  --dur-pulse:1600ms; --ease-pulse:ease-in-out; --stagger:200ms; --glow:8px;
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#1f2937;
+    --surface:#1f2937;
+    --grid:color-mix(in srgb, #94a3b8 12%, transparent);
+    --ink:#f1f5f9;
+    --muted:#94a3b8;
+    --stroke:#94a3b8;
+    --role-service:#9a3412;  --ink-service:#fb923c;  --accent-service:#fb923c;  --on-service:#ffedd5;
+    --role-async:#6b21a8;    --ink-async:#c084fc;    --accent-async:#c084fc;    --on-async:#f3e8ff;
+    --role-error:#991b1b;    --ink-error:#f87171;    --accent-error:#f87171;    --on-error:#fee2e2;
+    --role-infra:#1e293b;    --ink-infra:#94a3b8;    --accent-infra:#2dd4bf;    --on-infra:#f1f5f9;
+  }
+}
+
+/* ===== page ========================================================== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-label);
+     -webkit-text-size-adjust:100%}
+.diagram{max-width:1440px;margin:0 auto;padding:24px 16px 40px}
+.diagram__title{font-family:var(--font-title);font-size:var(--fs-title);font-weight:600;
+                letter-spacing:-.01em;margin:0 0 4px}
+.diagram__subtitle{margin:0 0 18px;color:var(--muted);font-size:.875rem;line-height:1.55}
+.diagram__canvas{display:block;width:100%;height:auto;background-color:var(--surface);
+                 background-image:radial-gradient(var(--grid) 1px,transparent 1px);
+                 background-size:20px 20px;border-radius:var(--radius)}
+.diagram__note{margin:16px 0 0;color:var(--muted);font-size:.8125rem;line-height:1.6;max-width:72ch}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+         clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ===== role mapping (the ONLY place a role becomes a colour) ========= */
+[data-role]{--fill:var(--role-service);--line:var(--ink-service);--accent:var(--accent-service);--on:var(--on-service)}
+[data-role="service"]{--fill:var(--role-service); --line:var(--ink-service); --accent:var(--accent-service); --on:var(--on-service)}
+[data-role="async"]  {--fill:var(--role-async);   --line:var(--ink-async);   --accent:var(--accent-async);   --on:var(--on-async)}
+[data-role="error"]  {--fill:var(--role-error);   --line:var(--ink-error);   --accent:var(--accent-error);   --on:var(--on-error)}
+[data-role="infra"]  {--fill:var(--role-infra);   --line:var(--ink-infra);   --accent:var(--accent-infra);   --on:var(--on-infra)}
+
+/* ===== nodes ========================================================= */
+.node{color:var(--line)}
+.node__body{transform-box:fill-box;transform-origin:center}
+.node__shape{fill:var(--fill);stroke:var(--line);stroke-width:var(--stroke-w);
+             stroke-linejoin:round;stroke-linecap:round}
+.node__detail{fill:none;stroke:var(--line);stroke-width:1;opacity:.65;stroke-linecap:round}
+.node__icon{fill:var(--line);stroke:none;opacity:.9}
+.node__label{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-label);
+             font-weight:600;text-anchor:middle}
+.node__sub{fill:var(--on);font-family:var(--font-label);font-size:var(--fs-sub);
+           text-anchor:middle;opacity:.85}
+.node--primary .node__shape{stroke-width:calc(var(--stroke-w) * 1.4)}
+
+/* ===== queue (static fill bar -- no motion assigned to this diagram,
+   the bar's fixed width itself carries the "typical depth" meaning) === */
+.queue__track{fill:var(--on);opacity:.16;stroke:none}
+.queue__fill{fill:var(--accent);stroke:none}
+.queue .node__detail{stroke:var(--fill);opacity:.9}
+
+/* ===== edges ========================================================= */
+.edge{fill:none;stroke:var(--stroke);stroke-width:var(--stroke-w);
+      stroke-linecap:round;stroke-linejoin:round}
+.edge--async{stroke:var(--ink-async);stroke-dasharray:9 6}   /* dash = at-least-once delivery, not colour alone */
+.edge--error{stroke:var(--ink-error);stroke-dasharray:13 5 4 5}
+.edge__label{fill:var(--muted);font-family:var(--font-label);font-size:var(--fs-edge);
+             text-anchor:middle}
+.marker{fill:var(--stroke);stroke:none}
+.marker--async{fill:var(--ink-async);stroke:none}
+.marker--error{fill:var(--ink-error);stroke:none}
+
+/* ===== motion: pulse-glow only (the blueprint's sole motion assignment,
+   applied to nodes per motion.csv#pulse-glow -- "this node is currently
+   active, healthy, and processing work"; no edge in this diagram
+   animates, so the motion budget is trivially satisfied) =============== */
+.anim-pulse-glow{
+  animation:pulse-glow var(--dur-pulse) var(--ease-pulse) infinite;
+  animation-delay:calc(var(--i,0) * var(--stagger));
+}
+@keyframes pulse-glow{
+  0%,100%{opacity:1;filter:drop-shadow(0 0 2px currentColor)}
+  50%{opacity:.72;filter:drop-shadow(0 0 var(--glow) currentColor)}
+}
+
+/* ===== reduced motion: render the INFORMATIVE END STATE ============== */
+@media (prefers-reduced-motion: reduce){
+  .anim-pulse-glow{
+    animation:none !important;opacity:1 !important;filter:drop-shadow(0 0 2px currentColor)}
+}
+
+/* ===== small screens ================================================= */
+@media (max-width:640px){
+  :root{--fs-title:1.125rem}
+  .diagram{padding:16px 12px 32px}
+  .legend{gap:8px 14px}
+}
+
+/* ===== legend ======================================================== */
+.legend{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0 0;padding:0}
+.legend__item{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);
+              min-height:24px}
+.legend__swatch{inline-size:16px;block-size:16px;border-radius:4px;flex:none;
+                background:var(--fill);border:2px solid var(--line)}
+.legend__label{line-height:1.4}
+</style>
+</head>
+
+<body>
+<main class="diagram">
+  <h1 class="diagram__title">Event-driven order pipeline</h1>
+  <p class="diagram__subtitle">flat-minimal style &middot; hub and spoke &middot; queue and workers
+    fan out from a central event bus</p>
+
+  <svg class="diagram__canvas" viewBox="240 68 960 784" role="img"
+       aria-labelledby="dgm-title dgm-desc">
+    <title id="dgm-title">Event-driven order pipeline</title>
+    <desc id="dgm-desc">A central event bus is the hub of this pipeline, drawn larger than the six
+      nodes ringed around it. The orders service, upper left, publishes order.placed events into the
+      bus (solid arrow). The bus then fans out with dashed at-least-once arrows to five subscribers:
+      an order-events topic upper right, a worker pool on the right that runs fulfillment jobs, a
+      webhook dispatcher lower right that pushes events to partner APIs, a metrics collector lower
+      left that scrapes pipeline telemetry, and, on the left, a dead letter queue that receives
+      messages which exhausted their retries (that one drawn in the error style). The bus and the
+      worker pool pulse to show they are actively processing; with reduced motion both render at a
+      fixed, steady glow instead.</desc>
+
+    <defs>
+      <!-- DEFS:START -->
+      <marker id="arrow" class="marker" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10 z" />
+      </marker>
+      <marker id="arrow-async" class="marker marker--async" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10 z" />
+      </marker>
+      <marker id="arrow-error" class="marker marker--error" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="strokeWidth">
+        <path d="M 0 0 L 10 5 L 0 10 z" />
+      </marker>
+      <!-- DEFS:END -->
+    </defs>
+
+    <g class="layer-groups"><!-- single hub, no sub-grouping: the 6 spokes are the only structure --></g>
+
+    <g class="layer-edges">
+      <!-- EDGES:START
+           Hub centre (720,460), hub box 620..820 x 410..510. Spokes sit at radius 360 on
+           angle = 360/6 * index, so consumers occupy the right arc and the publisher, the DLQ and
+           observability occupy the left arc. Each path runs from one box edge to the other, and each
+           label sits on the free side of its connector, clear of both boxes. -->
+      <!-- publish: orders-service (120deg spoke) -> event-bus (hub); solid, synchronous ack -->
+      <g class="edge-group">
+        <path class="edge" d="M 563 188 L 691 410" marker-end="url(#arrow)">
+          <title>orders-service publishes order.placed into the event bus</title></path>
+        <text class="edge__label" x="612" y="300" style="text-anchor:end">publish &middot; order.placed</text>
+      </g>
+
+      <!-- fanout: event-bus (hub) -> order-events topic (60deg spoke); dashed = at-least-once -->
+      <g class="edge-group">
+        <path class="edge edge--async" d="M 749 410 L 877 188" marker-end="url(#arrow-async)">
+          <title>event bus fans order.placed out to the order-events topic, at-least-once delivery</title></path>
+        <text class="edge__label" x="828" y="300" style="text-anchor:start">fanout &middot; at-least-once</text>
+      </g>
+
+      <!-- subscribe: event-bus (hub) -> worker pool (0deg spoke); dashed = at-least-once -->
+      <g class="edge-group">
+        <path class="edge edge--async" d="M 820 460 L 1000 460" marker-end="url(#arrow-async)">
+          <title>worker pool subscribes to the event bus, at-least-once delivery</title></path>
+        <text class="edge__label" x="910" y="446">subscribe &middot; at-least-once</text>
+      </g>
+
+      <!-- subscribe: event-bus (hub) -> webhook dispatcher (300deg spoke); dashed = at-least-once -->
+      <g class="edge-group">
+        <path class="edge edge--async" d="M 749 510 L 877 732" marker-end="url(#arrow-async)">
+          <title>webhook dispatcher subscribes to the event bus and pushes each event to partner
+            APIs, at-least-once delivery</title></path>
+        <text class="edge__label" x="828" y="620" style="text-anchor:start">push &middot; partner APIs</text>
+      </g>
+
+      <!-- subscribe: event-bus (hub) -> metrics collector (240deg spoke); dashed = at-least-once -->
+      <g class="edge-group">
+        <path class="edge edge--async" d="M 691 510 L 563 732" marker-end="url(#arrow-async)">
+          <title>metrics collector subscribes to the event bus and scrapes pipeline telemetry,
+            at-least-once delivery</title></path>
+        <text class="edge__label" x="612" y="620" style="text-anchor:end">scrape &middot; telemetry</text>
+      </g>
+
+      <!-- DLQ path: event-bus (hub) -> dead letter queue (180deg spoke); dashed + error styling.
+           The anti-pattern this satisfies: "forgetting the DLQ path for poison messages." -->
+      <g class="edge-group">
+        <path class="edge edge--error" d="M 620 460 L 440 460" marker-end="url(#arrow-error)">
+          <title>messages exceeding max delivery attempts are routed from the event bus to the dead letter queue</title></path>
+        <text class="edge__label" x="530" y="446">max retries exceeded</text>
+      </g>
+      <!-- EDGES:END -->
+    </g>
+
+    <g class="layer-nodes">
+      <!-- NODES:START — every spoke is a verbatim templates/snippets/node-shapes.html block at the
+           native 160x80: hub-spoke is specified against that same box, so nothing is re-computed.
+           The hub is the one sanctioned exception, at 200x100. -->
+
+      <!-- HUB: event-bus (shape-pipe, role async) — the single central node, deliberately larger
+           than its spokes. THE sanctioned size mechanism, per node-shapes.html's header: the
+           node__body (and only the body) is wrapped in a uniform scale(1.25) with
+           vector-effect="non-scaling-stroke" on every stroked child, so the 160x80 geometry becomes
+           200x100 while the stroke stays exactly 1.5px like every other node. The two <text>
+           labels stay outside the wrapper, hand-placed at 1.25x their native y (30 -> 37,
+           46 -> 57), so hub type stays on the style's type scale. -->
+      <g class="node node--primary anim-pulse-glow" data-role="async" style="--i:0"
+         transform="translate(620,410)">
+        <title>event-bus — central message broker; publish target and fanout source for this pipeline</title>
+        <g class="node__body">
+          <g transform="scale(1.25)">
+            <rect class="node__shape" vector-effect="non-scaling-stroke"
+                  x="0" y="0" width="160" height="80" rx="6" ry="6" />
+            <g class="queue">
+              <rect class="queue__track" vector-effect="non-scaling-stroke"
+                    x="12" y="52" width="136" height="14" rx="4" ry="4" />
+              <rect class="queue__fill" vector-effect="non-scaling-stroke"
+                    x="12" y="52" width="82" height="14" rx="4" ry="4" />
+              <path class="node__detail" vector-effect="non-scaling-stroke"
+                    d="M 46 52 V 66 M 80 52 V 66 M 114 52 V 66" />
+            </g>
+          </g>
+        </g>
+        <text class="node__label" x="100" y="37">Event Bus</text>
+        <text class="node__sub" x="100" y="57">EventBridge &middot; ~450 events/sec</text>
+      </g>
+
+      <!-- SPOKE 120deg: microservice (shape-rounded-rect, role service) — the publisher -->
+      <g class="node" data-role="service" transform="translate(460,108)">
+        <title>orders-service — publishes an order.placed event after checkout completes</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+        </g>
+        <text class="node__label" x="80" y="42">Orders Service</text>
+        <text class="node__sub" x="80" y="60">publishes order.placed</text>
+      </g>
+
+      <!-- SPOKE 60deg: pubsub-topic (shape-pipe, role async) — named topic downstream of the bus -->
+      <g class="node" data-role="async" transform="translate(820,108)">
+        <title>order-events topic — the named topic within the bus that this pipeline uses</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6" />
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="136" height="14" rx="4" ry="4" />
+            <rect class="queue__fill" x="12" y="52" width="95" height="14" rx="4" ry="4" />
+            <path class="node__detail" d="M 46 52 V 66 M 80 52 V 66 M 114 52 V 66" />
+          </g>
+        </g>
+        <text class="node__label" x="80" y="30">Kafka Topic</text>
+        <text class="node__sub" x="80" y="46">order.placed</text>
+      </g>
+
+      <!-- SPOKE 0deg: worker (shape-gear, role service) — consumer pool -->
+      <g class="node anim-pulse-glow" data-role="service" style="--i:1" transform="translate(1000,420)">
+        <title>worker pool — consumes order.placed and runs fulfillment jobs</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+          <g class="node__icon">
+            <circle class="node__detail" cx="136" cy="20" r="9" />
+            <circle class="node__detail" cx="136" cy="20" r="3.5" />
+            <path class="node__detail" d="M 136 8 V 4 M 136 36 V 32 M 124 20 H 120 M 152 20 H 148
+                                          M 127.5 11.5 L 124.7 8.7 M 144.5 28.5 L 147.3 31.3
+                                          M 144.5 11.5 L 147.3 8.7 M 127.5 28.5 L 124.7 31.3" />
+          </g>
+        </g>
+        <text class="node__label" x="80" y="50">Worker Pool</text>
+        <text class="node__sub" x="80" y="68">order fulfillment</text>
+      </g>
+
+      <!-- SPOKE 300deg: webhook-dispatcher (shape-pipe, role async) — second consumer, pushes
+           each event on to partner APIs; without it a "fanout" would have a single subscriber -->
+      <g class="node" data-role="async" transform="translate(820,732)">
+        <title>webhook dispatcher — delivers each order.placed event outbound to partner APIs</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6" />
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="136" height="14" rx="4" ry="4" />
+            <rect class="queue__fill" x="12" y="52" width="54" height="14" rx="4" ry="4" />
+            <path class="node__detail" d="M 46 52 V 66 M 80 52 V 66 M 114 52 V 66" />
+          </g>
+        </g>
+        <text class="node__label" x="80" y="30">Webhooks</text>
+        <text class="node__sub" x="80" y="46">partner-api &middot; 99.4%</text>
+      </g>
+
+      <!-- SPOKE 240deg: metrics-collector (shape-gauge, role infra) — observability subscriber -->
+      <g class="node" data-role="infra" transform="translate(460,732)">
+        <title>metrics collector — subscribes to the bus and scrapes pipeline telemetry</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="8" ry="8" />
+          <g class="node__icon">
+            <path class="node__detail" d="M 120 28 A 16 16 0 0 1 152 28" />
+            <path class="node__detail" d="M 136 28 L 146 18" />
+          </g>
+        </g>
+        <text class="node__label" x="80" y="52">Metrics</text>
+        <text class="node__sub" x="80" y="70">Prometheus &middot; lag</text>
+      </g>
+
+      <!-- SPOKE 180deg: dead-letter-queue (shape-pipe, role error) — poison-message sink -->
+      <g class="node" data-role="error" transform="translate(280,420)">
+        <title>dead letter queue — holds order.placed messages that exceeded max delivery attempts</title>
+        <g class="node__body">
+          <rect class="node__shape" x="0" y="0" width="160" height="80" rx="6" ry="6" />
+          <g class="queue">
+            <rect class="queue__track" x="12" y="52" width="136" height="14" rx="4" ry="4" />
+            <rect class="queue__fill" x="12" y="52" width="14" height="14" rx="4" ry="4" />
+            <path class="node__detail" d="M 46 52 V 66 M 80 52 V 66 M 114 52 V 66" />
+          </g>
+        </g>
+        <text class="node__label" x="80" y="30">DLQ</text>
+        <text class="node__sub" x="80" y="46">order-events</text>
+      </g>
+      <!-- NODES:END -->
+    </g>
+  </svg>
+
+  <!-- LEGEND:START — only the four roles actually present in this diagram -->
+  <ul class="legend">
+    <li class="legend__item"><span class="legend__swatch" data-role="async"></span>
+      <span class="legend__label">async — bus, topic, or dispatcher (dashed edges = at-least-once)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="service"></span>
+      <span class="legend__label">service — publisher or consumer we run</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="infra"></span>
+      <span class="legend__label">infra — observability (metrics collector)</span></li>
+    <li class="legend__item"><span class="legend__swatch" data-role="error"></span>
+      <span class="legend__label">error — dead letter queue (long-short dash)</span></li>
+  </ul>
+  <!-- LEGEND:END -->
+
+  <p class="diagram__note">Reading the motion: the event bus and the worker pool pulse because they
+    are the two nodes actively processing work; everything else is passive infrastructure. Every edge
+    fans out from the single hub — there is no direct line between any two spokes, and no fanout ever
+    skips the dead-letter-queue path for messages that exceed their retry budget. The hub is drawn
+    one size larger than its spokes on purpose: size marks the subject, it is not decoration. With
+    <em>reduced motion</em> enabled both pulsing nodes render at a fixed, steady glow instead of
+    animating — nothing here depends on animation to be understood.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,922 @@
+{
+  "manifest": 1,
+  "target": {
+    "file": "progressive-500k-5tier.html",
+    "title": "0 to 500K CCU — five architectures, five break points",
+    "type": "scaling-story",
+    "layout": "progressive-tiers",
+    "style": "flat-minimal",
+    "palette": "house",
+    "register": "educational",
+    "viewbox": [
+      0,
+      0,
+      1920,
+      1080
+    ],
+    "master_ms": 48000,
+    "beat_ms": 4800
+  },
+  "features": [
+    "beats",
+    "acts",
+    "recap",
+    "act-titles",
+    "staged-states",
+    "spotlight",
+    "captions",
+    "payload-glyphs",
+    "state-chips",
+    "replica-stack",
+    "legend",
+    "multi-pane",
+    "reduced-motion-mode",
+    "node-identity",
+    "act-delta"
+  ],
+  "holds": [
+    {
+      "id": "intro",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        960.0,
+        540.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1920.0,
+        1080.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        0.0,
+        3.3333
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "a1",
+      "kind": "camera",
+      "k": 1.4388,
+      "tx": -364,
+      "ty": -115,
+      "center": [
+        920.0,
+        455.5
+      ],
+      "bbox": [
+        350.0,
+        108.0,
+        1140.0,
+        695.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        5.0,
+        13.75
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "a2",
+      "kind": "camera",
+      "k": 1.4388,
+      "tx": -364,
+      "ty": -115,
+      "center": [
+        920.0,
+        455.5
+      ],
+      "bbox": [
+        350.0,
+        108.0,
+        1140.0,
+        695.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        15.0,
+        23.75
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "a3a",
+      "kind": "camera",
+      "k": 1.3431,
+      "tx": -430,
+      "ty": -72,
+      "center": [
+        1035.0,
+        455.5
+      ],
+      "bbox": [
+        350.0,
+        108.0,
+        1370.0,
+        695.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        25.0,
+        34.1667
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "a3b",
+      "kind": "camera",
+      "k": 1.3431,
+      "tx": -430,
+      "ty": -72,
+      "center": [
+        1035.0,
+        455.5
+      ],
+      "bbox": [
+        350.0,
+        108.0,
+        1370.0,
+        695.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        35.0,
+        39.1667
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "a3-anchor",
+      "kind": "camera",
+      "k": 1.3431,
+      "tx": -430,
+      "ty": -72,
+      "center": [
+        1034.9192,
+        455.6623
+      ],
+      "bbox": [
+        1330.0,
+        500.0,
+        160.0,
+        80.0
+      ],
+      "fs_min": 18.0,
+      "p_min": 24.0,
+      "window": [
+        39.1667,
+        40.4067
+      ],
+      "gate": "read",
+      "anchor": "postgres",
+      "fs_min_source": ".node__label of postgres -- the anchor's own name is the essential text of an anchor hold"
+    },
+    {
+      "id": "a4a",
+      "kind": "camera",
+      "k": 1.3431,
+      "tx": -430,
+      "ty": -72,
+      "center": [
+        1035.0,
+        455.5
+      ],
+      "bbox": [
+        350.0,
+        108.0,
+        1370.0,
+        695.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        41.6667,
+        48.75
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "a4b",
+      "kind": "camera",
+      "k": 1.3431,
+      "tx": -430,
+      "ty": -72,
+      "center": [
+        1035.0,
+        455.5
+      ],
+      "bbox": [
+        350.0,
+        108.0,
+        1370.0,
+        695.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        49.1667,
+        55.4167
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "a5a",
+      "kind": "camera",
+      "k": 1.8083,
+      "tx": -984,
+      "ty": -412,
+      "center": [
+        1075.0,
+        526.5
+      ],
+      "bbox": [
+        660.0,
+        250.0,
+        830.0,
+        553.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        56.6667,
+        65.8333
+      ],
+      "gate": "read"
+    },
+    {
+      "id": "a5b",
+      "kind": "camera",
+      "k": 1.3431,
+      "tx": -430,
+      "ty": -72,
+      "center": [
+        1035.0,
+        455.5
+      ],
+      "bbox": [
+        350.0,
+        108.0,
+        1370.0,
+        695.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        67.0833,
+        73.75
+      ],
+      "gate": "territory"
+    },
+    {
+      "id": "r1",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        960.0,
+        540.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1920.0,
+        1080.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        75.0,
+        80.0
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "r2",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        960.0,
+        540.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1920.0,
+        1080.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        80.0,
+        85.0
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "r3",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        960.0,
+        540.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1920.0,
+        1080.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        85.0,
+        90.0
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "r4",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        960.0,
+        540.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1920.0,
+        1080.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        90.0,
+        95.0
+      ],
+      "gate": "overview"
+    },
+    {
+      "id": "r5",
+      "kind": "camera",
+      "k": 1.0,
+      "tx": 0,
+      "ty": 0,
+      "center": [
+        960.0,
+        540.0
+      ],
+      "bbox": [
+        0.0,
+        0.0,
+        1920.0,
+        1080.0
+      ],
+      "fs_min": 15.0,
+      "p_min": 24.0,
+      "window": [
+        95.0,
+        100.0
+      ],
+      "gate": "overview"
+    },
+    {
+      "element": ".layer-chrome",
+      "kind": "traffic",
+      "keyframe": "chrome-fade",
+      "windows": [
+        [
+          0.0,
+          3.3333
+        ],
+        [
+          75.0,
+          100.0
+        ]
+      ],
+      "source": "styles:flat-minimal"
+    },
+    {
+      "element": ".act-1",
+      "kind": "act",
+      "keyframe": "act1",
+      "windows": [
+        [
+          5.0,
+          15.0
+        ],
+        [
+          75.0,
+          80.0
+        ]
+      ],
+      "source": "layouts:progressive-tiers"
+    },
+    {
+      "element": ".act-2",
+      "kind": "act",
+      "keyframe": "act2",
+      "windows": [
+        [
+          15.0,
+          25.0
+        ],
+        [
+          80.0,
+          85.0
+        ]
+      ],
+      "source": "layouts:progressive-tiers"
+    },
+    {
+      "element": ".act-3",
+      "kind": "act",
+      "keyframe": "act3",
+      "windows": [
+        [
+          25.0,
+          41.6667
+        ],
+        [
+          85.0,
+          90.0
+        ]
+      ],
+      "source": "layouts:progressive-tiers"
+    },
+    {
+      "element": ".act-4",
+      "kind": "act",
+      "keyframe": "act4",
+      "windows": [
+        [
+          41.6667,
+          56.6667
+        ],
+        [
+          90.0,
+          95.0
+        ]
+      ],
+      "source": "layouts:progressive-tiers"
+    },
+    {
+      "element": ".act-5",
+      "kind": "act",
+      "keyframe": "act5",
+      "windows": [
+        [
+          56.6667,
+          75.0
+        ],
+        [
+          95.0,
+          100.0
+        ]
+      ],
+      "source": "layouts:progressive-tiers"
+    },
+    {
+      "element": ".stage-a1",
+      "kind": "state",
+      "keyframe": "stg-a1",
+      "windows": [
+        [
+          8.5833,
+          15.0
+        ],
+        [
+          75.0,
+          80.0
+        ]
+      ],
+      "source": "states:is-overloaded"
+    },
+    {
+      "element": ".stage-a2",
+      "kind": "state",
+      "keyframe": "stg-a2",
+      "windows": [
+        [
+          18.5833,
+          25.0
+        ],
+        [
+          80.0,
+          85.0
+        ]
+      ],
+      "source": "states:is-overloaded"
+    },
+    {
+      "element": ".stage-a3",
+      "kind": "state",
+      "keyframe": "stg-a3",
+      "windows": [
+        [
+          29.1667,
+          41.6667
+        ],
+        [
+          85.0,
+          90.0
+        ]
+      ],
+      "source": "states:is-syncing"
+    },
+    {
+      "element": ".stage-a4",
+      "kind": "state",
+      "keyframe": "stg-a4",
+      "windows": [
+        [
+          50.4167,
+          56.6667
+        ],
+        [
+          90.0,
+          95.0
+        ]
+      ],
+      "source": "states:is-degraded"
+    },
+    {
+      "element": ".stage-a5",
+      "kind": "state",
+      "keyframe": "stg-a5",
+      "windows": [
+        [
+          59.1667,
+          75.0
+        ],
+        [
+          95.0,
+          100.0
+        ]
+      ],
+      "source": "states:is-selected"
+    },
+    {
+      "element": ".focus-a1",
+      "kind": "spotlight",
+      "keyframe": "focus-a1",
+      "windows": [
+        [
+          8.5833,
+          13.75
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-a2",
+      "kind": "spotlight",
+      "keyframe": "focus-a2",
+      "windows": [
+        [
+          18.5833,
+          23.75
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-a3a",
+      "kind": "spotlight",
+      "keyframe": "focus-a3a",
+      "windows": [
+        [
+          29.0,
+          34.1667
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-a3b",
+      "kind": "spotlight",
+      "keyframe": "focus-a3b",
+      "windows": [
+        [
+          36.5,
+          40.4167
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-a4a",
+      "kind": "spotlight",
+      "keyframe": "focus-a4a",
+      "windows": [
+        [
+          45.6667,
+          49.1667
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-a4b",
+      "kind": "spotlight",
+      "keyframe": "focus-a4b",
+      "windows": [
+        [
+          51.9167,
+          55.4167
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-a5a",
+      "kind": "spotlight",
+      "keyframe": "focus-a5a",
+      "windows": [
+        [
+          60.6667,
+          65.8333
+        ]
+      ],
+      "source": "motion:camera-beat"
+    },
+    {
+      "element": ".focus-a5b",
+      "kind": "spotlight",
+      "keyframe": "focus-a5b",
+      "windows": [
+        [
+          69.0,
+          73.75
+        ]
+      ],
+      "source": "motion:camera-beat"
+    }
+  ],
+  "captions": [
+    {
+      "element": ".cap-a1",
+      "text": "One box takes every request; ten reads per write share one 100-connection pool.",
+      "window": [
+        7.0833,
+        13.75
+      ]
+    },
+    {
+      "element": ".cap-a2",
+      "text": "Six replicas and a 90% cache clear the pool; half the primary's work is reads.",
+      "window": [
+        17.0833,
+        23.75
+      ]
+    },
+    {
+      "element": ".cap-a3a",
+      "text": "Reads leave the primary: CDN first, then cache, then three read replicas.",
+      "window": [
+        27.5,
+        34.1667
+      ]
+    },
+    {
+      "element": ".cap-a3b",
+      "text": "Slow work leaves too — one queue, four workers, one job each.",
+      "window": [
+        35.0,
+        40.4167
+      ]
+    },
+    {
+      "element": ".cap-a4a",
+      "text": "One gateway routes to three services; each owns its own store.",
+      "window": [
+        44.1667,
+        49.1667
+      ]
+    },
+    {
+      "element": ".cap-a4b",
+      "text": "They publish instead of calling — but writes still hit one primary.",
+      "window": [
+        50.4167,
+        55.4167
+      ]
+    },
+    {
+      "element": ".cap-a5a",
+      "text": "hash(shard key) picks the owner: this write is 7c, so only shard 2 sees it.",
+      "window": [
+        59.1667,
+        65.8333
+      ]
+    },
+    {
+      "element": ".cap-a5b",
+      "text": "Three primaries, about 1K writes each per second; replicas still serve catalog reads.",
+      "window": [
+        67.5,
+        73.75
+      ]
+    },
+    {
+      "element": ".cap-r",
+      "text": "One system, five architectures — and one boundary was coupling, not load.",
+      "window": [
+        76.25,
+        84.1667
+      ]
+    }
+  ],
+  "glyphs": [
+    "request",
+    "event",
+    "binary-stream"
+  ],
+  "sources": {
+    "types": [
+      "scaling-story"
+    ],
+    "layouts": [
+      "progressive-tiers"
+    ],
+    "styles": [
+      "flat-minimal"
+    ],
+    "components": [
+      "browser",
+      "monolith",
+      "sql-database",
+      "load-balancer",
+      "cache",
+      "cdn",
+      "microservice",
+      "message-queue",
+      "worker",
+      "read-replica",
+      "pubsub-topic",
+      "api-gateway",
+      "shard-router",
+      "db-shard"
+    ],
+    "states": [
+      "is-overloaded",
+      "is-degraded",
+      "is-syncing",
+      "is-selected"
+    ],
+    "motion": [
+      "dash-flow",
+      "packet-travel",
+      "queue-fill",
+      "camera-beat",
+      "state-timeline",
+      "shake-stress",
+      "replication-sync"
+    ],
+    "payloads": [
+      "request",
+      "event",
+      "binary-stream"
+    ]
+  },
+  "acts": [
+    {
+      "act": 1,
+      "window": [
+        5.0,
+        15.0
+      ],
+      "delta": {
+        "added": [
+          "users",
+          "app-monolith",
+          "postgres"
+        ],
+        "removed": [],
+        "changed": []
+      },
+      "captionAliases": {
+        "app-monolith": "One box"
+      }
+    },
+    {
+      "act": 2,
+      "window": [
+        15.0,
+        25.0
+      ],
+      "delta": {
+        "added": [
+          "alb",
+          "app",
+          "redis"
+        ],
+        "removed": [
+          "app-monolith"
+        ],
+        "changed": []
+      },
+      "ghostOf": [
+        "app-monolith"
+      ],
+      "captionAliases": {
+        "app": "Six replicas",
+        "redis": "cache"
+      }
+    },
+    {
+      "act": 3,
+      "window": [
+        25.0,
+        41.6667
+      ],
+      "delta": {
+        "added": [
+          "cdn",
+          "read-replicas",
+          "workers",
+          "queue"
+        ],
+        "removed": [],
+        "changed": []
+      }
+    },
+    {
+      "act": 4,
+      "window": [
+        41.6667,
+        56.6667
+      ],
+      "delta": {
+        "added": [
+          "api-gateway",
+          "auth-svc",
+          "auth-db",
+          "catalog-svc",
+          "order-svc",
+          "pubsub-stream"
+        ],
+        "removed": [
+          "alb",
+          "app"
+        ],
+        "changed": [
+          {
+            "id": "redis",
+            "what": "moved"
+          }
+        ]
+      },
+      "ghostOf": [
+        "alb",
+        "app"
+      ],
+      "captionAliases": {
+        "api-gateway": "gateway"
+      }
+    },
+    {
+      "act": 5,
+      "window": [
+        56.6667,
+        75.0
+      ],
+      "delta": {
+        "added": [
+          "shard-router",
+          "pg-shard-1",
+          "pg-shard-2",
+          "pg-shard-3"
+        ],
+        "removed": [
+          "postgres"
+        ],
+        "changed": []
+      },
+      "ghostOf": [
+        "postgres"
+      ],
+      "captionAliases": {
+        "shard-router": "hash(shard key)",
+        "pg-shard-2": "shard 2"
+      }
+    }
+  ]
+}
