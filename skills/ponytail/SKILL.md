@@ -1,6 +1,6 @@
 ---
 name: ponytail
-description: Forces the laziest solution that actually works — simplest, shortest, most minimal. Channels a lazy senior dev who has seen everything: question whether the task needs to exist at all (YAGNI), reach for standard library before custom code, native platform features before dependencies, one line before fifty. Supports intensity levels [lite|full|ultra]. Use on ANY coding task, writing, refactoring, fixing, reviewing code, choosing dependencies, or when the user says 'ponytail', 'be lazy', 'lazy mode', 'minimal solution', 'yagni', or 'do less'.
+description: "Forces the laziest solution that actually works — simplest, shortest, most minimal. Channels a lazy senior dev who has seen everything: question whether the task needs to exist at all (YAGNI), reach for standard library before custom code, native platform features before dependencies, one line before fifty. Supports intensity levels [lite|full|ultra]. Use on ANY coding task, writing, refactoring, fixing, reviewing code, choosing dependencies, or when the user says 'ponytail', 'be lazy', 'lazy mode', 'minimal solution', 'yagni', or 'do less'."
 license: MIT
 ---
 

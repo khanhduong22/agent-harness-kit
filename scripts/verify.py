@@ -83,7 +83,19 @@ def frontmatter(skill_file: Path) -> dict[str, str]:
     for line in lines[1:end]:
         match = re.match(r"^([A-Za-z0-9_-]+):\s*(.*?)\s*$", line)
         if match:
-            values[match.group(1)] = match.group(2).strip("'\"")
+            raw_val = match.group(2)
+            if (
+                raw_val
+                and not (
+                    (raw_val.startswith('"') and raw_val.endswith('"'))
+                    or (raw_val.startswith("'") and raw_val.endswith("'"))
+                )
+                and ": " in raw_val
+            ):
+                raise ValueError(
+                    f"unquoted YAML value for '{match.group(1)}' contains ': ' which breaks YAML parsers; wrap in quotes"
+                )
+            values[match.group(1)] = raw_val.strip("'\"")
     return values
 
 
