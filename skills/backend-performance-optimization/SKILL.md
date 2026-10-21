@@ -512,3 +512,61 @@ In TimescaleDB hypertables partitioned by a `timestamptz` column (e.g. `price_ti
   3. **Short-Circuit Background Alert Jobs by Checking Subscribers & Cooldowns First**:
      Fetch subscribers and filter by `alert_cooldown` **before** touching `price_ticks` or `daily_ohlc`. If `cooldownOkSubs.length === 0`, return immediately with `0` hypertable queries.
 
+### 8.12. Pure Native PostgreSQL Time-Series Bucketing (`date_bin`), Window-Partitioned Batching (`ANY($1)`), and Deduplicated Bulk Upserts
+When migrating time-series workloads off proprietary extensions (TimescaleDB `time_bucket`, `last`, `first`) onto pure Native PostgreSQL 16–19 or eliminating N+1 multi-symbol history waterfalls:
+- **Problem A (Proprietary Extension Lock-In & SSR Crash Risk)**:
+  Queries relying on `time_bucket('1 day', created_at)` and `last(price, created_at)` fail immediately on standard PostgreSQL instances (`ERROR: function time_bucket(unknown, timestamp with time zone) does not exist`), and unguarded history queries crash Next.js Server Component rendering.
+- **Problem B (N+1 Multi-Symbol Time-Series Waterfalls)**:
+  Calling `await Promise.all(slugs.map((slug) => getPriceHistory(slug, 365)))` for 7–20 commodities/currencies executes N separate CAGG + tail `UNION ALL` queries per SSR render, saturating the connection pool (`max: 10`).
+- **Problem C (Sequential Upsert Loops & Duplicate-Row Conflict Crashes)**:
+  Executing `for (const row of rows) await sql\`INSERT ... ON CONFLICT DO UPDATE\`` performs N sequential network round-trips, whereas passing an un-deduplicated array directly to a bulk `INSERT ... ON CONFLICT DO UPDATE` crashes with `ERROR: ON CONFLICT DO UPDATE command cannot affect row a second time` if the scraper input contains duplicate conflict keys.
+- **Implementation Standard**:
+  1. **Native `date_bin` + Ordered `array_agg` Replacement**:
+     Replace `time_bucket('1 day', created_at)` and `last(price, created_at)` with standard SQL:
+     ```sql
+     SELECT
+       date_bin('1 day', created_at, TIMESTAMPTZ '2000-01-01 00:00:00+00') AS bucket,
+       (array_agg(price ORDER BY created_at DESC))[1] AS close
+     FROM price_ticks
+     WHERE symbol = $1 AND created_at > NOW() - INTERVAL '2 days'
+     GROUP BY bucket
+     ```
+  2. **Single-Query Window-Partitioned Batch History (`WHERE symbol = ANY($1)`)**:
+     Coalesce N symbol history reads into 1 query using `ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY bucket DESC)` to cap `limit` rows per symbol in a single database round-trip:
+     ```typescript
+     const rows = await sql`
+       SELECT symbol, bucket AS scraped_at, close AS price
+       FROM (
+         SELECT symbol, bucket, close,
+           ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY bucket DESC) AS rn_limit
+         FROM (
+           SELECT symbol, bucket, close,
+             ROW_NUMBER() OVER (PARTITION BY symbol, bucket ORDER BY bucket) AS rn
+           FROM (
+             SELECT symbol, bucket, close FROM ohlc_1d WHERE symbol = ANY(${symbols})
+             UNION ALL
+             SELECT symbol,
+               date_bin('1 day', created_at, TIMESTAMPTZ '2000-01-01 00:00:00+00') AS bucket,
+               (array_agg(price ORDER BY created_at DESC))[1] AS close
+             FROM price_ticks
+             WHERE symbol = ANY(${symbols}) AND created_at > NOW() - INTERVAL '2 days'
+             GROUP BY symbol, bucket
+           ) combined
+         ) deduped WHERE rn = 1
+       ) ranked
+       WHERE rn_limit <= ${limit}
+       ORDER BY symbol ASC, bucket ASC
+     `.catch(() => []);
+     ```
+  3. **In-Memory Conflict-Key Deduplication Before Single Bulk `ON CONFLICT DO UPDATE`**:
+     Always deduplicate batch arrays by their composite unique key (`Map`) before executing a single bulk `INSERT ${sql(rows)} ON CONFLICT (...) DO UPDATE`:
+     ```typescript
+     const deduped = [...new Map(rates.map((r) => [`${r.bank_code}__${r.type}__${r.date}`, r])).values()];
+     await sql`
+       INSERT INTO bank_interest_rates ${sql(deduped)}
+       ON CONFLICT (bank_code, type, date) DO UPDATE SET
+         term_12m = EXCLUDED.term_12m, created_at = NOW()
+     `;
+     ```
+
+

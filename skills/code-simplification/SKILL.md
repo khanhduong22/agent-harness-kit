@@ -304,7 +304,8 @@ Every `/op-goal` and refactoring pass must enforce strict file-size ceilings to 
 | :--- | :--- | :--- |
 | **UI Components** (`.tsx`) | **`<= 350 lines`** | Extract sub-components, dynamic modals/drawers (`next/dynamic` / `React.lazy`), pure formatting helpers, and custom state/effect hooks (`use<Feature>.ts`). |
 | **State Stores** (Zustand / Redux) | **`<= 300 lines`** (root file) | Extract `types.ts`, pure `calculations.ts`, `storage.ts` adapters, and cohesive domain action creators (`actions/profileActions.ts`, `actions/missionActions.ts`, etc.). |
-| **Backend Services** (NestJS / Express) | **`<= 400 lines`** | Extract domain repositories/query builders, pure DTO mappers, and specialized domain sub-services while keeping the facade service lean. |
+| **Backend Services** (NestJS / Express / Fastify) | **`<= 400 lines`** | Extract domain repositories/query builders, pure DTO mappers, and specialized domain sub-services while keeping the facade service lean. |
+| **Database Repositories** (`*.repo.ts`) | **`<= 250 lines`** | Split monolithic `db.ts` God-files by bounded domain (`client.ts`, `ohlc.repo.ts`, `commodities.repo.ts`, `banking.repo.ts`, etc.) inside `@<scope>/shared/db` with thin app-level barrel re-exports. |
 
 ### 2. Canonical Zustand / Service Slice Decomposition Pattern
 
@@ -386,6 +387,16 @@ export function useAuthActions() {
   return { login, logout };
 }
 ```
+
+### 4. Cross-App Monorepo Database God-File Decomposition Pattern (`< 250 Lines` per Repo)
+
+When a monorepo duplicates a 1,000+ line database module across multiple apps (e.g., `apps/web/lib/db.ts` for Next.js RSC and `apps/api/src/db/db.ts` for a Fastify/BullMQ worker):
+1. **Extract Cohesive Domain Repositories (`<= 250 lines` each) into `@<scope>/shared/db`**:
+   Partition queries by domain (`types.ts`, `client.ts`, `ohlc.repo.ts`, `commodities.repo.ts`, `fx-gold.repo.ts`, `banking.repo.ts`, `portfolio-push.repo.ts`, `news-realestate.repo.ts`, `index.ts`).
+2. **Decouple App-Specific Side Effects via Listener Hooks**:
+   If one app triggers side effects on writes (e.g., `apps/api` broadcasting real-time SSE ticks via `publishTickerTick` on `insertPriceTick`), expose a lightweight registration hook (`export function setTickListener(fn)`) in the shared repository and wire it inside `apps/api/src/db/db.ts`.
+3. **Preserve Thin App-Level Barrels (`< 50 lines`)**:
+   Keep `apps/web/lib/db.ts` and `apps/api/src/db/db.ts` as thin barrels re-exporting from `@<scope>/shared/db` so 100% of existing route and component callers remain unbroken.
 
 ## Common Rationalizations
 
