@@ -431,6 +431,8 @@ In SSR dashboards (Next.js App Router Server Components) backed by remote Postgr
   In an in-memory Singleflight + Stale-While-Revalidate (SWR) cache (`singleflight.execute(key, fn, ttlMs, staleTtlMs)`), when a request arrives in the stale window (`now >= entry.expiresAt && now < entry.staleUntil`), calling `this._revalidate(key, fn, ttlMs, staleTtlMs)` synchronously inside the Server Component's execution context can cause Next.js's async context tracking to wait for the spawned promise before closing the HTTP response stream — resulting in a `1.2s–2.3s` TTFB spike whenever the cache is stale.
 - **Problem B (DB Connection Pool Idle Drop + Cold Cache Expiry)**:
   If PostgreSQL client `idle_timeout` is short (`30s`) and cache `ttlMs` is `60s`, 60 seconds of quiet traffic causes all pooled TCP connections to close **and** the L1 cache entry to expire simultaneously. The next visitor pays the full TCP/TLS handshake + multi-query penalty.
+- **Problem C (Recursive Singleflight Self-Deadlock on Identical Keys)**:
+  If an outer route handler or background cache warmer calls `singleflight.execute('tab:gold:v1', () => GoldTab())` while `GoldTab()` itself internally calls `singleflight.execute('tab:gold:v1', () => fetchGoldData())` with the **exact same key**, the inner `execute()` sees `this.inFlight.has('tab:gold:v1') === true` and awaits the outer Promise — which is awaiting the inner `GoldTab()` call — creating an unresolvable circular Promise deadlock where the SSR request hangs forever (`0 bytes` returned until gateway timeout).
 - **Implementation Standard**:
   1. **Detach SWR Revalidation from the Request Context**: Schedule background revalidation on the macrotask queue via `setTimeout(..., 0)` so the current Server Component returns `entry.value` in `<0.1ms` without attaching the DB promise to the active request span:
      ```javascript
@@ -456,6 +458,7 @@ In SSR dashboards (Next.js App Router Server Components) backed by remote Postgr
        }
      }
      ```
+  3. **Non-Reentrant Singleflight Key Discipline**: Never wrap a function or Server Component in `singleflight.execute(key, ...)` using the same `key` that the inner function already passes to `singleflight.execute`. Either call the self-cached inner function directly from the warmer (`await GoldTab()`) or use distinct layer prefixes (`route:gold:v1` vs `data:gold:v1`).
   - Guarantees `now < entry.expiresAt` is permanently true (`100%` L1 RAM hit rate) and keeps DB sockets warm, delivering consistent `<10ms` server compute time and `<100ms` end-to-end TTFB even after hours of zero visitor traffic.
 
 ### 8.11. TimescaleDB Compressed Hypertable Chunk Exclusion & High-Frequency Cron Short-Circuiting
