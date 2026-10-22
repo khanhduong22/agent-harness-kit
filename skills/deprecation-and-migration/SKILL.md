@@ -189,6 +189,18 @@ Each step is independently deployable and reversible: if step 4 misbehaves, roll
 - **Build large indexes without blocking writes** (e.g. Postgres `CREATE INDEX CONCURRENTLY`).
 - **Decouple from code by feature flag** when the cutover is risky, exactly as in the Feature Flag Migration pattern above.
 
+### Full-Repo JS/JSX to TypeScript (`.ts`/`.tsx`) Migration Guardrails
+
+When migrating a JavaScript monorepo (`.js`/`.jsx`) to TypeScript (`.ts`/`.tsx`):
+
+1. **Tailwind CSS Content Glob Trap (`tailwind.config.{js,cjs,ts}`)**:
+   - **Failure Mode**: Renaming `.js`/`.jsx` files to `.ts`/`.tsx` while leaving `content: ['./app/**/*.{js,jsx}', './components/**/*.{js,jsx}']` in `tailwind.config.*` causes Tailwind's JIT scanner to match zero files. `next build` succeeds with `0` errors, but the compiled CSS bundle drops from `~70 KB` to `~6 KB` (base reset only), stripping 100% of layout/utility classes (`flex`, `grid`, `hidden`, custom colors) in production.
+   - **Rule**: Before running the build, always expand `content` globs in `tailwind.config.*` to `./**/*.{js,jsx,ts,tsx,mdx}` and verify the generated `.next/static/css/*.css` bundle size does not regress.
+2. **React 19 `@types/react` Zero-Argument `useRef()`**:
+   - In React 19 TypeScript definitions, `useRef<T>()` without an initial value is a compile error (`Expected 1 arguments, but got 0`). Batch-convert bare `useRef()` calls to `useRef<T | null>(null)` during `.jsx` $\rightarrow$ `.tsx` migration.
+3. **Dual-Consumer Workspace Package Exports (`packages/shared/package.json`)**:
+   - When a shared workspace package is consumed by both Next.js/Vite bundlers and Node 22 native ESM (`apps/api`), configure conditional `exports` with `"types": "./src/*.ts"` (for instant IDE/bundler type resolution) and `"import": "./dist/*.js"` / `"default": "./dist/*.js"` (for compiled Node ESM execution), keeping `.js` specifiers in relative TypeScript imports (`import { x } from './client.js'`).
+
 ## Zombie Code
 
 Zombie code is code that nobody owns but everybody depends on. It's not actively maintained, has no clear owner, and accumulates security vulnerabilities and compatibility issues. Signs:
