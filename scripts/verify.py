@@ -107,6 +107,37 @@ def skill_roots() -> list[Path]:
     return roots
 
 
+def _is_pointer_stub(path: Path) -> bool:
+    """Return True if path is a pointer-only stub or thin adapter rather than a full ruleset."""
+    if not path.is_file():
+        return False
+    try:
+        content = path.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        return False
+
+    if "# Workspace Rules — Pointer Only" in content:
+        return True
+
+    if content.startswith("@") and "# Agent Adapter" in content:
+        return True
+
+    if content.startswith("@"):
+        remaining_lines = [
+            line.strip()
+            for line in content.splitlines()
+            if line.strip()
+            and not line.strip().startswith("@")
+            and not line.strip().startswith("#")
+            and not (line.strip().startswith("<!--") and line.strip().endswith("-->"))
+        ]
+        remaining_text = " ".join(remaining_lines)
+        if len(remaining_text) < 50:
+            return True
+
+    return False
+
+
 def check_duplicate_rules(workspaces: list[Path]) -> list[str]:
     """Report error if both AGENTS.md and .agents/AGENTS.md exist in a workspace or subproject."""
     errors: list[str] = []
@@ -125,10 +156,11 @@ def check_duplicate_rules(workspaces: list[Path]) -> list[str]:
         root_agents = ws_resolved / "AGENTS.md"
         dot_agents = ws_resolved / ".agents" / "AGENTS.md"
         if root_agents.is_file() and dot_agents.is_file():
-            errors.append(
-                f"{ws_resolved}: duplicate rule files detected ({root_agents.name} and .agents/{dot_agents.name}); "
-                "choose exactly one rule file to prevent conflicting rules and context duplication"
-            )
+            if not (_is_pointer_stub(root_agents) or _is_pointer_stub(dot_agents)):
+                errors.append(
+                    f"{ws_resolved}: duplicate rule files detected ({root_agents.name} and .agents/{dot_agents.name}); "
+                    "choose exactly one rule file to prevent conflicting rules and context duplication"
+                )
 
         # 2. Check immediate subdirectories (e.g. monorepo services / packages)
         try:
@@ -145,10 +177,81 @@ def check_duplicate_rules(workspaces: list[Path]) -> list[str]:
                 child_root = child / "AGENTS.md"
                 child_dot = child / ".agents" / "AGENTS.md"
                 if child_root.is_file() and child_dot.is_file():
-                    errors.append(
-                        f"{child}: duplicate rule files detected ({child_root.name} and .agents/{child_dot.name}); "
-                        "choose exactly one rule file to prevent conflicting rules and context duplication"
-                    )
+                    if not (_is_pointer_stub(child_root) or _is_pointer_stub(child_dot)):
+                        errors.append(
+                            f"{child}: duplicate rule files detected ({child_root.name} and .agents/{child_dot.name}); "
+                            "choose exactly one rule file to prevent conflicting rules and context duplication"
+                        )
+    return errors
+
+
+def check_agy_rule_frontmatter(workspaces: list[Path]) -> list[str]:
+    """Validate that .agents/rules/*.md frontmatter has globs as a string, not a YAML sequence."""
+    errors: list[str] = []
+    checked_rules: set[Path] = set()
+
+    for ws in workspaces:
+        try:
+            ws_resolved = ws.expanduser().resolve()
+        except (OSError, RuntimeError):
+            continue
+        if not ws_resolved.is_dir():
+            continue
+
+        rule_dirs: list[Path] = [ws_resolved / ".agents" / "rules"]
+        try:
+            for child in ws_resolved.iterdir():
+                if (
+                    child.is_dir()
+                    and not child.name.startswith(".")
+                    and child.name not in {"node_modules", "dist", "build", "coverage", "vendor", "scratch", ".git"}
+                ):
+                    rule_dirs.append(child / ".agents" / "rules")
+        except (OSError, PermissionError):
+            pass
+
+        for r_dir in rule_dirs:
+            if not r_dir.is_dir():
+                continue
+            for rule_file in sorted(r_dir.glob("*.md")):
+                rule_resolved = rule_file.resolve()
+                if rule_resolved in checked_rules:
+                    continue
+                checked_rules.add(rule_resolved)
+
+                try:
+                    lines = rule_resolved.read_text(encoding="utf-8").splitlines()
+                except (OSError, UnicodeDecodeError):
+                    continue
+
+                if not lines or lines[0].strip() != "---":
+                    continue
+                try:
+                    end = lines.index("---", 1)
+                except ValueError:
+                    continue
+
+                for i in range(1, end):
+                    line = lines[i].strip()
+                    m = re.match(r"^globs:\s*(.*)$", line)
+                    if m:
+                        val = m.group(1).strip()
+                        is_seq = False
+                        if val.startswith("[") or val.startswith("-"):
+                            is_seq = True
+                        elif not val or val.startswith("#"):
+                            for j in range(i + 1, end):
+                                next_line = lines[j].strip()
+                                if not next_line or next_line.startswith("#"):
+                                    continue
+                                if next_line.startswith("-") or next_line.startswith("["):
+                                    is_seq = True
+                                break
+                        if is_seq:
+                            errors.append(
+                                f"{rule_file}: 'globs' in .agents/rules frontmatter must be a string (e.g. globs: \"path/**\"), not a YAML sequence"
+                            )
+                        break
     return errors
 
 
@@ -169,6 +272,7 @@ def main(argv: list[str] | None = None) -> int:
 
     errors: list[str] = []
     errors.extend(check_duplicate_rules(workspaces))
+    errors.extend(check_agy_rule_frontmatter(workspaces))
 
     names: dict[str, Path] = {}
     skill_dirs = sorted(

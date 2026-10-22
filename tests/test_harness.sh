@@ -509,6 +509,49 @@ refute "verify fails when both AGENTS.md and .agents/AGENTS.md exist" \
 dup_output=$(/usr/bin/env python3 "$kit_root/scripts/verify.py" "$dup_project" 2>&1 || true)
 assert "verify output explains duplicate rule files" \
   grep -q 'duplicate rule files detected' <<< "$dup_output"
-printf 'Passed: Duplicate rules guardrail\n'
+
+cat <<'EOF' > "$dup_project/.agents/AGENTS.md"
+@../AGENTS.md
+
+# Workspace Rules — Pointer Only
+
+This file holds no policy of its own.
+EOF
+
+assert "verify passes when .agents/AGENTS.md is a pointer-only stub" \
+  /usr/bin/env python3 "$kit_root/scripts/verify.py" "$dup_project" >/dev/null
+
+/bin/mkdir -p "$dup_project/.agents/rules"
+cat <<'EOF' > "$dup_project/.agents/rules/bad-rule.md"
+---
+trigger: glob
+globs:
+  - "index-api/**"
+---
+
+# Bad Rule
+EOF
+
+refute "verify fails when rule frontmatter globs is a YAML sequence" \
+  /usr/bin/env python3 "$kit_root/scripts/verify.py" "$dup_project" >/dev/null 2>&1
+
+bad_rule_output=$(/usr/bin/env python3 "$kit_root/scripts/verify.py" "$dup_project" 2>&1 || true)
+assert "verify output explains sequence globs in rule frontmatter" \
+  grep -q "'globs' in .agents/rules frontmatter must be a string" <<< "$bad_rule_output"
+
+/bin/rm "$dup_project/.agents/rules/bad-rule.md"
+cat <<'EOF' > "$dup_project/.agents/rules/good-rule.md"
+---
+trigger: glob
+globs: "index-api/**"
+---
+
+# Good Rule
+EOF
+
+assert "verify passes when rule frontmatter globs is a string" \
+  /usr/bin/env python3 "$kit_root/scripts/verify.py" "$dup_project" >/dev/null
+
+printf 'Passed: Duplicate rules guardrail and rule frontmatter validation\n'
 
 printf '\nALL HARNESS BEHAVIORAL TESTS PASSED SUCCESSFULLY!\n'
