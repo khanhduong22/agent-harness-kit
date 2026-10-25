@@ -261,3 +261,49 @@ In containerized production architectures where reverse proxies (Caddy/Nginx) li
        CANDIDATE_HEALTHY=true
      fi
      ```
+
+---
+
+## 7. BunnyCDN Pull Zone Architecture & Server Migration Cutover Standard (Zero `0-Byte` Cache Poisoning)
+
+When fronting latency-sensitive Vietnam/Asia web applications with **Bunny.net CDN (`*.b-cdn.net`, DNS-Only `proxied: false` on Cloudflare)** while connecting directly to a VPS Origin IP (`OriginUrl: "https://<VPS_IP>"` + `OriginHostHeader: "<domain>"`):
+
+### 7.1. The Delayed 35-Hour LRU Eviction & `0-Byte` Immutable Chunk Poisoning Trap
+- **Failure Mode**: When migrating a service from an old VPS IP to a new VPS IP, updating Cloudflare DNS `A` records alone does **not** update a Bunny Pull Zone whose `OriginUrl` is set to the raw VPS IP (`https://<OLD_VPS_IP>`).
+- **Why It Hides for 24–36 Hours**:
+  1. Immediately after stopping the container on the old VPS, the site appears 100% healthy because Bunny's regional edge PoP (`BunnyCDN-VN1`) and client PWA Service Workers continue serving cached HTML (`s-maxage`) and `/_next/static/chunks/*.js` bundles, while client API calls go to `api.<domain>` (whose Cloudflare `A` record already points to the new VPS).
+  2. Hours later (typically 24–36 hours), Bunny's edge LRU cache evicts a subset of `/_next/static/chunks/*.js` files and pulls them from `OriginUrl` (`https://<OLD_VPS_IP>`).
+  3. If the old VPS reverse proxy (Caddy/Nginx) still has a catch-all or empty block returning `HTTP 200` with `Content-Length: 0` (`0 bytes`), Bunny caches those **`0-byte` JS files for 1 year (`max-age=31536000, immutable`)**, silently breaking React hydration and click handlers across all users!
+
+### 7.2. Mandatory 5-Step Server / VPS Migration Cutover Checklist
+Whenever migrating any application between VPS nodes or changing origin IPs, ALWAYS execute all 5 steps:
+1. **Update Cloudflare DNS (`A` / `CNAME`)**: Update `A` records for API/Admin/Origin hostnames while keeping user-facing `CNAME *.b-cdn.net` (`proxied: false`) intact.
+2. **Update Bunny Pull Zone `OriginUrl` & `OriginShield` via REST API**:
+   ```bash
+   curl -sS -X POST "https://api.bunny.net/pullzone/${PULLZONE_ID}" \
+     -H "AccessKey: ${BUNNY_API_KEY}" \
+     -H "Content-Type: application/json" \
+     -d "{\"OriginUrl\": \"https://${NEW_VPS_IP}\", \"OriginHostHeader\": \"${ORIGIN_HOST}\", \"EnableOriginShield\": false}"
+   ```
+   *(Set `"EnableOriginShield": false` when the Origin VPS is already in Singapore/Asia; set `true` with `"OriginShieldZoneCode": "FR"` only when the Origin VPS is in Europe).*
+3. **Purge Bunny Pull Zone Cache Immediately**:
+   ```bash
+   curl -sS -i -X POST "https://api.bunny.net/pullzone/${PULLZONE_ID}/purgeCache" \
+     -H "AccessKey: ${BUNNY_API_KEY}"
+   # Must return HTTP/2 204
+   ```
+4. **Verify All Referenced Static Chunks via Real `GET` Requests (Never `HEAD` Alone)**:
+   Because Next.js/Caddy may return `content-length: 0` on `HEAD` (`curl -sI`) for dynamic routes, always run a real `GET` verification across all `/_next/static/*` assets referenced in the live HTML document and assert `Zero-byte=0`:
+   ```bash
+   python3 -c '
+   import urllib.request, re
+   domain = "https://your-domain.com"
+   html = urllib.request.urlopen(domain + "/").read().decode("utf-8", errors="ignore")
+   urls = set(re.findall(r"/_next/static/[^\x22\x27\s>]+", html))
+   zeros = [u for u in sorted(urls) if len(urllib.request.urlopen(domain + u).read()) == 0]
+   print(f"HTML={len(html)}B, Assets={len(urls)}, Zero-byte={len(zeros)}", zeros)
+   assert len(zeros) == 0, f"Poisoned 0-byte assets detected: {zeros}"
+   '
+   ```
+5. **Migrate Host Crontabs & CI/CD Targets**:
+   Audit `crontab -l` on the old VPS (database backups, push notification cron sweeps) and GitHub Actions secrets (`SSH_HOST`) so no scheduled job is left stranded on a decommissioned host.
