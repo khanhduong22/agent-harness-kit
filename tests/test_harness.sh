@@ -148,6 +148,8 @@ AGENT_HARNESS_BACKUP_DIR="$test_root/backups-mcp" \
   "$kit_root/scripts/install.sh" --index --project-path "$project_a" --targets claude >/dev/null
 
 assert "project A received its own .mcp.json" test -f "$project_a/.mcp.json"
+assert "project A mcp config declares kido-mcp gateway" \
+  grep -q '"kido-mcp"' "$project_a/.mcp.json"
 assert "project A mcp config declares postgres" \
   grep -q '"postgres"' "$project_a/.mcp.json"
 assert "project A mcp config points at the local gateway" \
@@ -203,7 +205,7 @@ assert "operator-added allow entry survives reinstall" \
 assert "operator-added deny entry survives reinstall" \
   grep -q 'Bash(rm -rf:\*)' "$project_a/.claude/settings.json"
 assert "managed allow entry is not duplicated on reinstall" \
-  test "$(grep -c 'mcp__postgres__query' "$project_a/.claude/settings.json")" -eq 1
+  test "$(grep -c '"mcp__postgres__query"' "$project_a/.claude/settings.json")" -eq 1
 assert "managed mcp server is not duplicated on reinstall" \
   test "$(grep -c '"postgres"' "$project_a/.mcp.json")" -eq 1
 printf 'Passed: Allowlist merged without clobbering or duplicating entries\n'

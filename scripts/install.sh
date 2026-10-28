@@ -443,7 +443,7 @@ install_project_index() {
 
   mcp_args=(
     --mcp
-    --profile "$kit_root/profiles/index/api.md,$kit_root/profiles/index/cms.md"
+    --profile "$kit_root/profiles/core/rules.md,$kit_root/profiles/index/api.md,$kit_root/profiles/index/cms.md"
     --project-path "$project_dir"
     --target "$adapter"
     --backup-dir "$backup_root"

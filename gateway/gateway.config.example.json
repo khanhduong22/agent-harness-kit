@@ -1,24 +1,28 @@
 {
   "mount": {
-    "postgres": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres"],
-      "env": {
-        "DATABASE_URL": "${PG_LOCAL_URL}"
-      }
-    },
     "framefit": {
       "command": "npx",
       "args": ["-y", "framefit"],
       "env": {
-        "FIGMA_TOKEN": "${FIGMA_API_KEY}"
+        "FIGMA_TOKEN": "${FIGMA_API_KEY}",
+        "MCP_TRANSPORT": "stdio"
       }
+    },
+    "postgres": {
+      "url": "http://localhost:33000/pg"
+    },
+    "redis": {
+      "url": "http://localhost:33000/redis"
     }
   },
   "export": [
-    "postgres:query",
     "framefit:get_layout_spec",
-    "framefit:compare_node_to_dom"
+    "framefit:get_metadata",
+    "framefit:compare_node_to_dom",
+    "postgres:query",
+    "postgres:list_databases",
+    "redis:scan",
+    "redis:get"
   ],
   "env": {
     "local": { "DATABASE_URL": "${PG_LOCAL_URL}" },
