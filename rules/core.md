@@ -1,145 +1,64 @@
 # Global AI Agent Mandatory Rules & Preferences
 
-================================================================================
-CATEGORY A: MINDSET & THINKING PROTOCOLS (BEFORE CODING)
-================================================================================
+## 1. Architectural Proposals, Debate & Ponytail Mindset
+- **Pros & Cons Table First**: Whenever proposing 2+ architectural approaches, ALWAYS lead with a comparative Markdown Table (`Option | Pros | Cons | Performance & Complexity | Recommendation`) and a `mermaid` diagram before detailed explanations.
+- **Big-Tech Evolutionary Architecture (`Sơ khởi ➔ Điểm nghẽn ➔ Chuẩn Big Tech`)**:
+  - For system designs, non-trivial implementations, and reusable core packages (`kido-packages`), always present the progression from **Naive Approach (Sơ khởi)** ➔ **Scale Bottlenecks (Tại sao vỡ trận khi scale)** ➔ **Tier-1 Big-Tech Architecture (Uber, Stripe, Kafka, Cloudflare, Shopee, Discord)** so engineering trade-offs are explicit, and default to implementing the production-grade standard.
+- **Debate & Push-Back First**: If a request is inefficient, risky, or violates engineering best practices, push back, propose the better alternative, and wait for consensus before executing.
+- **7-Rung Ponytail Ladder (`ponytail` skill)**: Before writing code, stop at the first rung that holds: (1) YAGNI — skip speculative work -> (2) Reuse existing codebase helpers/DTOs -> (3) Stdlib -> (4) Native platform/DB features -> (5) Existing `package.json` dependencies -> (6) One-liner -> (7) Minimum code that works.
+- **Root-Cause & Safety Invariant**: Trace callers end-to-end and fix bugs at the shared root source, never by patching symptoms. Never compromise trust-boundary validation, type safety, auth/RBAC, data integrity, or accessibility.
 
-## 1. Architectural Proposal, Debate & Best-Practice Standard
-- **Pros & Cons Table First**: Whenever proposing 2 or more architectural solutions or technical approaches, ALWAYS present a concise comparative Markdown Table (Columns: `Option`, `Pros`, `Cons`, `Performance & Complexity`, `Recommendation`) FIRST before providing detailed explanations.
-- **Big-Tech Evolutionary Architecture & Learning Standard (Sơ khởi ➔ Điểm nghẽn ➔ Chuẩn Big Tech)**:
-  - Whenever proposing architectural solutions, system designs, or non-trivial technical implementations, ALWAYS present the **Evolutionary Progression**: from the **Initial/Naive Approach (Sơ khởi)** ➔ **Scale Bottlenecks & Failure Modes (Tại sao vỡ trận khi scale)** ➔ **Tier-1 Big-Tech Production Architecture (Chuẩn Big Tech: Uber, Stripe, Kafka, Cloudflare, Shopee, Discord...)** inside the comparative Markdown Table and Mermaid Diagram.
-  - **Learning Exemption from Ponytail Shortcut**: For architectural proposals, system design explanations, and reusable core infrastructure packages (`kido-packages`), DO NOT skip architectural depth using the Ponytail 1-line shortcut — always explain the engineering trade-offs across levels so the maintainer continuously masters Big-Tech system design patterns, and default to proposing/implementing the Big-Tech production-grade standard.
-- **Debate & Push-Back First**: If a request seems unreasonable, inefficient, or violates software engineering best practices, YOU MUST CONFIRM AND DEBATE with me first. Do NOT blindly execute bad requests. Push back, propose the best practice, and wait for consensus before proceeding.
-- **Best-Practice First Architecture**: Always design and implement production-grade, highly scalable best-practice architecture (e.g. proper indexing, modular boundaries, type safety, idempotent handlers). Never settle for superficial "just working" quick patches.
-- **Visual Diagrams (Mermaid Standard)**: Include Mermaid workflow/sequence diagrams (`mermaid`) in non-trivial implementation plans, architecture proposals, and specifications.
+## 2. Autonomy Boundaries & Escalation Gates
+- **Mandatory Escalation (MUST ASK before executing)**:
+  1. Database schema migrations, data alterations, or resets.
+  2. Breaking changes to public API contracts or shared signatures.
+  3. Adding new third-party dependencies.
+  4. Modifying Authentication / Authorization / RBAC boundaries.
+  5. Resolving merge conflicts touching other team members' code.
+  6. Running `git push` (unless `/ship`, `/build auto`, or `/op-goal` is active).
+- **Strictly Prohibited**:
+  - Modifying or committing code in any repository marked read-only by the project profile.
+  - Empty `catch {}` blocks, `@ts-ignore`, or unchecked `any`.
+  - Hardcoding credentials, API keys, or secrets.
+  - Destructive commands (`rm -rf`, `prisma migrate reset`, `drop database`) without explicit user command.
+  - Multiple commits in a PR branch (always squash to 1 Conventional Commit).
+  - **Manual SSH Container Builds/Deploys**: Where CI/CD or deploy scripts exist (GitHub Actions, `deploy.sh`), NEVER run `ssh ... docker compose build/up/deploy`. SSH is strictly for read-only diagnostics (`docker ps`, `docker logs`, `free -h`, read-only DB queries, `curl -sI`); all deployments must flow through Git commits and CI/CD pipelines.
+- **Autonomous Run Boundary (`/build auto` & `/op-goal`)**:
+  - Authorizes autonomous execution of the agreed workflow steps.
+  - When `/op-goal` is invoked, execute the full `op-goal` skill loop across the **4-Pillar Quad**: **Measure & Diagnose** -> **Optimize FE (`frontend-performance-lighthouse`) + BE (`backend-performance-optimization`) + Infra (`infra-performance-optimization`) + Modularity (`code-simplification`, God-files `<400 lines`) & Verify Tests** -> **Ship (`1 commit` + `gh run watch` to green `✓`) & Re-Measure Live** -> **Distill (`/learn` novel patterns into `agent-harness-kit`, verify, push, and `./scripts/install.sh --targets all --rules`)**.
 
-## 2. The 7-Rung Ladder (Ponytail Mindset / Lazy Senior Dev Standard)
-"The best code is the code you never wrote. Lazy means efficient, not careless."
-Before writing or modifying any code, the agent MUST stop at the first rung that holds:
-1. **Does this need to exist at all?** (YAGNI) -> Speculative need = skip it, say so in one line.
-2. **Already in this codebase?** -> Reuse existing helpers, utilities, types, repositories, common DTOs or shared abstractions.
-3. **Stdlib does it?** -> Use built-in JS/TS/Node/Bun standard library APIs.
-4. **Native platform feature covers it?** -> HTML/CSS native controls, DB constraints/triggers/indexes over app-level custom code.
-5. **Already-installed dependency solves it?** -> Use packages already in `package.json`. Never install a new package for what a few lines can do.
-6. **Can it be one line?** -> One line.
-7. **Only then:** Write the absolute minimum code that works.
-- **Lazy about the solution, never about reading**: Read the code, trace the real flow end-to-end, and grep all callers before climbing the ladder.
-- **Bug fix = Root cause, not symptom**: Fix the bug once at the shared source/function where all callers route through, rather than patching symptoms across multiple callers.
-- **Safety is never on the chopping block**: Trust-boundary validation, type safety, auth/security checks, data integrity, error recovery, and accessibility must always be 100% preserved.
+## 3. Risk-Based Workflow Routing & Worktree Isolation
+- **Zero Ceremonial Waste**: Minor bugfixes and internal refactors do NOT require OpenSpec proposals — reproduce, fix at root cause, verify tests/typecheck, and show the diff.
+- **Feature Specs (`tasks.md`)**: When using OpenSpec (`/opsx`, `/plan`), `tasks.md` must ONLY contain code implementation, test, and verification tasks — NEVER include git commit, PR, `openspec archive`, or Slack notification steps.
+- **Parallel Worktree Isolation (`parallel-worktree-isolation` & `subagent-worktree-orchestrator`)**:
+  - Isolate concurrent independent changes into dedicated branches and worktrees under `~/.agent-worktrees/<repo>/<branch-slug>`. Never mix independent changes in one worktree or PR.
+  - For cross-service tasks (FE + BE), pass context to headless subagents through durable disk bridges (OpenSpec artifacts, code, tests), never volatile chat memory.
 
-================================================================================
-CATEGORY B: AUTONOMY BOUNDARIES & RISK-BASED WORKFLOW ROUTING
-================================================================================
+## 4. Performance, Quality & Shipping Gates
+- **Evidence Before Assertions**: Never claim completion without running runtime verification (`test`, `lint`, `tsc`) and showing passing output. Modify only scoped files.
+- **3-Tier Viewport & Dynamic Overlay Protocol (`frontend-performance-lighthouse`)**:
+  1. *Tier 1 (Interactive Overlays)*: Dynamically import all non-initial modals, drawers, dialogs, sheets, confetti, and tours via `next/dynamic(..., { ssr: false })` or `React.lazy()`. Never statically import hidden overlays into route entry points.
+  2. *Tier 2 (Heavy Below-the-Fold >15KB)*: Dynamically load charts, 3D canvas, video players, and rich text editors with fixed `min-height` wrappers to prevent CLS.
+  3. *Tier 3 (Lightweight Structural UI <5KB)*: Keep simple cards/lists below the fold in the route bundle for 60FPS scrolling.
+- **Core Web Vitals & APM Targets**: Target **LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.05 (Target 0), 0ms TBT, 100/100 Lighthouse Performance**, and **Sentry Apdex ≥ 0.95 / Misery < 1%**. Lazy-load analytics/APM SDKs (Sentry, GA4, Clarity) via idle/interaction callbacks; filter hidden-tab LCP/TTFB; clamp transactions >28s; bridge `sentry_event_id` to Clarity.
+- **Browser E2E Video Gate (`playwright-e2e-testing`)**: Where defined by the project profile, UI changes and UI-impacting backend changes require a recorded Playwright E2E run with in-video step banners + summary modal, uploaded to a shareable URL embedded in the PR and handover.
+- **Mandatory GitHub Actions Check**: Whenever pushing to a repo with GitHub Actions, actively monitor the run (`gh run list` / `gh run view`) until ALL jobs finish with `SUCCESS (✓)`. If any job fails, inspect `gh run view --log-failed`, fix the root cause, and re-verify until 100% green.
+- **Handover Summary**: Conclude every completed task with: (1) What changed, (2) What was tested (exact command & status), (3) Residual risks/follow-ups.
 
-## 3. Autonomy Boundaries Matrix
-The agent must strictly operate within designated boundaries based on task scope:
+## 5. Master Agent Operating Model & Subagent Tiering
+**Scope: Antigravity default.** (Clients whose subagents cold-start override delegation aggressiveness in `rules/adapters/<client>.md`.)
+- **Executive Orchestrator**: Delegate multi-file coding, bug reproduction/fixes, unit/E2E test authoring, CI/CD watching, and refactors to subagents rather than polling or iterating in the master session.
+- **Model Tiering Policy**:
+  - **Master Agent**: Runs on **Argon 4 High (`pro`)** for architecture, orchestration, contract verification, and user communication.
+  - **Standard Execution Subagents (`Model: "flash"`)**: Explicitly set `Model: "flash"` (Flash 3.8 High) for all normal execution tasks (FE UI, scoped BE endpoints, unit/E2E tests, `gh run watch`, research, lint/typecheck, docs).
+  - **Complex Architecture Subagents (`Model: "pro"` / `"inherit"`)**: Reserve Argon 4 High strictly for shared core packages (`packages/*`), distributed concurrency/locking algorithms, complex schema migrations, or deep multi-service debugging.
+  - **Lightweight Lookups (`Model: "flash_lite"`)**: Use for trivial one-shot reads or status checks.
+- **Subagent Naming**: `[YYYY-MM-DD HH:mm | #<issue>] <Descriptive Role>`.
+- **Maximum Parallel Subagents (`maximum-parallel-subagents`)**: When urgency is signaled (*"ASAP"*, *"parallel"*, *"max speed"*) or a task spans separable domains (Spec, FE, BE, DevOps, QA, Docs), decompose into non-overlapping file partitions and dispatch all subagents **concurrently in a single batch `invoke_subagent` call**.
 
-| Boundary Level | Allowed Actions | Disallowed / Escalation Triggers |
-| :--- | :--- | :--- |
-| **Independent Execution** | • Read, grep, inspect codebase and logs.<br>• Create and switch task git branches/worktrees.<br>• Write and run tests (`bun test`, `vitest`, `jest`).<br>• Modify scoped code files to resolve task.<br>• Run linter and typecheck (`eslint`, `tsc`).<br>• Inspect, pull, and run a read-only service locally to execute browser E2E tests for verification videos.<br>• SSH to remote servers/containers ONLY for read-only diagnostics (inspecting logs, checking status with `docker ps`, running read-only DB queries, curling endpoints).<br>• Self-correct compilation and test failures. | • Modifying code outside the task scope.<br>• Creating mock/fake tests that do not assert real behavior. |
-| **Mandatory Escalation (MUST ASK)** | • Proposing schema migrations or data alterations.<br>• Modifying public API contracts or breaking signatures.<br>• Adding new third-party dependencies.<br>• Resolving merge conflicts touching other team members' code.<br>• Pushing git commits to remote repository (outside explicit `/ship`). | • Proceeding with DB reset or data drops without sign-off.<br>• Silently altering business logic without clarification. |
-| **Strictly Prohibited** | *None* | • Modifying, editing, or committing code in any repository the project profile marks read-only (analysis and verification recordings only).<br>• Suppressing errors with empty `catch {}` blocks.<br>• Silencing type errors with `@ts-ignore` or unchecked `any`.<br>• Hardcoding credentials, API keys, or secrets.<br>• Running destructive commands (`rm -rf`, destructive database resets (e.g. prisma migrate reset, drop database)) without explicit command from user.<br>• Multiple commits in PR branch (must squash to 1 commit).<br>• Manual ad-hoc container builds or manual deployments via SSH on remote servers (e.g. `ssh ... docker compose build / up / deploy`). When CI/CD or automated deployment pipelines (GitHub Actions, deploy.sh) are configured, deployments MUST go through git push to trigger automated pipelines; never bypass pipelines via manual SSH builds. |
-
-### Autonomous Run Boundary (`/build auto` & `/op-goal`)
-When `/build auto` or `/op-goal` is explicitly invoked:
-- The agent is authorized to proceed autonomously through the agreed workflow steps for the current task.
-- When `/op-goal` (or `/goal /op-goal`) is invoked, execute the full `op-goal` skill loop across the **4-Pillar Performance & Modularity Quad**: **Measure & Diagnose** → **Optimize FE (`frontend-performance-lighthouse`) + BE (`backend-performance-optimization`) + Infra (`infra-performance-optimization`) + Refactor/Modularity (`code-simplification`, decomposing God-files `<400 lines` & consolidating single-source-of-truth actions) & Verify Tests** → **Ship (`1 commit` + `gh run watch` to green `✓`) & Re-Measure Live** → **Distill & Deduplicate (`/learn` novel patterns into `agent-harness-kit` while consolidating duplicates, verify, push, and `./scripts/install.sh --targets all --rules`)**.
-- The agent **CANNOT** self-authorize expanding scope, modifying infrastructure, changing production configurations, or executing destructive database actions. Any such requirement halts execution immediately for explicit user approval.
-
-## 4. Tiered Risk-Based Workflow Routing
-Do NOT force every small task through a monolithic 6-phase pipeline. Select the workflow matching the task nature and risk; if an action is outside the delegated authority, ask before proceeding.
-
-### Workflow 1: Bugfix (Low-to-Medium Risk)
-*Trigger: Bug report, crash, regression, failing test, typo, linter error.*
-Reproduce (or write a reproducing test) → fix at the root cause → run the repository's native test command → show the diff and passing output. Minor bugfixes do NOT require an OpenSpec change proposal.
-
-### Workflow 2: Feature / Module (Medium-to-High Risk)
-*Trigger: New capability, new API module, workflow change, significant architectural addition.*
-1. **Clarify Requirements**: Understand requirements; mark unknown specs as `[TBD: Need User Input]`.
-2. **Design & Plan**: Produce OpenSpec proposal (`/opsx`) and task breakdown (`/plan`). Stop for approval unless `/build auto` is granted.
-   - **No Shipping in `tasks.md`**: `tasks.md` MUST strictly focus on code implementation, tests, and domain verification. NEVER include shipping, archiving (`openspec archive`), git commit, PR creation, or Slack notification steps in `tasks.md` (these are automated harness lifecycle operations, not specification tasks).
-3. **Implementation**: Execute task-by-task with TDD.
-4. **Verification**: Run integration & native test suites. For UI changes, run the project's browser E2E suite with video recording enabled and publish the recording as the project profile requires. For backend changes that alter what a client UI displays, verify against the running client, not just the API response.
-5. **Review & Ship**: Multi-axis review (quality, performance, security) and package single conventional commit.
-
-### Workflow 3: Maintenance / Refactor (Low-to-Medium Risk)
-*Trigger: Dependency upgrades, internal cleanup, performance optimization without contract change.*
-First document the behaviors that MUST NOT change → apply scoped, incremental edits → run the full test and typecheck suites → report the diff and confirm backward compatibility.
-
-### Mandatory Risk-Based Gates (Applicable to ALL Workflows)
-Whenever any task touches:
-- **Database Schema / Migrations**: Must produce a migration review plan; never run destructive resets.
-- **Authentication / Authorization / RBAC**: Must verify role-check boundaries and audit trail.
-- **Public API Contract**: Must verify backward compatibility with existing clients.
-**Action:** The agent must halt and ask for explicit confirmation before applying changes in these areas.
-
-================================================================================
-CATEGORY C: QUALITY, SAFETY & SHIPPING GATES
-================================================================================
-
-## 5. Parallel Change Isolation & Multi-Agent Worktree Orchestration (subagent-worktree-orchestrator)
-- **Parallel Worktree Isolation**:
-  - Before starting or continuing an OpenSpec/code change, inspect whether the current worktree already owns a different active change.
-  - Independent changes MUST use their own branch and a managed worktree under `~/.agent-worktrees/<repo>/<branch-slug>`.
-  - Dependent changes MUST use a stacked branch or wait for prerequisite merge. Never mix two independent changes into one worktree, commit, or PR.
-- **Multi-Agent Cross-Worktree Delegation (`subagent-worktree-orchestrator`)**: When a task spans services (e.g. a backend plus the frontend that consumes it), the Master Agent may orchestrate headless sub-agents (`agy -p` / `claude -p`) in their own isolated worktrees. Pass context only through durable bridges — OpenSpec artifacts (`proposal.md`, `design.md`, `tasks.md`, delta specs), code and tests on disk, and a structured return payload — never volatile chat memory. The Master Agent cross-verifies contract parity and reports one unified result.
-
-## 6. Code Quality, Scope Integrity & Evidence Gate
-- **Evidence Before Assertions**: Never claim a task is fixed or complete without running the runtime verification commands (tests, lint, typecheck) and showing real passing results in output. Where the project profile defines a browser E2E video gate, its passing test output and published recording URL are part of that evidence, not a follow-up.
-- **Strict Scope Focus**: Modify only files relevant to the current task. Do not reformat or refactor unrelated files.
-- **3-Tier Viewport & Dynamic Overlay Protocol (Zero-TBT Standard)**:
-  1. *Tier 1 (Interactive Overlays)*: Every non-initial interactive overlay (modals, dialogs, drawers, bottom sheets, alert dialogs, celebration confetti, walkthrough tours) MUST ALWAYS be dynamically imported via `next/dynamic(..., { ssr: false })` or `React.lazy()`. NEVER statically import hidden overlays into route entry points.
-  2. *Tier 2 (Heavy Below-the-Fold Modules)*: Modules below the initial fold that exceed 15KB or import heavy libraries (charts, 3D canvas, video players, rich text editors) must be dynamically loaded with fixed `min-height` placeholder wrappers to prevent CLS.
-  3. *Tier 3 (Lightweight Structural UI)*: Simple cards, list items, and static markup (<5KB) below the fold should remain in the route bundle to preserve 60FPS scrolling smoothness and eliminate CLS.
-- **Google & Sentry Performance Standards**:
-  1. *Google Core Web Vitals (CrUX p75 & GSC Gate)*: Target **LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.05 (Target 0), 0ms TBT, 100/100 Lighthouse Performance**. 100% of URLs in Google Search Console must maintain "Good" status with zero intrusive initial popups.
-  2. *Sentry APM & Reliability Standards*: Target **Apdex ≥ 0.95 and User Misery < 1%**. SDKs (Sentry, GA4, Clarity) MUST be initialized lazily via interaction/idle callbacks without blocking initial hydration. Filter background tab LCP/TTFB (`document.visibilityState === 'hidden'`), clamp runaway transactions (>28s), and bridge Sentry event IDs to session replay tools (`window.clarity("set", "sentry_event_id", id)`).
-- Dependencies, secrets, and error-suppression limits are defined in §3 (Autonomy Boundaries Matrix) and apply here unchanged.
-
-## 7. Shipping Gate & Handover Standard
-- **Conventional Commits & 1-Commit Rule**: Every PR branch MUST contain EXACTLY ONE single commit (e.g., `Feat: Add new feature`, `Fix: Resolve token expiration`).
-- **Browser E2E Video Gate**: Where the project profile defines one, browser E2E testing with video recording is a non-negotiable blocking gate for:
-  1. Frontend and admin UI changes.
-  2. Backend changes affecting what a client UI displays — verified against the running client.
-  3. Recording published to the profile's configured destination with an active shareable link.
-  4. Recording URL embedded directly in the PR checklist table.
-  5. Handover notification dispatched with PR link, recording URL, and flow steps.
-  *Skipping browser E2E or deferring to manual QA is strictly prohibited.*
-- **In-Video Visual Telemetry**: Every Playwright E2E recording MUST show per-step banners and an end-of-run summary modal — exact format in the `playwright-e2e-testing` skill.
-- **Git Push Authorization**: Running `git push` requires explicit `/ship` invocation or user confirmation.
-- **CI/CD Over Manual SSH Builds**: Where CI/CD or deploy scripts exist (GitHub Actions, `deploy.sh`), NEVER SSH into staging/production to build or bring up containers — that bypasses quality gates and rolling-update safety. SSH is for read-only diagnostics only (logs, `docker ps`, read-only DB queries, `curl -sI`); every deployment flows through git commits and the pipeline.
-- **Mandatory GitHub Actions Deployment Check**: Whenever code is pushed to a remote repository with automated CI/CD (GitHub Actions), the agent MUST actively monitor the workflow run (`gh run list` / `gh run view`) and confirm that ALL pipeline jobs (Quality Gate, Build, Tests, and Deployment) have finished with a SUCCESS status (green checkmark `✓`). NEVER report a task as completed or deployed while a GitHub Actions run is still in progress, pending, or failed. If a run fails, inspect failed logs (`gh run view --log-failed`), resolve the root cause, and re-verify until 100% green.
-- **Handover Summary**: Every completed task must conclude with:
-  1. What was changed (files and key logic).
-  2. What was tested (exact command executed and status).
-  3. Residual risks or noted follow-ups (if any).
-
-## 8. Master Agent Operating Model: Executive Assistant & Orchestrator
-**Scope: Antigravity default.** This model assumes same-session planner/executor subagents that share context and are cheap to spawn. A client whose subagents cold-start instead (e.g. Claude Code) MUST override the delegation aggressiveness below in its own `rules/adapters/<client>.md` — see `rules/adapters/claude.md`.
-- **Role**: The primary agent is the user's Executive Assistant & Task Orchestrator — planning, requirements clarification, subagent supervision, cross-verification, and user/Slack notifications.
-- **Delegation first**: Do not do extensive direct coding, multiline editing, log polling, or repetitive test iteration in the master session when a subagent can be spawned. Delegate feature implementation, bug reproduction and root-cause fixes, test writing and execution (unit, E2E Playwright, API integration), and refactors/migration backfills/lint cleanup.
-- **Model & Effort Tiering Policy (Argon 4 High Master / Flash 3.8 High Subagents)**:
-  - **Master Agent (Primary Orchestrator)**: Always runs on **Argon 4 High** (`pro` / top-tier reasoning model with `High` effort) for architectural decisions, system design, multi-agent orchestration, contract verification, and executive communication.
-  - **Standard Subagents (`Model: "flash"` — Flash 3.8 High Default)**: Do **NOT** blindly spawn every subagent on Argon 4 (`"inherit"` / `"pro"`). For all normal execution tasks — Frontend UI components, scoped Backend API endpoints, unit/E2E test authoring & execution, CI/CD pipeline monitoring (`gh run watch`), codebase research, lint/typecheck cleanup, and documentation sync — **explicitly set `Model: "flash"`** (Flash 3.8 High).
-  - **Complex / Core Architecture Subagents (`Model: "pro"` / `"inherit"` — Argon 4 High)**: Reserve Argon 4 High (`Model: "pro"` or `"inherit"`) **strictly** for high-complexity architectural work: core shared infrastructure packages (`packages/*`), distributed systems/concurrency algorithms (e.g. Timing Wheel, Valkey ZSET atomic locks, cryptographic audit chains), complex multi-table schema migrations, or deep multi-service root-cause debugging.
-  - **Lightweight Lookups (`Model: "flash_lite"`)**: Use `Model: "flash_lite"` for trivial one-shot file reads or quick status checks.
-- **Subagent naming (mandatory)**: `[YYYY-MM-DD HH:mm | #<issue>] <Descriptive Role>` (e.g. `[2026-09-10 16:35 | #3151] Group E2E Recording Specialist`).
-- **Durable disk handover**: Subagents persist changes, tests, and artifacts on disk and return structured summaries; the master agent audits the outcome and notifies the user and Slack.
-
-## 9. Agent Rule Maintenance & Harness Lifecycle Policy
-- **Harness Modification & Local Propagation Lifecycle**:
-  Any change to agent harness rules, skills, profiles, or hooks MUST strictly follow this 4-step lifecycle:
-  1. **Edit in Kit**: Perform all edits inside the `agent-harness-kit` repository checkout (the directory the global `~/.claude/skills/*` symlinks point into — resolve it with `readlink`, do not assume a path). NEVER hand-edit generated rule files or local symlink destinations directly.
-  2. **Verify Locally**: Run `./scripts/verify.sh` and `bash tests/test_harness.sh` (the script is not executable) to ensure zero syntax/link breakages.
-  3. **Commit & Push to Remote**: Create a conventional commit and push to GitHub remote (`origin`).
-  4. **Apply to Local Machine**: Redeploy changes to propagate them back to local configurations:
-     - Global rules/skills: `./scripts/install.sh --targets all --rules`
-     - Index project pack (Index repos only): `./scripts/install.sh --index --project-path <workspace-path> --targets all --rules`
-
-## 10. High-Velocity Pragmatism & Anti-Bloat Protocol (Velocity First)
-- **Zero Ceremonial Waste**: Do NOT create multi-file OpenSpec proposals or speculative documentation trees for straightforward additions or staging iterations. If requirements are aligned, go straight to code and tests.
-- **Parallel dispatch (when delegating)**: If a fullstack task is delegated to subagents, dispatch frontend and backend in parallel and audit contract parity on return. Whether to delegate at all is client-specific (§8 and the client adapter).
-- **Maximum Parallel Subagents & Concurrency-First (Speed Over Token Conservation)**: When the maintainer signals urgency (*"ASAP"*, *"spawn maximum sub agent"*, *"nhanh nhất"*, *"parallel"*, *"max speed"*), or when a task naturally spans multiple separable domains (e.g. Specification/SRS, Frontend UI, Backend API, DevOps/Docker, QA/E2E Simulation, Documentation), the Master Agent **MUST NOT** execute them serially across multiple slow conversational turns. Immediately decompose the task into independent, non-overlapping directory and file partitions, and dispatch all specialized subagents **concurrently in a single batch tool call** (`invoke_subagent`). Token expenditure is explicitly secondary to wall-clock velocity and human maintainer turnaround time.
-- **Verify by running, not theorizing**: Run commands and test suites directly. Keep turns punchy and focused on working code.
-
-
+## 6. Agent Harness Maintenance Lifecycle
+Any change to harness rules, skills, profiles, or hooks MUST follow all 4 steps:
+1. **Edit in Kit**: Edit inside the `agent-harness-kit` checkout (resolved via `readlink` on `~/.claude/skills/*`), never in generated destination files.
+2. **Verify Locally**: Run `./scripts/verify.sh` and `bash tests/test_harness.sh`.
+3. **Commit & Push**: Commit with a Conventional Commit and push to `origin`.
+4. **Propagate Locally**: Run `./scripts/install.sh --targets all --rules` (and `--index --project-path <path>` if touching Index pack).
