@@ -1,142 +1,55 @@
 # Project Pack: Index Platform (Workspace)
 
-## 1. Product Objectives & Current Priorities
-- **Product Overview**: The Index platform is a multi-service financial & community information ecosystem serving Vietnamese market insights, analytics, content management, and community interactions.
-- **Current Priorities**:
-  - Stabilizing API endpoints and database query performance.
-  - Hardening CMS administrative flows and editorial permissions.
-  - Ensuring telemetry and observability with OpenTelemetry and Signoz.
-- **What NOT To Do Yet**:
-  - Do NOT modify public API signatures without explicit backward compatibility review.
-  - Do NOT perform ad-hoc schema migrations without approval.
-  - Do NOT introduce unverified external dependencies.
-  - `[TBD: Need User Input]` Future external payment/gateway integrations remain pending formal specifications.
+## 1. Monorepo Ecosystem, Ownership & Service Boundaries
+- **Services**:
+  - **`index-api` (Backend Core)**: NestJS, Prisma, PostgreSQL, Redis, Swagger, Newman E2E (`:3005`). Rules: `index-api/.agents/AGENTS.md`.
+  - **`index-admin-cms` (Admin Platform)**: Strapi v5, custom plugins (`community`, `admin-user-role-guard`), React/Vite extensions (`:1337`/`:1338`). Rules: `index-admin-cms/.agents/AGENTS.md`.
+  - **`index-data` (Data Ingestion & Crawlers)**: Node/Bun crawlers & market pipelines (crypto/stock/news) -> `index-admin-cms` & `index-api`. Rules: `index-data/.agents/AGENTS.md`.
+  - **`index-ai` (AI & Search)**: NestJS instrument search, AI sentiment, vector embeddings (PG + Meilisearch + Qdrant). Rules: `index-ai/AGENTS.md`.
+  - **`index-web` (Client Web App — STRICTLY READ-ONLY)**: Next.js App Router (`:3000`). Rules: `index-web/AGENTS.md`.
+  - **`index-signoz` (Observability)**: OpenTelemetry Collector & ClickHouse. Rules: `index-signoz/.agents/AGENTS.md`.
+- **Cross-Service Data Contracts**: Keep API envelopes (`{ data, meta }`) and `parseApiResponseEnvelope` synchronized across `index-api`, `index-admin-cms`, `index-data`, and `index-web`.
+- **Developer Ownership Policy**:
+  - **Writable**: Strictly `index-api`, `index-admin-cms`, and `index-data`.
+  - **Issue-Repo vs. True Service Owner**: Even if an issue is filed under `index-web`, any DB query, bulk aggregation, or static generation (sitemaps, feeds, cache warming) MUST be implemented in `index-admin-cms` or `index-api`. `index-web` only calls lightweight backend HTTP endpoints.
+  - **`index-web` Read-Only & E2E Policy**: **NEVER modify, edit, or commit code in `index-web`**. You ARE authorized to inspect `index-web`, pull `origin/develop`, run it locally (`bun dev` on `:3000`), and run Playwright E2E video tests (`--video=on`) against it.
+- **Deployment Topology**:
+  - **`app_pro` (`[app_pro]` runner)**: Nginx, shared `/www/wwwroot/sitemaps`, `index-admin-cms` Blue/Green (`:1337`/`:1338` + Redis), `index-web` (`:3006->:3000` + Redis), `index-api` (`:3005`).
+  - **`data_pro` (`[data_pro]` runner)**: `index-admin-cms` PostgreSQL (`:5432`, pgBackRest -> Backblaze B2) and `index-data` crawlers.
+  - **Dev/Staging (`[self-hosted-stg]` runner)**: Co-located Dev/Staging containers + Nginx.
 
-================================================================================
-CATEGORY A: MONOREPO TOPOLOGY & CROSS-SERVICE ARCHITECTURE
-================================================================================
+## 2. OpenSpec & Single-Commit PR Protocol
+- **Service-Scoped OpenSpec**: Store active changes in `<service-repo>/openspec/changes/<change-name>/{proposal.md,design.md,tasks.md,specs/<cap>/spec.md}` and specs in `<service-repo>/openspec/specs/<cap>/spec.md` using strict Gherkin (`GIVEN`/`WHEN`/`THEN`/`AND`).
+- **No Shipping Steps in `tasks.md`**: `tasks.md` contains code, test, and verification tasks only.
+- **1-Commit `/ship` Flow**:
+  1. Complete code, tests, and Postman updates.
+  2. Run `openspec archive <change-name> -y` BEFORE committing (`--skip-specs` only if no spec deltas).
+  3. Checkout `feature/<name>`, `bugfix/<name>`, or `hotfix/<name>`, stage files explicitly, and create **EXACTLY 1 Start-Case Conventional Commit** (`git commit -m "Feat: ..."`).
+  4. Verify `git log origin/develop..HEAD --oneline` has 1 commit (if >1, `git reset --soft origin/develop` and re-commit).
+  5. Push (`git push -u origin <branch>`) and create PR (`env -u GITHUB_TOKEN gh pr create`).
 
-## 2. Monorepo Ecosystem & Service Boundaries
-- **`index-api` (Backend Core)**: NestJS, Prisma ORM, PostgreSQL, Redis, Swagger API, Newman E2E tests. Implements core domain logic, data models, and high-performance querying. (See `index-api/.agents/AGENTS.md` for NestJS & Prisma rules).
-- **`index-admin-cms` (Admin Platform)**: Strapi v5, Custom Admin Plugins (`community`, `admin-user-role-guard`), React/Vite admin extensions, Custom UI Hooks. Consumes Index API and manages administrative workflows. (See `index-admin-cms/.agents/AGENTS.md` for UI/UX & Strapi rules).
-- **`index-data` (Data Ingestion & Crawlers)**: Node/Bun crawlers, market data extractors, and automated data ingestion pipelines (crypto/stock/news) feeding normalized content into `index-admin-cms` and `index-api`. (See `index-data/.agents/AGENTS.md` for Prisma dual-DB, TimescaleDB, and logical-replication rules).
-- **`index-ai` (AI & Search Platform)**: NestJS financial data platform — instrument search, AI sentiment analysis, vector embeddings (PostgreSQL + Meilisearch + Qdrant). (See `index-ai/CLAUDE.md` for architecture & conventions).
-- **`index-web` (Client Web Application)**: Next.js App Router, public community feeds, and user-facing web experiences. (See `index-web/CLAUDE.md` for conventions).
-- **`index-signoz` (Observability & Telemetry)**: Customized SigNoz deployment (OpenTelemetry Collector, ClickHouse) providing distributed tracing, metrics, and centralized log auditing across monorepo services. (See `index-signoz/.agents/AGENTS.md` for collector/ClickHouse operational rules).
-- **Cross-Service Data Contracts**: API response envelopes (`{ data, meta }`) and data schemas MUST remain strictly synchronized across services. When changing response structures in `index-api`, verify and update parsers (`parseApiResponseEnvelope`) in `index-admin-cms`, `index-data`, and `index-web`.
-- **Developer Service Ownership & Policy (Backend & CMS Maintainer)**:
-  - **Owned & Active Codebases (Full Modification Rights)**: Strictly `index-api`, `index-admin-cms`, and `index-data`.
-  - **Issue-Repo vs. True Service Owner Principle**: Even if a GitHub issue is filed under `<org>/index-web`, any task involving direct database queries, bulk content aggregation, or lifecycle-driven static generation (e.g. incremental sitemaps, feeds, cache warming) MUST be implemented in the owning backend service (`index-admin-cms` or `index-api`). Never place direct PostgreSQL (`pg` / `Bun.sql`) scripts or heavy multi-page aggregation loops inside `index-web`; `index-web` may only invoke a lightweight HTTP trigger endpoint exposed by the backend/CMS.
-  - **`index-web` Service Policy (Read-Only Analysis & E2E Video Verification Gate)**:
-    - `index-web` source code belongs to other frontend team members. **STRICTLY DO NOT MODIFY, EDIT, OR COMMIT CODE IN `index-web`**.
-    - **Authorized & Encouraged Actions**: Agents are fully authorized to:
-      1. Inspect and analyze `index-web` components, API envelope parsers, and client routes.
-      2. Pull latest `develop` branch of `index-web` (`git pull origin develop`).
-      3. Start `index-web` locally (`next dev` / `bun run dev` on port 3000) connected to backend services.
-      4. Execute Playwright browser E2E test runs against `index-web` to record verification videos (`--video=on`) demonstrating backend API fixes on the live web UI, upload recordings to Google Drive, and embed active links in PR handovers and Slack.
-- **Production & Dev/Staging Container Topology**:
-  - **`app_pro` (`<APP_PRO_IP>` — GitHub Runner `[app_pro]`)**: Hosts Nginx reverse proxy (`<PUBLIC_DOMAIN>`, `<CMS_DOMAIN>`), shared static volumes (`/www/wwwroot/sitemaps`), and application containers:
-    - `index-admin-cms`: Blue-Green Strapi v5 containers `<cms-blue-container>` (`:1337`), `<cms-green-container>` (`:1338`), and `<cms-redis-container>`.
-    - `index-web`: `<web-app-container>` (`:3006 -> :3000`) and `<web-redis-container>`.
-    - `index-api`: `<api-app-container>` (`:3005`).
-  - **`data_pro` (`<DATA_PRO_IP>` — GitHub Runner `[data_pro]`)**: Hosts database and data ingestion workloads:
-    - `index-admin-cms` DB: `<cms-db-container>` (PostgreSQL `:5432`, accessed by `app_pro` via `DATABASE_HOST=<DATA_PRO_IP>`, backed up via pgBackRest to Backblaze B2).
-    - `index-data` crawlers and pipelines.
-  - **Dev & Staging (`index-dev-api` — GitHub Runner `[self-hosted-stg]`)**: Co-locates Dev and Staging containers alongside Nginx (`<DEV_DOMAIN>`, `<STG_DOMAIN>`).
+## 3. MCP Tooling & Codebase Intelligence
+- **`codebase-memory-mcp`**: Before modifying shared functions/endpoints (mandatory for breaking changes), trace callers via `get_architecture`, `search_graph`, and `trace_path(direction="inward")`, plus `grep_search` for configs/specs.
+- **`postgres` & `redis` (`kido-mcp`)**: Inspect live DB schemas, query plans, and Redis state.
+- **`chrome-devtools-mcp` & `framefit` (`figma`)**: Verify live DOM/console and compare against Figma node specs.
+- **Arena CLI Roster (`arena-round-table` skill)**: `agy -p --model gemini-2.5-pro` (Auditor) & `claude -p --model claude-fable-5` (Architect).
 
-## 3. Platform Boundaries & Constraints
-- **Database Safety**: Never run `prisma migrate reset` or drop databases. Database backups (`scripts/dump-db.sh`) must be taken before major schema operations.
-- **Service Isolation**: Each service runs independently. Communication between services must follow documented HTTP/REST or queue protocols.
-- **Secrets Management**: All secrets must remain in `.env` files; never commit credentials or production URLs.
-- **Unknown Specifications**: Any unspecified domain rule or logic must be marked `[TBD: Need User Input]` and confirmed with the team lead.
+## 4. Figma Links, Slack Handover & Closed-Loop E2E Video Gate
+- **Clickable Figma URLs**: Always format Figma nodes as clickable links (`[Figma Node 12077:253458](https://www.figma.com/design/...-id=12077-253458)`) and include an updated file tree in every PR description.
+- **Slack Handover (`.agents/scripts/notify-slack.sh` ONLY)**:
+  - Must include clickable PR link, test/tsc status, and touched files.
+  - Uses `SLACK_WEBHOOK_URL` from `~/.config/agent-harness/secrets.env` ONLY. **NEVER** grep or curl webhook URLs from `.github/workflows/*.yml` or repo `.env` files (company channels).
+- **Closed-Loop E2E Video Gate (`playwright-e2e-testing` skill)**:
+  - Mandatory recorded Playwright E2E (`--video=on`) with `showStepBanner` + `showSummaryModal` for all `index-admin-cms` changes and any `index-api` change affecting `index-web` UI.
+  - **Downstream Sinks (Never stop at internal toast)**:
+    1. *Email/SMTP*: Navigate to Mailpit (`http://localhost:8025`), open the email, and verify HTML body & action link.
+    2. *In-App Notifications*: Log into the recipient account on `index-web` (`http://localhost:3000`), verify red badge count on `NotificationBell`, open dropdown, and click to verify unread decrement.
+    3. *Public Moderation*: Verify hidden/deleted/locked content is excluded on `index-web` (`/vi/cong-dong`).
 
-## 4. OpenSpec Multi-Service Directory Standard
-- **Target Service Scope**: Store active change proposals in the target sub-repository (`<service-repo>/openspec/changes/<change-name>/`, e.g. `index-api/openspec/changes/<change-name>/` or `index-admin-cms/openspec/changes/<change-name>/`). Permanent capabilities live in `<service-repo>/openspec/specs/<capability>/spec.md`.
-- **Change Folder Artifacts**: Each active change proposal MUST include `proposal.md`, `design.md`, `tasks.md`, and `specs/<capability>/spec.md` (delta diffs using `+` / `-` requirement headers).
-- **Scope of `tasks.md` (No Meta/Shipping Tasks)**: `tasks.md` MUST strictly focus on code implementation, tests, and domain verification steps. **DO NOT include shipping, archiving (`openspec archive`), git commit, PR creation, or Slack notification steps in `tasks.md`** — those are harness lifecycle operations and do not belong in specification tasks.
-- **Mandatory Gherkin Syntax**: All capability specs (`openspec/specs/<capability>/spec.md`) and delta specs (`specs/<capability>/spec.md`) MUST use strict Gherkin syntax (`GIVEN` / `WHEN` / `THEN` / `AND`).
-- **Automated CLI Archiving**: During `/ship`, MUST run `openspec archive <change-name> -y` before the final commit so merged spec deltas and archived proposal files are included in that commit. Use `--skip-specs` only when the change intentionally has no spec deltas. Do NOT manually move files.
-
-================================================================================
-CATEGORY B: CODEBASE INTELLIGENCE & MCP ECOSYSTEM
-================================================================================
-
-## 5. MCP Tooling & Multi-Agent Intelligence
-### CLI Agent Roster (Arena Round Table)
-This machine has the following CLI agents installed for multi-agent collaboration:
-- **AGY (Antigravity)**: `agy -p --model gemini-2.5-pro "prompt"` — Auditor role. Logic, scanning, fact-checking, evidence verification.
-- **Claude Code**: `claude -p --model claude-fable-5 "prompt"` — Architect role. Enterprise architecture, research breakthroughs, UX design.
-- **Workflow**: See `arena-round-table` skill for structured debate protocol.
-
-### MCP Servers
-Utilize the integrated MCP servers for proactive codebase analysis and runtime verification:
-- **`codebase-memory-mcp` (Pre-Change Analysis)**: Before modifying any shared function, repository method, service, or API endpoint, you SHOULD trace its full call graph and all upstream consumers (MUST for breaking changes — e.g. signature changes, export removal, schema migration):
-  1. `get_architecture(project=...)` -> Understand project structure, module boundaries, entry points, hotspots.
-  2. `search_graph(name_pattern=...)` -> Locate all related functions, classes, and controller routes.
-  3. `trace_path(function_name=..., direction="inward")` -> Trace every upstream caller of the function to detect blast radius.
-  4. `grep_search` fallback -> Verify non-code usages (configs, env, postman collections, markdown specs).
-- **`postgres` & `redis`**: Inspect live database tables, check query performance, and verify cache state during feature development and debugging.
-- **`chrome-devtools-mcp`**: Inspect real runtime DOM, console errors, and visual layouts when building or debugging Strapi CMS or Web components.
-- **`figma`**: Inspect UI designs, extract exact node specs, and verify pixel-perfect layout alignment.
-
-## 6. Agent Rule Maintenance & Preservation Policy
-- **Single Source**: This workspace pack is generated from `agent-harness-kit/profiles/index/workspace.md` and injected between the `agent-harness-kit:index` markers by `scripts/install.sh`. Edit the kit and redeploy — never hand-edit the injected block, and never create a second copy of this policy inside the workspace, because the installer cannot see or reconcile one.
-- **Rule Preservation**: Always preserve existing workspace and sub-project rules intact. Never delete or strip rules without explicit user approval.
-- **Service-Scoped Rules Stay In Their Repo**: `<service>/.agents/AGENTS.md` and `<service>/.agents/skills/` are versioned with the code they govern and are NOT managed by the kit. Anything specific to one service belongs there; anything portable across projects belongs in the kit. A rule or skill must live in exactly one of the two.
-- **Harness Change Lifecycle**: Any modification to harness rules, skills, profiles, or configurations MUST follow the strict lifecycle:
-  `Change in agent-harness-kit -> Local verification (scripts/verify.sh) -> Commit & Push to remote -> Apply back to local machine (scripts/install.sh)`. Never edit workspace rule files directly.
-
-================================================================================
-CATEGORY C: WORKSPACE QUALITY GATES & PR PROTOCOL
-================================================================================
-
-## 7. Single Commit per Pull Request Policy (STRICT 1-COMMIT RULE)
-- **1-Commit Rule**: Every PR MUST contain EXACTLY ONE single commit. NO EXCEPTIONS.
-- **Sequential Execution Workflow during `/ship`**:
-  1. Complete code changes, unit tests, and Postman collection updates.
-  2. Execute `openspec archive <change-name> -y` BEFORE making the final commit so merged spec deltas and archived proposal files are included in the single commit. Use `--skip-specs` only when the change intentionally has no spec deltas.
-  3. Create/checkout the target branch (`feature/<name>`, `bugfix/<name>`, or `hotfix/<name>`).
-  4. Stage specific modified and archived files explicitly (`git add <file1> <file2> ...`).
-  5. Create **ONE SINGLE COMMIT** using Start-Case Conventional Commits (`git commit -m "Feat: Add New Feature"`).
-  6. Verify commit count with `git log origin/develop..HEAD --oneline`. If > 1 commit, run `git reset --soft origin/develop` and re-commit into 1 single commit BEFORE pushing.
-  7. Push to origin (`git push -u origin <branch>`) and create GitHub PR (`env -u GITHUB_TOKEN gh pr create`). An explicit `/ship` invocation authorizes this push; outside `/ship`, ask first.
-
-## 8. Mandatory Clickable Figma Link & Folder Structure Standard
-- **Clickable Figma URLs**: Always format Figma node references with clickable URLs (e.g., `[Figma Node 12077:253458](https://www.figma.com/design/...-id=12077-253458)`). Never use plain text node IDs.
-- **List All UI Nodes & Folder Structure**: Every PR description MUST list all clickable Figma UI nodes provided by the user and include an updated folder/file tree map.
-
-## 9. Mandatory Slack Handover Notification with Direct PR Link
-- **Mandatory PR Link in Slack**: Whenever completing a task/PR and notifying the user via the configured Slack webhook, the notification MUST include:
-  1. Direct clickable GitHub PR link (e.g. `• 🔗 PR: <https://github.com/<org>/<repo>/pull/<id>>`).
-  2. Summary of verification status (unit test pass count, TypeScript 0 errors).
-  3. Touched files scope.
-- **Strict Personal Webhook Source (`notify-slack.sh` ONLY)**: Always send handover notifications via `.agents/scripts/notify-slack.sh` (which loads `SLACK_WEBHOOK_URL` exclusively from `~/.config/agent-harness/secrets.env`). **STRICTLY PROHIBITED**: Never grep, extract, or curl `SLACK_WEBHOOK_URL` from `.github/workflows/*.yml`, repository `.env` files, or CI scripts — those webhooks post to shared company channels.
-
-## 10. Cross-Service UI E2E Video Recording & Closed-Loop Verification Gate
-- **CMS Admin Gate (`index-admin-cms`)**: Playwright E2E testing with video recording is mandatory for every CMS feature or bugfix before PR completion.
-- **Client Web UI Verification Gate (`index-web`)**: Whenever an API change in `index-api` affects data displayed on the user-facing web interface (e.g. topic rankings, stock tags, moderation state):
-  1. Pull latest `develop` on `index-web` (`git pull origin develop`).
-  2. Run `index-web` locally (`bun dev` / `next dev` on port 3000) pointing to local API (`http://localhost:3005`).
-  3. Execute Playwright browser test with video recording (`--video=on`) to verify API changes on the live client web UI.
-- **Closed-Loop Downstream Verification Gate (Strictly Prohibit Stopping at Internal Toast)**:
-  - *Email / SMTP Sink*: Whenever a CMS action or API endpoint triggers an email (e.g. password reset, moderation notice, system warning, ban alert), the E2E test MUST navigate directly to Mailpit (`http://localhost:8025`), assert email arrival, open the email body, and verify the branded HTML layout and token/action link. Stopping at an internal CMS toast or mocking the SMTP delivery is strictly prohibited.
-  - *In-App Notification & Real Bell Sink*: Whenever an action emits an in-app user notification, the E2E test MUST log into the recipient/victim account on `index-web` (`http://localhost:3000`), confirm the red badge count on `NotificationBell`, open the dropdown panel, and click the notification item to verify navigation and unread status decrement.
-  - *Public Feed State Reflection*: Whenever an admin action moderates content (hiding/deleting/locking posts or topics), the E2E test MUST navigate to `index-web` public feed (`/vi/cong-dong`) and verify that moderated content is completely excluded from public view.
-- **In-Video Visual Telemetry Standard**: Every Playwright E2E recording MUST implement:
-  - *Floating On-Screen Step Banners (`showStepBanner`)*: Injected at top-center (`STEP X: [ACTION]`) with distinct badge color, clear context subtitle, and 1.5s visual pause.
-  - *End-of-Run Audit Summary Modal (`showSummaryModal`)*: Injected full-screen frosted glass card displaying verified task ID, `✓ 100% VERIFIED` status, persisted database records, and delivery channel statuses, paused for 4.5s before browser teardown.
-  *Note: `index-web` source code remains strictly read-only. Never modify or commit code in `index-web`.*
-
-## 11. Strapi Content-Type Field & RBAC Permission Gate (`index-admin-cms`)
-- **The Strapi RBAC Pitfall**: Adding a new attribute to `schema.json` and adding it to `strapi_core_store_settings` layout does NOT automatically grant permissions to existing admin roles in Strapi. Strapi stores role permissions in `admin_permissions` with `properties.fields`. Existing roles (`editor` / `strapi-author` - "Biên Tập Viên", `editor-in-chief` / `strapi-editor` - "Tổng Biên Tập") retain their legacy field lists, leaving checkboxes UNCHECKED in "Chỉnh sửa vai trò" (Settings > Roles > Edit Role).
-- **Mandatory Field-Addition Protocol**: Whenever adding or modifying fields in any Strapi content-type (`api::<name>.<name>`):
-  1. **Schema Definition**: Add attribute to `src/api/<name>/content-types/<name>/schema.json`.
-  2. **View Layout**: Add field to `strapi_core_store_settings` via Knex migration.
-  3. **Translations**: Add Vietnamese & English labels in `src/admin/extensions/translations/{vi,en}.json`.
-  4. **RBAC Permission Backfill / Grant (CRITICAL)**: Backfill/grant CRUD permissions (`create`, `read`, `update`) in `admin_permissions` (`properties.fields`) for relevant roles (`editor`, `editor-in-chief`) via Knex migration or bootstrap sync (`src/plugins/admin-user-role-guard/` or Knex JSONB update). Never leave permissions ungranted on schema expansion.
-  5. **Role-Based Verification**: Never verify features solely with Super Admin accounts. Always test with an Editor (`editor`) account or simulate non-superadmin role tokens to prove field visibility and mutation capability.
-
-> **Note**: The Master Agent operating model (Executive Assistant, subagent
-> delegation-first, subagent naming convention) is defined once in the global
-> harness rules and is not repeated here.
-
+## 5. Strapi Content-Type Field & RBAC Permission Gate (`index-admin-cms`)
+Adding a field to `schema.json` and `strapi_core_store_settings` does NOT grant permissions to existing Strapi roles (`editor` / `editor-in-chief`) in `admin_permissions` (`properties.fields`). Whenever adding/modifying Strapi fields, execute all 5 steps:
+1. **Schema**: Add attribute to `src/api/<name>/content-types/<name>/schema.json`.
+2. **View Layout**: Add field to `strapi_core_store_settings` via Knex migration.
+3. **Translations**: Add labels in `src/admin/extensions/translations/{vi,en}.json`.
+4. **RBAC Backfill (CRITICAL)**: Grant `create`/`read`/`update` in `admin_permissions` (`properties.fields`) for `editor` and `editor-in-chief` via Knex migration or `src/plugins/admin-user-role-guard/`.
+5. **Non-SuperAdmin Verification**: Test with an `editor` account/token (never Super Admin alone) to prove field visibility and mutation.

@@ -169,6 +169,10 @@ if [[ "$install_index" == true ]]; then
     exit 2
   fi
   project_path="$(cd "$project_path" && pwd)"
+  if [[ "$project_path" == "$kit_home_root" || "$project_path" == "$kit_root" ]]; then
+    printf 'Error: refusing to inject project pack into HOME or kit root: %s\n' "$project_path" >&2
+    exit 2
+  fi
 fi
 
 init_receipt() {
@@ -361,6 +365,19 @@ install_target() {
 
   if [[ "$install_rules" == true ]]; then
     init_receipt
+    for stray_home_rule in "${kit_home_root}/AGENTS.md" "${kit_home_root}/CLAUDE.md" "${kit_home_root}/GEMINI.md"; do
+      if [[ -f "$stray_home_rule" && ! -L "$stray_home_rule" ]]; then
+        if [[ "$dry_run" == true ]]; then
+          printf 'would remove stray home-root rule: %s\n' "$stray_home_rule"
+        else
+          local stray_backup="${backup_root}/stray-home/$(basename "$stray_home_rule")"
+          /bin/mkdir -p "$(dirname "$stray_backup")"
+          /bin/mv "$stray_home_rule" "$stray_backup"
+          record_receipt_action "file" "$stray_home_rule" "true" "$stray_backup"
+          printf 'removed stray home-root rule (backed up): %s -> %s\n' "$stray_home_rule" "$stray_backup"
+        fi
+      fi
+    done
     destination_rule="$(rule_destination "$target")"
     rule_args=(
       --core "$kit_root/rules/core.md"
