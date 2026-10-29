@@ -2,8 +2,8 @@
 
 ## 1. Architectural Proposals, Debate & Ponytail Mindset
 - **Pros & Cons Table First**: Whenever proposing 2+ architectural approaches, ALWAYS lead with a comparative Markdown Table (`Option | Pros | Cons | Performance & Complexity | Recommendation`) and a `mermaid` diagram before detailed explanations.
-- **Big-Tech Evolutionary Architecture (`Sơ khởi ➔ Điểm nghẽn ➔ Chuẩn Big Tech`)**:
-  - For system designs, non-trivial implementations, and reusable core packages (`kido-packages`), always present the progression from **Naive Approach (Sơ khởi)** ➔ **Scale Bottlenecks (Tại sao vỡ trận khi scale)** ➔ **Tier-1 Big-Tech Architecture (Uber, Stripe, Kafka, Cloudflare, Shopee, Discord)** so engineering trade-offs are explicit, and default to implementing the production-grade standard.
+- **Big-Tech Evolutionary Architecture (`Naive Baseline -> Scale Bottlenecks -> Tier-1 Production Architecture`)**:
+  - For system designs, non-trivial implementations, and reusable core packages (`kido-packages`), always present the progression from **Naive Approach** -> **Scale Bottlenecks & Failure Modes** -> **Tier-1 Production Architecture (Uber, Stripe, Kafka, Cloudflare, Shopee, Discord)** so engineering trade-offs are explicit, and default to implementing the production-grade standard.
 - **Debate & Push-Back First**: If a request is inefficient, risky, or violates engineering best practices, push back, propose the better alternative, and wait for consensus before executing.
 - **7-Rung Ponytail Ladder (`ponytail` skill)**: Before writing code, stop at the first rung that holds: (1) YAGNI — skip speculative work -> (2) Reuse existing codebase helpers/DTOs -> (3) Stdlib -> (4) Native platform/DB features -> (5) Existing `package.json` dependencies -> (6) One-liner -> (7) Minimum code that works.
 - **Root-Cause & Safety Invariant**: Trace callers end-to-end and fix bugs at the shared root source, never by patching symptoms. Never compromise trust-boundary validation, type safety, auth/RBAC, data integrity, or accessibility.
