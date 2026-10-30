@@ -15,7 +15,7 @@
   3. Adding new third-party dependencies.
   4. Modifying Authentication / Authorization / RBAC boundaries.
   5. Resolving merge conflicts touching other team members' code.
-  6. Running `git push` (unless `/ship`, `/build auto`, or `/op-goal` is active).
+  6. Running `git push` (unless `/ship`, `/build auto`, `/op-goal`, or `/op-nda` is active).
 - **Strictly Prohibited**:
   - Modifying or committing code in any repository marked read-only by the project profile.
   - Empty `catch {}` blocks, `@ts-ignore`, or unchecked `any`.
@@ -23,9 +23,10 @@
   - Destructive commands (`rm -rf`, `prisma migrate reset`, `drop database`) without explicit user command.
   - Multiple commits in a PR branch (always squash to 1 Conventional Commit).
   - **Manual SSH Container Builds/Deploys**: Where CI/CD or deploy scripts exist (GitHub Actions, `deploy.sh`), NEVER run `ssh ... docker compose build/up/deploy`. SSH is strictly for read-only diagnostics (`docker ps`, `docker logs`, `free -h`, read-only DB queries, `curl -sI`); all deployments must flow through Git commits and CI/CD pipelines.
-- **Autonomous Run Boundary (`/build auto` & `/op-goal`)**:
+- **Autonomous Run Boundary (`/build auto`, `/op-goal` & `/op-nda`)**:
   - Authorizes autonomous execution of the agreed workflow steps.
   - When `/op-goal` is invoked, execute the full `op-goal` skill loop across the **4-Pillar Quad**: **Measure & Diagnose** -> **Optimize FE (`frontend-performance-lighthouse`) + BE (`backend-performance-optimization`) + Infra (`infra-performance-optimization`) + Modularity (`code-simplification`, God-files `<400 lines`) & Verify Tests** -> **Ship (`1 commit` + `gh run watch` to green `✓`) & Re-Measure Live** -> **Distill (`/learn` novel patterns into `agent-harness-kit`, verify, push, and `./scripts/install.sh --targets all --rules`)**.
+  - When `/op-nda` (or `/nda-audit`) is invoked, execute the full `op-nda` skill loop: **Round 1 (Ground-Truth NDA Discovery + 6-Perspective Red-Team Parallel Swarm)** -> **Round 2 (Cross-Examine Risk Matrix + Lexical & Semantic Remediation)** -> **Round 3 (Pre-Commit Gate Hardening + Zero-Trust `dist/` Verify + `1 commit` Ship & `gh run watch` `✓`)** -> **Phase 4 (Distill new forbidden patterns into `agent-harness-kit` & install)**.
 
 ## 3. Risk-Based Workflow Routing & Worktree Isolation
 - **Zero Ceremonial Waste**: Minor bugfixes and internal refactors do NOT require OpenSpec proposals — reproduce, fix at root cause, verify tests/typecheck, and show the diff.
