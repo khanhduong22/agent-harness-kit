@@ -314,16 +314,22 @@ Whenever migrating any application between VPS nodes or changing origin IPs, ALW
 
 High-throughput containerized deployments (Next.js App Router, Strapi CMS, NestJS APIs) on self-hosted runners frequently suffer from 4–8 minute build times and deployment collisions due to BuildKit rootfs re-scanning, cache ping-pong between environments, and zombie container reboot loops. Adhering to these battle-tested patterns achieves **sub-2-minute builds** (and **<15s on warm code changes**).
 
-### 8.1. Eliminating the 120s+ BuildKit Post-Build `contenthash` Scan Bottleneck
-- **The Bottleneck**: When `builder` inherits `FROM deps AS builder` (carrying 100,000+ files in `node_modules`) and the `runner` stage executes multiple discrete `COPY --from=builder` instructions (e.g. copying standalone server, static files, and public assets separately), BuildKit pauses for **120–150s** immediately following `RUN build`. It recursively traverses the `builder` root filesystem to compute cryptographic `contenthash` trees for each target path.
+### 8.1. Eliminating the 120s+ BuildKit Post-Build `contenthash` Scan Bottleneck (And Avoiding the `overlay2` Lowerdir Whiteout Trap)
+- **The Bottleneck**: When `builder` inherits `FROM deps AS builder` (carrying 100,000+ files in `node_modules`) and the `runner` stage executes `COPY --from=builder /app ./` or wildcards at the builder root (`COPY --from=builder /app/*.json ./`), or copies `.next/standalone` containing a duplicate `.next/standalone/node_modules`, BuildKit pauses for **120–150s** immediately following `RUN build` to compute cryptographic `contenthash` trees across 100,000+ files.
+- **CRITICAL TRAP — Never `rm -rf node_modules` on a Lowerdir (`FROM deps AS builder`)**:
+  - When `/app/node_modules` is inherited from a parent stage (`FROM deps AS builder`), it resides in a Linux `overlay2` **lowerdir**. Running `rm -rf node_modules` inside `RUN bun run build` forces the kernel `overlay2` driver to create **120,000+ character-device whiteout files (`c--------- 0, 0`)** in the `upperdir` and forces BuildKit to commit all 120,000 whiteout nodes when closing the step — adding **50–80 seconds of synchronous disk I/O** to every build!
+  - Conversely, deleting directories created **within the same `RUN` step** (such as `.next/standalone/node_modules`) unlinks inodes directly in the `upperdir` in `<0.5s` with zero whiteouts.
 - **The Three-Part Fix**:
-  1. **Purge Builder `node_modules` at Step Completion**: Delete `node_modules` and nested standalone modules at the end of the `RUN build` step so the builder snapshot stays lean:
+  1. **Delete Only Same-Layer Temporary Outputs (Never Lowerdir `node_modules`)**:
      ```dockerfile
+     # Merge static into standalone and delete ONLY upperdir build artifacts created in this step
+     # DO NOT run `rm -rf node_modules` (lowerdir from deps)!
      RUN bun run build && \
-         rm -rf node_modules .next/standalone/node_modules
+         cp -r .next/static .next/standalone/.next/static && \
+         rm -rf .next/standalone/node_modules .next/server .next/types .next/diagnostics
      ```
-  2. **Direct Build Context Copying in `runner`**: Copy static assets and configurations (`package.json`, `public`, `messages`, `otel.js`, `entrypoint.sh`) directly from the host build context into `runner`. This is cached in `0.0s` completely independently of the `builder` stage state.
-  3. **Consolidate Artifacts into a Single `COPY --from=builder`**: Keep exactly one consolidated `COPY --from=builder` invocation for generated build outputs.
+  2. **Direct Build Context Copying in `runner`**: Copy static assets and configurations (`package.json`, `public`, `messages`, `otel.js`, `entrypoint.sh`) directly from the host build context into `runner`. Never use root wildcards like `COPY --from=builder /app/*.json ./`.
+  3. **Consolidate Artifacts into Narrow Subdirectory `COPY --from=builder`**: Point `COPY --from=builder` exclusively at narrow output subdirectories (`/app/.next/standalone` or `/usr/app/development/dist`). BuildKit's `contenthash` scanner only walks the specified source subdirectory and completely ignores `/app/node_modules`.
 
 ```dockerfile
 # --- Stage 2: Builder ---
@@ -331,25 +337,25 @@ FROM deps AS builder
 WORKDIR /app
 COPY . .
 
-# Delete heavy dependencies in the same layer immediately after compilation
+# Merge static and delete ONLY same-layer standalone node_modules (zero overlay2 whiteouts)
 RUN bun run build && \
-    rm -rf node_modules .next/standalone/node_modules
+    cp -r .next/static .next/standalone/.next/static && \
+    rm -rf .next/standalone/node_modules .next/server .next/types .next/diagnostics
 
 # --- Stage 3: Runner ---
 FROM base AS runner
 WORKDIR /app
 
-# 1. Configs and static assets from context (cached 0.0s independent of builder)
+# 1. Dependency layer reused from deps FIRST (cached 0.0s on application code changes)
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# 2. Configs and static assets from context (cached 0.0s independent of builder)
 COPY package.json entrypoint.sh otel.js ./
 COPY --chown=nextjs:nodejs public ./public
 COPY --chown=nextjs:nodejs messages ./messages
 
-# 2. Dependency layer reused from deps (cached 0.0s on application code changes)
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
-
-# 3. Single consolidated COPY from builder (eliminates 120s+ contenthash pause)
+# 3. Single narrow COPY from builder (scans only ~35MB standalone dir in ~2s)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 ```
 
 ### 8.2. Per-Environment BuildKit Cache Namespace (`id=next-cache-${CACHE_ENV}`)
