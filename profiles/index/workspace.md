@@ -6,13 +6,13 @@
   - **`index-admin-cms` (Admin Platform)**: Strapi v5, custom plugins (`community`, `admin-user-role-guard`), React/Vite extensions (`:1337`/`:1338`). Rules: `index-admin-cms/.agents/AGENTS.md`.
   - **`index-data` (Data Ingestion & Crawlers)**: Node/Bun crawlers & market pipelines (crypto/stock/news) -> `index-admin-cms` & `index-api`. Rules: `index-data/.agents/AGENTS.md`.
   - **`index-ai` (AI & Search)**: NestJS instrument search, AI sentiment, vector embeddings (PG + Meilisearch + Qdrant). Rules: `index-ai/AGENTS.md`.
-  - **`index-web` (Client Web App — STRICTLY READ-ONLY)**: Next.js App Router (`:3000`). Rules: `index-web/AGENTS.md`.
+  - **`index-web` (Client Web App)**: Next.js App Router (`:3000`). Rules: `index-web/AGENTS.md`.
   - **`index-signoz` (Observability)**: OpenTelemetry Collector & ClickHouse. Rules: `index-signoz/.agents/AGENTS.md`.
 - **Cross-Service Data Contracts**: Keep API envelopes (`{ data, meta }`) and `parseApiResponseEnvelope` synchronized across `index-api`, `index-admin-cms`, `index-data`, and `index-web`.
 - **Developer Ownership Policy**:
-  - **Writable**: Strictly `index-api`, `index-admin-cms`, and `index-data`.
+  - **Writable (Full-Stack)**: `index-web`, `index-api`, `index-admin-cms`, and `index-data`.
   - **Issue-Repo vs. True Service Owner**: Even if an issue is filed under `index-web`, any DB query, bulk aggregation, or static generation (sitemaps, feeds, cache warming) MUST be implemented in `index-admin-cms` or `index-api`. `index-web` only calls lightweight backend HTTP endpoints.
-  - **`index-web` Read-Only & E2E Policy**: **NEVER modify, edit, or commit code in `index-web`**. You ARE authorized to inspect `index-web`, pull `origin/develop`, run it locally (`bun dev` on `:3000`), and run Playwright E2E video tests (`--video=on`) against it.
+  - **`index-web` Development & E2E Policy**: You are authorized to implement UI features, fix bugs, resolve conflicts, run `index-web` locally (`bun dev` on `:3000`), and run Playwright E2E video tests (`--video=on`) against it.
 - **Deployment Topology**:
   - **`app_pro` (`[app_pro]` runner)**: Nginx, shared `/www/wwwroot/sitemaps`, `index-admin-cms` Blue/Green (`:1337`/`:1338` + Redis), `index-web` (`:3006->:3000` + Redis), `index-api` (`:3005`).
   - **`data_pro` (`[data_pro]` runner)**: `index-admin-cms` PostgreSQL (`:5432`, pgBackRest -> Backblaze B2) and `index-data` crawlers.
