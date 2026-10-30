@@ -7,7 +7,8 @@
  *     --input <path/to/CV.md> \
  *     --output <path/to/Out.pdf> \
  *     [--downloads <path/in/Downloads.pdf>] \
- *     [--jd-keywords "python,fastapi,rest,redis,postgresql,typescript,react"]
+ *     [--jd-keywords "python,fastapi,rest,redis,postgresql,typescript,react"] \
+ *     [--ascii-dates]
  */
 
 import fs from "node:fs";
@@ -24,7 +25,7 @@ const requireFromMdPreview = createRequire(path.join(mdPreviewDir, "package.json
 const { chromium } = requireFromMdPreview("playwright");
 
 function parseArgs(argv) {
-  const args = { input: "", output: "", downloads: "", jdKeywords: [] };
+  const args = { input: "", output: "", downloads: "", jdKeywords: [], asciiDates: true };
   for (let i = 2; i < argv.length; i++) {
     const token = argv[i];
     if (token === "--input" && argv[i + 1]) {
@@ -38,11 +39,15 @@ function parseArgs(argv) {
         .split(",")
         .map((k) => k.trim())
         .filter(Boolean);
+    } else if (token === "--ascii-dates") {
+      args.asciiDates = true;
+    } else if (token === "--no-ascii-dates") {
+      args.asciiDates = false;
     }
   }
   if (!args.input || !args.output) {
     console.error(
-      "Usage: node render-cv-pdf.mjs --input <CV.md> --output <Out.pdf> [--downloads <Downloads/Out.pdf>] [--jd-keywords \"kw1,kw2\"]"
+      "Usage: node render-cv-pdf.mjs --input <CV.md> --output <Out.pdf> [--downloads <Downloads/Out.pdf>] [--jd-keywords \"kw1,kw2\"] [--ascii-dates]"
     );
     process.exit(1);
   }
@@ -60,7 +65,7 @@ const MIME_TYPES = {
 };
 
 async function main() {
-  const { input, output, downloads, jdKeywords } = parseArgs(process.argv);
+  const { input, output, downloads, jdKeywords, asciiDates } = parseArgs(process.argv);
   if (!fs.existsSync(input)) {
     throw new Error(`Input markdown file not found: ${input}`);
   }
@@ -92,69 +97,111 @@ async function main() {
     await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
 
     // 1. Measure exact A4 2-page layout metrics and check invariants
-    const metrics = await page.evaluate((md) => {
-      const html = window.marked.parse(md);
-      const sanitizedHtml = window.DOMPurify.sanitize(html, {
-        ADD_TAGS: ["mjx-container", "svg", "path", "g", "marker", "defs", "pattern", "clipPath"],
-        ADD_ATTR: ["id", "class", "style", "viewBox", "d", "fill", "stroke", "transform", "marker-end", "marker-start"],
-      });
+    const metrics = await page.evaluate(
+      ({ md, autoNormalizeAsciiDates }) => {
+        let contentMd = md;
+        if (autoNormalizeAsciiDates) {
+          // Normalize Unicode en-dash (–, \u2013) and em-dash (—, \u2014) in date ranges to standard ASCII hyphen ' - '
+          // Handles YYYY - YYYY, YYYY - Present/Now/Current, MM/YYYY - MM/YYYY, etc.
+          const dateRangeRegex = /\b(\d{1,2}\/\d{4}|\d{4})\s*[–—]\s*(\d{1,2}\/\d{4}|\d{4}|Present|Now|Current)\b/gi;
+          contentMd = contentMd.replace(dateRangeRegex, "$1 - $2");
+          contentMd = contentMd.replace(/\((\d{4})\s*[–—]\s*(\d{4})\)/g, "($1 - $2)");
+        }
 
-      document.documentElement.style.height = "auto";
-      document.documentElement.style.overflow = "visible";
-      document.body.innerHTML = "";
-      document.body.style.background = "#ffffff";
-      document.body.style.margin = "0";
-      document.body.style.padding = "0";
-      document.body.style.height = "auto";
-      document.body.style.minHeight = "0";
-      document.body.style.overflow = "visible";
+        const html = window.marked.parse(contentMd);
+        const sanitizedHtml = window.DOMPurify.sanitize(html, {
+          ADD_TAGS: ["mjx-container", "svg", "path", "g", "marker", "defs", "pattern", "clipPath"],
+          ADD_ATTR: ["id", "class", "style", "viewBox", "d", "fill", "stroke", "transform", "marker-end", "marker-start"],
+        });
 
-      const article = document.createElement("div");
-      article.className = "markdown-body pdf-export";
-      article.innerHTML = sanitizedHtml;
-      article.style.padding = "0";
-      article.style.margin = "0";
-      article.style.width = "210mm";
-      article.style.minWidth = "210mm";
-      article.style.maxWidth = "none";
-      article.style.fontSize = "14px";
-      article.style.backgroundColor = "#ffffff";
-      article.style.color = "#24292e";
-      document.body.appendChild(article);
+        document.documentElement.style.height = "auto";
+        document.documentElement.style.overflow = "visible";
+        document.body.innerHTML = "";
+        document.body.style.background = "#ffffff";
+        document.body.style.margin = "0";
+        document.body.style.padding = "0";
+        document.body.style.height = "auto";
+        document.body.style.minHeight = "0";
+        document.body.style.overflow = "visible";
 
-      const width = article.getBoundingClientRect().width;
-      const pageHeightCssPx = width * (277 / 190);
-      const breakEl = article.querySelector('[style*="page-break-before"], [style*="break-before"]');
-      const rootRect = article.getBoundingClientRect();
-      const page1UsedPx = breakEl ? Math.round(breakEl.getBoundingClientRect().top - rootRect.top) : 0;
+        const article = document.createElement("div");
+        article.className = "markdown-body pdf-export";
+        article.innerHTML = sanitizedHtml;
+        article.style.padding = "0";
+        article.style.margin = "0";
+        article.style.width = "210mm";
+        article.style.minWidth = "210mm";
+        article.style.maxWidth = "none";
+        article.style.fontSize = "14px";
+        article.style.backgroundColor = "#ffffff";
+        article.style.color = "#24292e";
+        document.body.appendChild(article);
 
-      let page2UsedPx = 0;
-      if (breakEl && breakEl.nextElementSibling) {
-        const p2Top = breakEl.nextElementSibling.getBoundingClientRect().top;
-        const p2Bottom = article.getBoundingClientRect().bottom;
-        page2UsedPx = Math.round(p2Bottom - p2Top);
-      }
+        // Normalize any role date elements in DOM if present (.cv-role-date or data-role-date)
+        if (autoNormalizeAsciiDates) {
+          const roleDateEls = article.querySelectorAll(".cv-role-date, [data-role-date]");
+          roleDateEls.forEach((el) => {
+            el.textContent = el.textContent.replace(/[–—]/g, "-").replace(/\s*-\s*/g, " - ");
+          });
+        }
 
-      const contactP = article.querySelector("p");
-      const contactHeightPx = contactP ? Math.round(contactP.getBoundingClientRect().height) : 0;
-      const tableEl = article.querySelector("table");
-      const hasRawBackticksInTable = tableEl ? tableEl.textContent.includes("`") : false;
-      const links = Array.from(article.querySelectorAll("a[href]")).map((a) => a.getAttribute("href"));
-      const fullText = article.innerText || article.textContent || "";
+        const width = article.getBoundingClientRect().width;
+        const pageHeightCssPx = width * (277 / 190);
+        const breakEl = article.querySelector('[style*="page-break-before"], [style*="break-before"]');
+        const rootRect = article.getBoundingClientRect();
+        const page1UsedPx = breakEl ? Math.round(breakEl.getBoundingClientRect().top - rootRect.top) : 0;
 
-      return {
-        width: Math.round(width),
-        pageHeightCssPx: Math.round(pageHeightCssPx),
-        page1UsedPx,
-        page1FillPct: Math.round((page1UsedPx / pageHeightCssPx) * 100),
-        page2UsedPx,
-        page2FillPct: Math.round((page2UsedPx / pageHeightCssPx) * 100),
-        contactHeightPx,
-        hasRawBackticksInTable,
-        links,
-        fullText,
-      };
-    }, cvMarkdown);
+        let page2UsedPx = 0;
+        if (breakEl && breakEl.nextElementSibling) {
+          const p2Top = breakEl.nextElementSibling.getBoundingClientRect().top;
+          const p2Bottom = article.getBoundingClientRect().bottom;
+          page2UsedPx = Math.round(p2Bottom - p2Top);
+        }
+
+        const contactP = article.querySelector("p");
+        const contactHeightPx = contactP ? Math.round(contactP.getBoundingClientRect().height) : 0;
+        const contactText = contactP ? (contactP.innerText || contactP.textContent || "") : "";
+
+        // Verify contact bar items extract as literal ASCII text rather than icon glyphs
+        const hasEmail = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(contactText);
+        const hasPhone = /(?:\+?\d{1,3}[\s-]*)?\(?\d{2,4}\)?[\s\d-]{6,}\d/.test(contactText);
+        const hasGithub = /github\.com/i.test(contactText);
+        const hasWebsite = /https?:\/\//i.test(contactText) || /[\w-]+\.(?:com|vn|app|io|dev|org|net)/i.test(contactText);
+        const hasCorruptedGlyphs = /[\uE000-\uF8FF\u{1F300}-\u{1F9FF}]/u.test(contactText);
+        const contactAsciiValid = hasEmail && hasPhone && hasGithub && hasWebsite && !hasCorruptedGlyphs;
+
+        const tableEl = article.querySelector("table");
+        const hasRawBackticksInTable = tableEl ? tableEl.textContent.includes("`") : false;
+        const links = Array.from(article.querySelectorAll("a[href]")).map((a) => a.getAttribute("href"));
+        const fullText = article.innerText || article.textContent || "";
+
+        // Check if any date ranges still contain non-ASCII en-dash or em-dash
+        const remainingUnicodeDashes = /\b(\d{1,2}\/\d{4}|\d{4})\s*[–—]\s*(\d{1,2}\/\d{4}|\d{4}|Present|Now|Current)\b/i.test(fullText);
+        const asciiDateRangesValid = !remainingUnicodeDashes;
+
+        return {
+          width: Math.round(width),
+          pageHeightCssPx: Math.round(pageHeightCssPx),
+          page1UsedPx,
+          page1FillPct: Math.round((page1UsedPx / pageHeightCssPx) * 100),
+          page2UsedPx,
+          page2FillPct: Math.round((page2UsedPx / pageHeightCssPx) * 100),
+          contactHeightPx,
+          asciiDateRangesValid,
+          contactAsciiValid,
+          contactDetails: {
+            hasEmail,
+            hasPhone,
+            hasGithub,
+            hasWebsite,
+          },
+          hasRawBackticksInTable,
+          links,
+          fullText,
+        };
+      },
+      { md: cvMarkdown, autoNormalizeAsciiDates: asciiDates }
+    );
 
     // 2. Generate Native Vector PDF with selectable ATS text and clickable /URI links
     fs.mkdirSync(path.dirname(output), { recursive: true });
@@ -199,6 +246,9 @@ async function main() {
       page1FillPct: `${metrics.page1FillPct}% (${metrics.page1UsedPx}/${metrics.pageHeightCssPx}px)`,
       page2FillPct: `${metrics.page2FillPct}% (${metrics.page2UsedPx}/${metrics.pageHeightCssPx}px)`,
       contactSingleLine: metrics.contactHeightPx <= 26,
+      asciiDateRangesValid: metrics.asciiDateRangesValid,
+      contactAsciiValid: metrics.contactAsciiValid,
+      contactDetails: metrics.contactDetails,
       hasRawBackticksInTable: metrics.hasRawBackticksInTable,
       clickableUrisCount: uriMatches.length,
       clickableUris: uriMatches,
@@ -225,6 +275,12 @@ async function main() {
     }
     if (!report.contactSingleLine) {
       errors.push(`Contact bar wrapped onto multiple lines (height: ${metrics.contactHeightPx}px).`);
+    }
+    if (!report.asciiDateRangesValid) {
+      errors.push("Date ranges contain Unicode en-dash/em-dash characters. ATS parsers require standard ASCII hyphen (' - ').");
+    }
+    if (!report.contactAsciiValid) {
+      errors.push("Contact bar items (email, phone, GitHub, website) must extract as literal ASCII text rather than icon glyphs.");
     }
     if (report.hasRawBackticksInTable) {
       errors.push("Raw markdown backtick (`) found inside HTML <table>. Use <code>...</code> instead.");
