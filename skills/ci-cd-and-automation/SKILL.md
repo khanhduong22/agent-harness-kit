@@ -361,21 +361,24 @@ jobs:
 
 On self-hosted runners (`[app_pro]`, `[data_pro]`, bare-metal servers), Docker builds and zero-downtime Blue-Green deployments should complete in **under 2 minutes** (and **<15s on warm code changes**). When builds drag out to 5–10 minutes or deployments fail with port conflicts and orphaned containers, apply these battle-tested patterns:
 
-### 1. Eliminating the 120s+ BuildKit Post-Build `contenthash` Scan Bottleneck
-- **Symptom**: In multi-stage Docker builds, `RUN bun run build` (or `npm run build`) completes in 20 seconds, but the pipeline hangs completely without output for 2–3 minutes at the subsequent `COPY --from=builder` instruction.
-- **Root Cause**: When the `builder` stage inherits from `deps` (with 100,000+ files in `node_modules`) and the `runner` stage has multiple `COPY --from=builder` commands, BuildKit pauses to compute recursive cryptographic `contenthash` trees across the entire 1.5 GB+ `builder` rootfs for every separate target path.
+### 1. Eliminating the 120s+ BuildKit Post-Build `contenthash` Scan Bottleneck (And Avoiding the `overlay2` Lowerdir Whiteout Trap)
+- **Symptom**: In multi-stage Docker builds, `RUN bun run build` completes in 20 seconds, but the pipeline hangs for 2–3 minutes at `COPY --from=builder`.
+- **Root Cause & `overlay2` Whiteout Trap**:
+  - When `runner` uses broad `COPY --from=builder /app ./`, root wildcards (`COPY --from=builder /app/*.json ./`), or copies `.next/standalone/node_modules`, BuildKit walks 100,000+ files to compute `contenthash`.
+  - **NEVER run `rm -rf node_modules` in `builder` when `node_modules` was inherited from `FROM deps AS builder`!** Because `deps` is an `overlay2` lowerdir, `rm -rf node_modules` creates 120,000+ character-device whiteout files in the upperdir, adding **50–80s of disk I/O** to `RUN build`. Only delete artifacts created within the same `RUN` layer (e.g. `.next/standalone/node_modules`).
 - **CI/CD Fix**:
-  1. Purge `node_modules` and standalone artifacts at the end of the `RUN build` step so the builder stage snapshot is minimal:
+  1. Delete only same-layer temporary directories at the end of `RUN build`:
      ```dockerfile
      RUN bun run build && \
-         rm -rf node_modules .next/standalone/node_modules
+         cp -r .next/static .next/standalone/.next/static && \
+         rm -rf .next/standalone/node_modules .next/server .next/types .next/diagnostics
      ```
-  2. Copy static files (`package.json`, `public`, `messages`, `otel.js`, `entrypoint.sh`) directly from the local build context in `runner`. This is cached at `0.0s` independent of the builder stage.
-  3. Consolidate built artifacts into a single `COPY --from=builder` instruction:
+  2. Copy static files (`package.json`, `public`, `messages`, `otel.js`, `entrypoint.sh`) directly from the local build context in `runner` (`CACHED 0.0s`).
+  3. Point `COPY --from=builder` only at narrow build output subdirectories (`/app/.next/standalone` or `/usr/app/development/dist`):
      ```dockerfile
      COPY --from=builder --chown=appuser:appgroup /app/.next/standalone ./
-     COPY --from=builder --chown=appuser:appgroup /app/.next/static ./.next/static
      ```
+  4. In CI post-deploy cleanup, use `docker image prune -f` instead of `docker system prune -f` (which wipes out BuildKit layer and mount caches!).
 
 ### 2. Per-Environment BuildKit Cache Namespace (`id=next-cache-${CACHE_ENV}`)
 - **Symptom**: Cache thrashing ("Cache Ping-Pong"). When `develop`, `staging`, and `main` deploy on the same self-hosted runner, sharing a single `--mount=type=cache,target=/app/.next/cache` invalidates cache chunks on every build because different environment variables (`NEXT_PUBLIC_*`, `STRAPI_ADMIN_*`) change client bundle hashes.
