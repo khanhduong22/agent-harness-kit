@@ -357,6 +357,114 @@ jobs:
       - run: npm test -- --coverage
 ```
 
+## Tier-1 Docker BuildKit & Self-Hosted CI/CD Acceleration (Sub-2-Minute Builds)
+
+On self-hosted runners (`[app_pro]`, `[data_pro]`, bare-metal servers), Docker builds and zero-downtime Blue-Green deployments should complete in **under 2 minutes** (and **<15s on warm code changes**). When builds drag out to 5–10 minutes or deployments fail with port conflicts and orphaned containers, apply these battle-tested patterns:
+
+### 1. Eliminating the 120s+ BuildKit Post-Build `contenthash` Scan Bottleneck
+- **Symptom**: In multi-stage Docker builds, `RUN bun run build` (or `npm run build`) completes in 20 seconds, but the pipeline hangs completely without output for 2–3 minutes at the subsequent `COPY --from=builder` instruction.
+- **Root Cause**: When the `builder` stage inherits from `deps` (with 100,000+ files in `node_modules`) and the `runner` stage has multiple `COPY --from=builder` commands, BuildKit pauses to compute recursive cryptographic `contenthash` trees across the entire 1.5 GB+ `builder` rootfs for every separate target path.
+- **CI/CD Fix**:
+  1. Purge `node_modules` and standalone artifacts at the end of the `RUN build` step so the builder stage snapshot is minimal:
+     ```dockerfile
+     RUN bun run build && \
+         rm -rf node_modules .next/standalone/node_modules
+     ```
+  2. Copy static files (`package.json`, `public`, `messages`, `otel.js`, `entrypoint.sh`) directly from the local build context in `runner`. This is cached at `0.0s` independent of the builder stage.
+  3. Consolidate built artifacts into a single `COPY --from=builder` instruction:
+     ```dockerfile
+     COPY --from=builder --chown=appuser:appgroup /app/.next/standalone ./
+     COPY --from=builder --chown=appuser:appgroup /app/.next/static ./.next/static
+     ```
+
+### 2. Per-Environment BuildKit Cache Namespace (`id=next-cache-${CACHE_ENV}`)
+- **Symptom**: Cache thrashing ("Cache Ping-Pong"). When `develop`, `staging`, and `main` deploy on the same self-hosted runner, sharing a single `--mount=type=cache,target=/app/.next/cache` invalidates cache chunks on every build because different environment variables (`NEXT_PUBLIC_*`, `STRAPI_ADMIN_*`) change client bundle hashes.
+- **CI/CD Fix**: Parameterize the cache mount by environment in both Dockerfile and GitHub Actions workflow:
+  ```dockerfile
+  ARG CACHE_ENV=dev
+  RUN --mount=type=cache,id=next-cache-${CACHE_ENV},target=/app/.next/cache \
+      --mount=type=cache,id=bun-cache,target=/root/.bun/install/cache \
+      bun run build
+  ```
+  In GitHub Actions deployment step:
+  ```yaml
+  - name: Build production container
+    run: |
+      docker build \
+        --build-arg CACHE_ENV=${{ inputs.environment || 'prod' }} \
+        -t myapp:${{ github.sha }} .
+  ```
+
+### 3. Zero-Copy `FROM deps AS builder` & Direct Runner Layering
+- In multi-stage Dockerfiles with large dependency trees (1.2–1.5 GB):
+  - Place `COPY --from=deps --chown=appuser:appgroup /app/node_modules ./node_modules` in `runner` **before** copying application code. When application source code changes without touching `package.json` or lockfiles, the entire 1.5 GB dependency layer is `CACHED [0.0s]`.
+  - In `builder`, never overlay source code on top of existing `node_modules` without pruning; build directly on `FROM deps AS builder` and clean up before artifact export.
+
+### 4. Pre-Source Prisma Client Generation Layer
+- In NestJS, Bun, or Node.js microservices utilizing Prisma ORM, generating the client during application compilation forces re-generation on every code change.
+- **CI/CD Fix**: Isolate schema generation before copying application source code:
+  ```dockerfile
+  # 1. Dependencies layer
+  COPY package.json bun.lockb ./
+  RUN bun install --frozen-lockfile
+
+  # 2. Prisma Client layer (CACHED 0.0s when schema untouched)
+  COPY prisma ./prisma
+  RUN bun prisma generate
+
+  # 3. Source code compilation
+  COPY tsconfig*.json nest-cli.json ./
+  COPY src ./src
+  RUN bun run build
+  ```
+  Schema edits are rare; source code edits are frequent. This orders layers by rate of change, saving 20–40 seconds per CI run.
+
+### 5. Blue-Green Deployment Zombie Container & Concurrency Guard
+- **Symptom**: Concurrent CI runs collide on host ports (`bind: address already in use`), or failed deployments leave containers running with `restart: unless-stopped`, creating zombie containers that interfere with subsequent deployments.
+- **CI/CD Fix**:
+  1. **Enforce Workflow Concurrency**: Set `concurrency:` with `cancel-in-progress: false` to guarantee deployments queue safely without interleaving:
+     ```yaml
+     concurrency:
+       group: deploy-${{ inputs.environment || 'prod' }}
+       cancel-in-progress: false
+     ```
+  2. **Automated Dual-Container Resolution**: Before building or starting containers, check if both `blue` and `green` are running. Compare `.State.StartedAt`, designate the newer container as `ACTIVE_SERVICE`, and stop/remove the older stale container:
+     ```bash
+     BLUE_RUNNING=$(docker inspect -f '{{.State.Running}}' myapp_blue 2>/dev/null || echo "false")
+     GREEN_RUNNING=$(docker inspect -f '{{.State.Running}}' myapp_green 2>/dev/null || echo "false")
+
+     if [ "$BLUE_RUNNING" = "true" ] && [ "$GREEN_RUNNING" = "true" ]; then
+       BLUE_TIME=$(docker inspect -f '{{.State.StartedAt}}' myapp_blue)
+       GREEN_TIME=$(docker inspect -f '{{.State.StartedAt}}' myapp_green)
+       if [[ "$BLUE_TIME" > "$GREEN_TIME" ]]; then
+         ACTIVE_SERVICE="blue"; INACTIVE_SERVICE="green"
+       else
+         ACTIVE_SERVICE="green"; INACTIVE_SERVICE="blue"
+       fi
+       echo "Dual running containers detected. Keeping $ACTIVE_SERVICE, pruning $INACTIVE_SERVICE..."
+       docker compose stop $INACTIVE_SERVICE && docker compose rm -f $INACTIVE_SERVICE
+     fi
+     ```
+  3. **Exit-Trap Cleanup on Healthcheck Timeout**: When the candidate `$INACTIVE_SERVICE` fails its health probe timeout, explicitly stop and remove it **before** triggering `exit 1`. This stops Docker's `restart: unless-stopped` policy from respawning a broken container in the background:
+     ```bash
+     if [ "$HEALTHY" != "true" ]; then
+       echo "Healthcheck timed out for candidate $INACTIVE_SERVICE. Removing container before exit..."
+       docker compose stop "$INACTIVE_SERVICE" && docker compose rm -f "$INACTIVE_SERVICE"
+       exit 1
+     fi
+     ```
+
+### 6. Alpine Container Healthcheck IPv4 & Next.js 16 RSC OpenTelemetry Guard
+1. **Alpine Linux IPv4 Healthcheck Bindings (`127.0.0.1` vs `localhost`)**:
+   In Alpine-based minimal containers, `localhost` resolves to IPv6 `[::1]` first. When Node.js/Bun servers bind to IPv4 wildcard `0.0.0.0`, Alpine's BusyBox `wget` fails with `Connection refused`. Always use explicit IPv4 loopback `http://127.0.0.1:<port>` in CI health check scripts and Dockerfile `HEALTHCHECK` directives:
+   ```bash
+   # CI Health Probe
+   curl -s -f http://127.0.0.1:3000/api/health | grep -q '"status":"ok"'
+   ```
+2. **Next.js 16 RSC OpenTelemetry `Math.random` Guard**:
+   In Next.js 16 App Router builds with component caching (`cacheComponents: true`), Next.js patches `Math.random()` to trap non-deterministic behavior during static prerendering. Synchronous OpenTelemetry span generation inside React Server Components triggers `NEXT_STATIC_GEN_BAILOUT`.
+   - **CI Solution**: Ensure `otel.js` captures `const nativeMathRandom = Math.random.bind(Math)` before Next.js initializes, passing a custom `idGenerator` into `new NodeSDK({ idGenerator })` so CI static page builds never abort unexpectedly.
+
 ## Common Rationalizations
 
 | Rationalization | Reality |

@@ -307,3 +307,171 @@ Whenever migrating any application between VPS nodes or changing origin IPs, ALW
    ```
 5. **Migrate Host Crontabs & CI/CD Targets**:
    Audit `crontab -l` on the old VPS (database backups, push notification cron sweeps) and GitHub Actions secrets (`SSH_HOST`) so no scheduled job is left stranded on a decommissioned host.
+
+---
+
+## 8. Tier-1 Docker BuildKit & Self-Hosted CI/CD Acceleration (Sub-2-Minute Builds)
+
+High-throughput containerized deployments (Next.js App Router, Strapi CMS, NestJS APIs) on self-hosted runners frequently suffer from 4–8 minute build times and deployment collisions due to BuildKit rootfs re-scanning, cache ping-pong between environments, and zombie container reboot loops. Adhering to these battle-tested patterns achieves **sub-2-minute builds** (and **<15s on warm code changes**).
+
+### 8.1. Eliminating the 120s+ BuildKit Post-Build `contenthash` Scan Bottleneck
+- **The Bottleneck**: When `builder` inherits `FROM deps AS builder` (carrying 100,000+ files in `node_modules`) and the `runner` stage executes multiple discrete `COPY --from=builder` instructions (e.g. copying standalone server, static files, and public assets separately), BuildKit pauses for **120–150s** immediately following `RUN build`. It recursively traverses the `builder` root filesystem to compute cryptographic `contenthash` trees for each target path.
+- **The Three-Part Fix**:
+  1. **Purge Builder `node_modules` at Step Completion**: Delete `node_modules` and nested standalone modules at the end of the `RUN build` step so the builder snapshot stays lean:
+     ```dockerfile
+     RUN bun run build && \
+         rm -rf node_modules .next/standalone/node_modules
+     ```
+  2. **Direct Build Context Copying in `runner`**: Copy static assets and configurations (`package.json`, `public`, `messages`, `otel.js`, `entrypoint.sh`) directly from the host build context into `runner`. This is cached in `0.0s` completely independently of the `builder` stage state.
+  3. **Consolidate Artifacts into a Single `COPY --from=builder`**: Keep exactly one consolidated `COPY --from=builder` invocation for generated build outputs.
+
+```dockerfile
+# --- Stage 2: Builder ---
+FROM deps AS builder
+WORKDIR /app
+COPY . .
+
+# Delete heavy dependencies in the same layer immediately after compilation
+RUN bun run build && \
+    rm -rf node_modules .next/standalone/node_modules
+
+# --- Stage 3: Runner ---
+FROM base AS runner
+WORKDIR /app
+
+# 1. Configs and static assets from context (cached 0.0s independent of builder)
+COPY package.json entrypoint.sh otel.js ./
+COPY --chown=nextjs:nodejs public ./public
+COPY --chown=nextjs:nodejs messages ./messages
+
+# 2. Dependency layer reused from deps (cached 0.0s on application code changes)
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# 3. Single consolidated COPY from builder (eliminates 120s+ contenthash pause)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+```
+
+### 8.2. Per-Environment BuildKit Cache Namespace (`id=next-cache-${CACHE_ENV}`)
+- **The "Cache Ping-Pong" Anti-Pattern**: When Dev, Staging, and Production builds share the same self-hosted runner and Docker daemon, sharing a single `--mount=type=cache,target=/app/.next/cache` causes cache ping-pong. Different environment variables (`NEXT_PUBLIC_API_URL`, `STRAPI_ADMIN_BACKEND_URL`) alter client-side chunk hashes, causing each environment to invalidate the other's compiler cache on every build.
+- **Implementation**: Isolate cache IDs using a build argument `CACHE_ENV`:
+
+```dockerfile
+ARG CACHE_ENV=dev
+
+RUN --mount=type=cache,id=next-cache-${CACHE_ENV},target=/app/.next/cache \
+    --mount=type=cache,id=bun-cache,target=/root/.bun/install/cache \
+    bun run build
+```
+
+Set `--build-arg CACHE_ENV=stg` or `--build-arg CACHE_ENV=prod` in environment pipelines so caches never evict each other.
+
+### 8.3. Zero-Copy `FROM deps AS builder` & Direct Runner Layering
+- In multi-stage builds where dependencies are large (e.g. 1.2–1.5 GB in Strapi or full-stack monorepos):
+  - In `runner`, place `COPY --from=deps --chown=... /app/node_modules ./node_modules` **before** copying application code. When application source code changes but `package.json` and lockfiles remain untouched, the entire 1.5 GB dependency layer is `CACHED [0.0s]`.
+  - In `builder`, never copy `/usr/app` on top of `./node_modules` without pruning; always build directly on top of `FROM deps AS builder` or run `rm -rf node_modules` before copying artifacts.
+
+### 8.4. Pre-Source Prisma Client Generation Layer
+- In NestJS and Prisma backend microservices, running `prisma generate` during application compilation forces schema re-parsing and client generation on every single code change.
+- **Optimized Layer Order**: Copy only the `prisma/` directory and run `prisma generate` **before** copying `src/`:
+
+```dockerfile
+# 1. Install dependencies
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
+
+# 2. Generate Prisma Client BEFORE copying source code (CACHED 0.0s when schema untouched)
+COPY prisma ./prisma
+RUN bun prisma generate
+
+# 3. Only now copy application source code
+COPY tsconfig*.json nest-cli.json ./
+COPY src ./src
+RUN bun run build
+```
+
+When schema definitions are unchanged, Prisma client generation resolves in `0.0s`, shaving 20–40 seconds off backend CI builds.
+
+### 8.5. Blue-Green Deployment Zombie Container & Concurrency Guard
+- **The Zombie Container Failure Mode**: When a deployment fails its healthcheck after launching a container with `restart: unless-stopped`, simply exiting the CI script leaves the unhealthy container in a restart loop. If a second CI run starts simultaneously, it encounters port conflicts (`listen tcp 0.0.0.0:3000: bind: address already in use`) or misidentifies which container is active.
+- **Implementation Standard**:
+  1. **Strict Workflow Concurrency**: Enforce workflow-level serialization with `cancel-in-progress: false` to prevent overlapping runs:
+     ```yaml
+     concurrency:
+       group: deploy-${{ github.ref }}
+       cancel-in-progress: false
+     ```
+  2. **Stale Dual-Container Resolution**: If both `blue` and `green` containers are running simultaneously upon deployment startup, inspect `.State.StartedAt`, retain the newer container as `ACTIVE_SERVICE`, and gracefully stop/remove the older one before building:
+     ```bash
+     BLUE_RUNNING=$(docker inspect -f '{{.State.Running}}' myapp_blue 2>/dev/null || echo "false")
+     GREEN_RUNNING=$(docker inspect -f '{{.State.Running}}' myapp_green 2>/dev/null || echo "false")
+
+     if [ "$BLUE_RUNNING" = "true" ] && [ "$GREEN_RUNNING" = "true" ]; then
+       BLUE_TIME=$(docker inspect -f '{{.State.StartedAt}}' myapp_blue)
+       GREEN_TIME=$(docker inspect -f '{{.State.StartedAt}}' myapp_green)
+       if [[ "$BLUE_TIME" > "$GREEN_TIME" ]]; then
+         ACTIVE_SERVICE="blue"; INACTIVE_SERVICE="green"
+       else
+         ACTIVE_SERVICE="green"; INACTIVE_SERVICE="blue"
+       fi
+       echo "Discovered dual active containers. Preserving newer ($ACTIVE_SERVICE) and removing stale ($INACTIVE_SERVICE)..."
+       docker compose stop $INACTIVE_SERVICE && docker compose rm -f $INACTIVE_SERVICE
+     fi
+     ```
+  3. **Exit-Trap Cleanup on Healthcheck Failure**: If the candidate `$INACTIVE_SERVICE` fails its health probe, explicitly stop and remove it before `exit 1` so `restart: unless-stopped` never creates a background zombie:
+     ```bash
+     if [ "$HEALTHY" != "true" ]; then
+       echo "Healthcheck timed out for candidate service $INACTIVE_SERVICE. Cleaning up..."
+       docker compose stop "$INACTIVE_SERVICE" && docker compose rm -f "$INACTIVE_SERVICE"
+       exit 1
+     fi
+     ```
+
+### 8.6. Alpine Container Healthcheck IPv4 & Next.js 16 RSC OpenTelemetry Guard
+1. **Alpine Linux IPv4 Healthcheck Bindings (`127.0.0.1` vs `localhost`)**:
+   In Alpine-based minimal containers, `localhost` resolves to both IPv6 `[::1]` and IPv4 `127.0.0.1`. When Node.js or Bun HTTP servers bind to `0.0.0.0` (IPv4 wildcard), Alpine's BusyBox `wget` frequently attempts `[::1]` first, failing with `Connection refused` and triggering false container unhealthiness.
+   - **Rule**: Always specify `http://127.0.0.1:<port>` in container `HEALTHCHECK` and Docker Compose health probes:
+     ```dockerfile
+     HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+       CMD wget -q -O - http://127.0.0.1:3000/api/health | grep -q '"status":"ok"' || exit 1
+     ```
+
+2. **Next.js 16 RSC OpenTelemetry `Math.random` Guard**:
+   In Next.js 16 App Router with component caching enabled (`experimental.cacheComponents: true`), Next.js monkey-patches `Math.random()` during React Server Component (RSC) static prerendering to detect non-deterministic runtime execution.
+   - **The Failure Mode**: The OpenTelemetry JS SDK (`@opentelemetry/sdk-node`) calls `Math.random()` synchronously to generate 64-bit span IDs and 128-bit trace IDs. When RSC components generate spans during build prerender, Next.js aborts static generation with:
+     ```text
+     NEXT_STATIC_GEN_BAILOUT: Math.random() called inside static page
+     ```
+   - **The Fix (`otel.js`)**: Capture `nativeMathRandom` prior to module evaluation and inject a custom `idGenerator` into `NodeSDK`:
+     ```javascript
+     // otel.js - Loaded via NODE_OPTIONS="--require ./otel.js"
+     // Capture unpatched Math.random BEFORE Next.js static prerender monkey-patches it
+     const nativeMathRandom = Math.random.bind(Math);
+
+     const { NodeSDK } = require('@opentelemetry/sdk-node');
+     const { RandomIdGenerator } = require('@opentelemetry/core');
+
+     class SafeDeterministicIdGenerator extends RandomIdGenerator {
+       generateTraceId() {
+         let id = '';
+         for (let i = 0; i < 32; i++) {
+           id += Math.floor(nativeMathRandom() * 16).toString(16);
+         }
+         return id;
+       }
+
+       generateSpanId() {
+         let id = '';
+         for (let i = 0; i < 16; i++) {
+           id += Math.floor(nativeMathRandom() * 16).toString(16);
+         }
+         return id;
+       }
+     }
+
+     const sdk = new NodeSDK({
+       idGenerator: new SafeDeterministicIdGenerator(),
+       // ... additional tracer and exporter configuration
+     });
+     sdk.start();
+     ```
