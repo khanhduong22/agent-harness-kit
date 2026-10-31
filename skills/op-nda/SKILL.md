@@ -53,12 +53,17 @@ flowchart LR
 
 ## Phase 3 (Round 3): Pre-Commit Gate Hardening, Zero-Trust Verification & Live Ship
 
-1. **Upgrade Automated Verification Gates**:
-   - Add every newly discovered forbidden token and filename pattern into `~/kido-blog/src/scripts/verify-opsec-and-bilingual.mjs` and verify `.git/hooks/pre-commit` is executable.
-2. **Round 3 Zero-Trust Verification (Source + Compiled `dist/`)**:
+1. **Upgrade Automated Verification Gates (Base64-Obfuscated Blacklist Rule)**:
+   - Add every newly discovered forbidden token and filename pattern into `~/kido-blog/src/scripts/verify-opsec-and-bilingual.mjs` as **Base64-encoded strings** (`OBFUSCATED_SANITIZATION_DEFINITIONS` / `OBFUSCATED_FILENAME_DEFINITIONS`) and verify `.git/hooks/pre-commit` is executable.
+   - **Never store cleartext client/colleague names in repo files (`AGENTS.md`, verify scripts)** — keep literal blacklists Base64-encoded so the repository itself never leaks NDA entities.
+2. **Hardened Audit Invariants (Learned from Multi-Round Red-Team)**:
+   - **Pre-Built Demo Bundles (`~/profile/web/apps/*/assets/*.js`)**: Scan compiled JS bundles for leaked JSX debug `fileName` paths (`~/kt-porfolio/...`), seeded phone numbers, corporate emails, and bank names.
+   - **Bi-Directional Cross-Link & Episode Slug Integrity**: Ensure `relatedEpisodes[].slug` in `~/kido-blog` and `~/kido-chronicles/public/data/catalog.json` contain zero client/VPS/user names (`vantoi`, `contabo`, `kido-infra`, `vt-infra`, athlete names) and match 100% (`0` broken links).
+   - **Canonical 6-Pillar Blog Taxonomy & Complete Semantic Slugs**: Enforce the 6 canonical categories (`Database & Storage`, `Cloud, DevOps & Observability`, `Full-Stack Architecture & Core Web Vitals`, `Distributed Data Pipelines & FinTech`, `High-Concurrency Backend & Edge`, `Security, Auth & Access Control`) and reject word-count-truncated slugs ending in dangling modifiers (`-12`, `-24`, `-multi`, `-scoped`).
+3. **Round 3 Zero-Trust Verification (Source + Compiled `dist/`)**:
    - Run `bun run verify` and `bun run build` in `~/kido-blog`, `~/kido-chronicles`, and `~/profile/web`.
-   - Run an independent post-build scan directly against `dist/` HTML/XML/JSON bundles to confirm **0 leaks** in the final rendered output.
-3. **Single-Commit Ship & CI/CD Watch**:
+   - Run an independent post-build scan directly against `dist/` HTML/XML/JSON/JS bundles across all 3 repos to confirm **0 leaks** in the final rendered output.
+4. **Single-Commit Ship & CI/CD Watch**:
    - Commit changes (`1 Conventional Commit` per repo), push to `origin/main`, and actively watch GitHub Actions (`gh run watch`) until `SUCCESS (✓)`.
    - Probe live production URLs (`curl -sI`) to confirm HTTP/2 200 on clean slugs and HTTP/2 404 on retired slugs.
 
