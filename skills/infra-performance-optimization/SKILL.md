@@ -481,3 +481,17 @@ When schema definitions are unchanged, Prisma client generation resolves in `0.0
      });
      sdk.start();
      ```
+
+### 8.7. Hash-Gated Database Migrations & Zero-Downtime Deploy Guard (`deploy.sh --check`)
+Deploy scripts that unconditionally run destructive database setup commands (`DROP MATERIALIZED VIEW IF EXISTS ... CASCADE`, unconditional `ALTER TABLE ... REPLICA IDENTITY DEFAULT`) stall CI/CD pipelines for **10m–14m+** because TimescaleDB background workers (`_timescaledb_config.bgw_job`) and logical replication `walsender` hold `AccessShareLock`, blocking DDL waiting on `AccessExclusiveLock`.
+- **Fast-Path Pattern**: Expose a `--check` flag on the migration runner (`bun run setup --check`) that compares a SHA-256 digest of SQL migration files against `COMMENT ON SCHEMA public` (via `pg_catalog.obj_description`).
+- When the schema is unchanged and all materialized views are populated, `deploy.sh` skips stopping processor containers and skips crawler restarts entirely:
+  ```bash
+  if bun run setup --check >/dev/null 2>&1; then
+    echo "✓ Database schema and materialized views up-to-date. Skipping migration downtime."
+  else
+    bun run setup
+  fi
+  ```
+- For the full 3-layer architecture (idempotent DDL, `ispopulated` guard, and TimescaleDB background worker lock contention prevention), see the companion **`backend-performance-optimization`** skill (§8.13).
+
