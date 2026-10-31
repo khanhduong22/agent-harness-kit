@@ -572,4 +572,143 @@ When migrating time-series workloads off proprietary extensions (TimescaleDB `ti
      `;
      ```
 
+### 8.13. Non-Destructive Materialized View & Hash-Gated SQL Migration Deploy Guard (Eliminating 10m+ Deploy Stalls)
+
+When deploying applications with recurring SQL migration/setup scripts (e.g. NestJS, Prisma, TimescaleDB continuous aggregates, logical replication publications):
+
+#### 1. Failure Modes & Root Causes
+- **Problem A (TimescaleDB Background Worker Lock Contention on Hypertables & MVs)**:
+  Stopping application containers (e.g. processor or API pods) does **NOT** stop internal PostgreSQL or TimescaleDB background workers (`_timescaledb_config.bgw_job`). These background workers hold `AccessShareLock` on continuous aggregates, materialized views, and hypertables. Running unconditional DDL such as `DROP MATERIALIZED VIEW IF EXISTS ... CASCADE` or `ALTER TABLE ... SET (timescaledb.compress)` blocks for **2m 30s to 5m+** waiting for an `AccessExclusiveLock`, causing deploy stalls of **10m–14m+**.
+- **Problem B (Logical Replication & WAL Sender Contention)**:
+  Unconditional `ALTER TABLE ... REPLICA IDENTITY DEFAULT` and `DROP PUBLICATION ... CASCADE` contend with active `walsender` logical replication slots and live table writes (inducing `55s+` lock waits) and forcibly invalidate downstream subscriber connections.
+- **Problem C (3x Redundant Full Table Scans per Deploy)**:
+  Populating views via `CREATE MATERIALIZED VIEW ... WITH DATA` in SQL files, plus calling refresh functions inside SQL migrations, plus calling `REFRESH MATERIALIZED VIEW CONCURRENTLY` in TypeScript deploy scripts triggers **3 redundant sequential scans** across millions of rows on every rollout.
+- **Problem D (Premature Process Termination via Side-Effect Imports)**:
+  Importing seed or migration helpers (e.g. `import { runSeed } from './seed/index.ts'`) whose entry point executes top-level `main().finally(() => process.exit(0))` as a side effect prematurely terminates the parent process (`process.exit(0)`) mid-flight before subsequent migration steps execute.
+
+#### 2. The 3-Layer Production Architecture
+
+##### Layer 1: Idempotent, Non-Destructive SQL Migrations
+1. **Never `DROP MATERIALIZED VIEW ... CASCADE` in recurring setup scripts**:
+   Check if the view exists and whether its column signature changed via `information_schema.columns` before recreating. If schema is unchanged, retain existing views and unique indexes:
+   ```sql
+   -- Create only if absent; never blindly drop cascade on deploy
+   CREATE MATERIALIZED VIEW IF NOT EXISTS mv_daily_candle_summary AS
+     SELECT ...
+   WITH DATA;
+
+   CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_daily_candle_summary_symbol_date
+     ON mv_daily_candle_summary (symbol, bucket_date);
+   ```
+2. **Conditional `REPLICA IDENTITY` & Incremental Publication Membership**:
+   Check `pg_class.relreplident` before altering replica identity, and check `pg_publication_tables` before adding tables to avoid publication drops and lock contention:
+   ```sql
+   -- Guard REPLICA IDENTITY to execute ONLY if not already 'd' (default)
+   DO $$
+   BEGIN
+     IF EXISTS (
+       SELECT 1 FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname = 'market_ticks' AND c.relreplident <> 'd'
+     ) THEN
+       ALTER TABLE public.market_ticks REPLICA IDENTITY DEFAULT;
+     END IF;
+   END $$;
+
+   -- Add table to publication incrementally without DROP PUBLICATION CASCADE
+   DO $$
+   BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM pg_publication_tables
+       WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'market_ticks'
+     ) THEN
+       ALTER PUBLICATION supabase_realtime ADD TABLE public.market_ticks;
+     END IF;
+   END $$;
+   ```
+3. **Guard TimescaleDB Compression Policy Alterations**:
+   Check `timescaledb_information.hypertables` before setting compression options:
+   ```sql
+   DO $$
+   BEGIN
+     IF EXISTS (
+       SELECT 1 FROM timescaledb_information.hypertables
+       WHERE hypertable_name = 'market_ticks' AND compression_enabled = false
+     ) THEN
+       ALTER TABLE market_ticks SET (timescaledb.compress, timescaledb.compress_segmentby = 'symbol');
+     END IF;
+   END $$;
+   ```
+
+##### Layer 2: Zero-Table Content-Hash Gate in PostgreSQL Catalog (`COMMENT ON SCHEMA`) + `ispopulated` Guard
+Store migration integrity metadata natively in the PostgreSQL catalog using `COMMENT ON SCHEMA public` to eliminate separate migration state tables, paired with catalog sanity checks and `ispopulated` guards:
+1. **Catalog Comment Hash Gate**:
+   Compute a deterministic SHA-256 digest over the concatenation of all sorted SQL migration files. Store and inspect the digest using native catalog functions:
+   ```typescript
+   import { createHash } from 'node:crypto';
+   import { readdirSync, readFileSync } from 'node:fs';
+
+   function computeMigrationsHash(migrationsDir: string): string {
+     const files = readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+     const hash = createHash('sha256');
+     for (const file of files) {
+       hash.update(readFileSync(`${migrationsDir}/${file}`));
+     }
+     return hash.digest('hex');
+   }
+
+   // Read hash from PostgreSQL catalog comment
+   async function getAppliedSchemaHash(sql: Sql): Promise<string | null> {
+     const [row] = await sql`
+       SELECT pg_catalog.obj_description('public'::regnamespace, 'pg_namespace') AS comment
+     `;
+     if (!row?.comment) return null;
+     try {
+       const parsed = JSON.parse(row.comment.replace(/^app-setup:v1:/, ''));
+       return parsed.hash ?? null;
+     } catch {
+       return null;
+     }
+   }
+
+   // Update hash after successful execution
+   async function saveAppliedSchemaHash(sql: Sql, hash: string): Promise<void> {
+     const payload = JSON.stringify({ hash, appliedAt: new Date().toISOString() });
+     await sql`COMMENT ON SCHEMA public IS ${`app-setup:v1:${payload}`}`;
+   }
+   ```
+2. **Catalog Sanity Check on DB Reset**:
+   If the database was dropped or restored out-of-band, the catalog comment may be missing. Verify core objects (`pg_matviews`, `pg_publication`, `pg_policies`) alongside the hash. If all objects exist and hash matches, skip running migrations.
+3. **`pg_matviews.ispopulated` Refresh Guard**:
+   Skip synchronous `REFRESH MATERIALIZED VIEW` or `CALL refresh_continuous_aggregate(...)` during deploy when views are already populated and background TimescaleDB refresh policies are running:
+   ```typescript
+   const views = await sql`
+     SELECT matviewname, ispopulated FROM pg_matviews WHERE schemaname = 'public'
+   `;
+   const allPopulated = views.every(v => v.ispopulated === true);
+   if (!allPopulated) {
+     // Populate cold view only once
+     await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_daily_candle_summary`;
+   }
+   ```
+4. **Side-Effect-Free Module Imports**:
+   Never execute `main().finally(() => process.exit(0))` at the root of a seed or helper script. Gate CLI execution with `require.main === module` (CommonJS) or `import.meta.url === pathToFileURL(process.argv[1]).href` (ESM) and export callable runner functions without `process.exit()`.
+
+##### Layer 3: Zero-Downtime `deploy.sh --check` Fast-Path
+Expose a `--check` flag on the migration setup runner (e.g. `bun run setup --check`). When schema hash and catalog sanity checks match:
+1. `deploy.sh` detects `MIGRATION_STATUS=UP_TO_DATE`.
+2. Skips stopping and starting processor/worker containers for migrations.
+3. Avoids cold-start crawler resets.
+4. Completes rollouts in **`<15s`** instead of stalling for **`10m–14m`**.
+```bash
+# deploy.sh snippet
+if bun run setup --check >/dev/null 2>&1; then
+  echo "✓ PostgreSQL schema & materialized views up-to-date (hash match). Skipping migration stop-window."
+else
+  echo "Schema deltas detected. Running idempotent migrations..."
+  bun run setup
+fi
+```
+
+
 
