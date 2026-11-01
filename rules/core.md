@@ -63,3 +63,8 @@ Any change to harness rules, skills, profiles, or hooks MUST follow all 4 steps:
 2. **Verify Locally**: Run `./scripts/verify.sh` and `bash tests/test_harness.sh`.
 3. **Commit & Push**: Commit with a Conventional Commit and push to `origin`.
 4. **Propagate Locally**: Run `./scripts/install.sh --targets all --rules` (and `--index --project-path <path>` if touching Index pack).
+
+## 7. Personal Brand, Knowledge Graph & Syndication Hub (`~/profile`)
+Whenever a task involves Kido's personal brand (`khanhdp.com`, `blog.khanhdp.com`, `truyen.khanhdp.com`), SEO/GEO, Knowledge Graph (`/g/11zyg5zq1c`, Wikidata `Q141718572`, ORCID `0009-0005-7192-2664`), technical articles, or social syndication (Viblo, Dev.to, IndexNow, Reels) — even if no workspace is currently open:
+- **Mandatory First Read**: Immediately read `~/profile/AGENTS.md` as the single source of truth for Kido's canonical identity, repositories (`~/profile/web` / `~/khanhdp-hub`, `~/kido-blog`, `~/profile/truyen`), and OPSEC invariants.
+- **Zero-Prompt Syndication Credentials (`~/profile/.env`)**: `DEVTO_API_KEY`, `VIBLO_API_KEY`, and `INDEXNOW_KEY` are pre-configured in `~/profile/.env` and auto-loaded by `python3 ~/profile/media/pipeline/publish_devto.py` (`--publish` / `--publish-all`) and `python3 ~/profile/media/pipeline/publish_viblo.py` (`--publish` / `--publish-all` / `--ping-index`). NEVER claim missing tokens or ask the user for API keys for Viblo, Dev.to, or IndexNow — execute the pipeline scripts directly.

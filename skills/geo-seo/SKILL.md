@@ -139,7 +139,7 @@ To push homograph/competitor noise from Page 1 to Page 2, occupy independent hig
 - **Authority Registry Tier**: `orcid.org`, `wikidata.org`, `scholar.google.com`, `npmjs.com` / `pypi.org`
 - **Social & Video Tier**: `linkedin.com/in/...`, `github.com/...`, `youtube.com/@...` (triggers Video Pack), `x.com/...`
 - **Technical Syndication Tier**: `viblo.asia`, `dev.to`, `medium.com`, `hashnode.com`, `substack.com`, press/news domains.
-- **Consistency Invariant**: Whenever renaming a flagship project or package scope (e.g., `@kido/*`), update it simultaneously across **all** owned sites AND syndicated articles (Viblo/Dev.to APIs) so Google AI Overviews never synthesize stale legacy names.
+- **Consistency Invariant & Auto-Syndication (`~/profile/AGENTS.md`)**: Whenever auditing or updating Kido's entity ecosystem (`khanhdp.com`, `blog.khanhdp.com`, `truyen.khanhdp.com`), ALWAYS read `~/profile/AGENTS.md` first. `DEVTO_API_KEY`, `VIBLO_API_KEY`, and `INDEXNOW_KEY` are stored in `~/profile/.env` and auto-loaded by `python3 ~/profile/media/pipeline/publish_viblo.py` and `python3 ~/profile/media/pipeline/publish_devto.py` — run them directly to keep syndicated articles 100% in sync without asking for tokens.
 
 ---
 
