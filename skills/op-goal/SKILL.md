@@ -1,6 +1,6 @@
 ---
 name: op-goal
-description: Autonomous end-to-end performance optimization, structural refactoring, deployment, verification, and skill distillation loop (/op-goal). Combines the 4-Pillar Performance & Modularity Quad — Frontend Core Web Vitals (frontend-performance-lighthouse), Backend Query/Cache/TTFB (backend-performance-optimization), Infra/Edge CDN/Kernel tuning (infra-performance-optimization), and God-File Decomposition/Modularity (code-simplification) — with CI/CD rollout verification and zero-duplicate skill distillation (/learn).
+description: Autonomous end-to-end 4-Pillar performance optimization, God-file modularity (<400 lines), CI/CD rollout verification, and skill distillation loop across Frontend CWV, Backend TTFB/Query/Cache, and Edge/VPS Infra. Triggers on '/op-goal'.
 ---
 
 # Autonomous 4-Pillar Performance, Refactoring & Skill Distillation Loop (`/op-goal`)

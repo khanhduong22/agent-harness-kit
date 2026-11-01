@@ -424,7 +424,8 @@ container.textContent = await llm.reply(userMessage);
 ```
 ## See Also
 
-For detailed security checklists and pre-commit verification steps, see `references/security-checklist.md`.
+- `references/security-checklist.md` — OWASP Top 10 quick-reference table, pre-commit security checklist, and release verification steps.
+- `references/cloudflare-trailofbits-audit.md` — Cloudflare's 5-Element Trust-Boundary Proof (`confirmed` vs `needs_validation`), 10 Audit Anti-Patterns, Trail of Bits Differential PR Security Review (`git log -S` on deleted security guards + Blast Radius calculation), and 9 GitHub Actions AI Agent CI/CD Attack Vectors (`agentic-actions-auditor`).
 
 ## Common Rationalizations
 
