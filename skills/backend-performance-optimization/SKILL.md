@@ -388,6 +388,7 @@ Read [`references/database-migrations-and-concurrency-patterns.md`](references/d
 - **§8.11 TimescaleDB Compressed Hypertable Chunk Exclusion**: Bounding partition keys (`AND created_at > NOW() - INTERVAL '14 days'`, `480.9ms` $\to$ `27.4ms`), co-filtering `created_at` on `UPDATE` (`126.8ms` $\to$ `0.21ms`), and cron subscriber short-circuiting.
 - **§8.12 Native PostgreSQL `date_bin` & Window-Partitioned Batching**: Replacing `time_bucket`/`last()` with native `date_bin` + `(array_agg(price ORDER BY created_at DESC))[1]`, single-query `ANY($1)` history reads, and `Map`-deduplicated bulk `ON CONFLICT DO UPDATE`.
 - **§8.13 Non-Destructive Materialized View & Hash-Gated SQL Migration Deploy Guard**: 3-Layer architecture (`CREATE MATERIALIZED VIEW IF NOT EXISTS`, `COMMENT ON SCHEMA public` SHA-256 hash gate + `pg_matviews.ispopulated` guard, and `deploy.sh --check` `<15s` fast-path).
+- Read [`references/supabase-postgres-best-practices.md`](references/supabase-postgres-best-practices.md) for Supabase's 8-Category Postgres Optimization Rules: wrapping `auth.uid()` in `(SELECT auth.uid())` for `InitPlan` RLS caching (`100x` speedup), explicit foreign-key indexing, partial indexes on hot status subsets, and zero-downtime `NOT VALID` + `VALIDATE CONSTRAINT` migrations.
 
 
 

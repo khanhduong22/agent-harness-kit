@@ -151,3 +151,11 @@ See [debug-tricks.md](./debug-tricks.md) for:
 - MCP endpoint for AI-assisted debugging
 - Rebuild specific routes with `--debug-build-paths`
 
+## Vercel React 19 & Next.js Performance Rules (`70 Rules`)
+
+See [vercel-react-19-patterns.md](./vercel-react-19-patterns.md) for:
+- Eliminating async waterfalls (`async-cheap-condition-before-await`, `async-defer-await`, `after()`)
+- Bundle size & dynamic imports (`bundle-barrel-imports`, `bundle-preload`)
+- RSC serialization minimization (`React.cache()`, zero shared module state, Server Action auth)
+- Client re-render elimination (`rerender-derived-state-no-effect`, `content-visibility: auto`, `startTransition`)
+

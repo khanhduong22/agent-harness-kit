@@ -259,6 +259,10 @@ Add logging only when it helps. Remove it when done.
 - API error logging with request context
 - Performance metrics at key user flows
 
+## See Also
+
+- `references/gstack-investigate-and-careful.md` — `garrytan/gstack` (`★ 138k`) `/investigate` Iron Law, "Identical Helper" call-site trap, Flake/Polluter/Race diagnostic recipes, Scope Lock (`> 5 files` blast-radius gate), 3-Strike Architecture Escalation Rule, and `/careful` destructive command guardrails.
+
 ## Common Rationalizations
 
 | Rationalization | Reality |

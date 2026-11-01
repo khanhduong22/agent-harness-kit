@@ -398,6 +398,10 @@ When a monorepo duplicates a 1,000+ line database module across multiple apps (e
 3. **Preserve Thin App-Level Barrels (`< 50 lines`)**:
    Keep `apps/web/lib/db.ts` and `apps/api/src/db/db.ts` as thin barrels re-exporting from `@<scope>/shared/db` so 100% of existing route and component callers remain unbroken.
 
+## See Also
+
+- `references/deep-modules-and-domain-modeling.md` — John Ousterhout's Deep Modules vs Pass-Through Layers (`mattpocock/skills` `★ 308k`), the Deletion Test for module seams, active `GLOSSARY.md` domain modeling with discriminated unions, and the 3-Condition ADR Gate.
+
 ## Common Rationalizations
 
 | Rationalization | Reality |

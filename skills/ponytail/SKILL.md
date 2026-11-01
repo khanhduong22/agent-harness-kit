@@ -1,6 +1,6 @@
 ---
 name: ponytail
-description: "Forces the laziest solution that actually works — simplest, shortest, most minimal. Channels a lazy senior dev who has seen everything: question whether the task needs to exist at all (YAGNI), reach for standard library before custom code, native platform features before dependencies, one line before fifty. Supports intensity levels [lite|full|ultra]. Use on ANY coding task, writing, refactoring, fixing, reviewing code, choosing dependencies, or when the user says 'ponytail', 'be lazy', 'lazy mode', 'minimal solution', 'yagni', or 'do less'."
+description: "Enforces the 7-Rung Ponytail Ladder, Karpathy's 4 coding pillars, and surgical output compression: question YAGNI first, reuse codebase helpers, stdlib before custom code, native features before dependencies, and minimal diffs. Use on any coding, refactoring, or review task, or when the user says 'ponytail', 'lazy mode', 'minimal solution', or 'yagni'."
 license: MIT
 ---
 
@@ -32,3 +32,7 @@ The ladder runs *after* you understand the problem, not instead of it:
 - Deletion over addition. Boring over clever; clever is what someone decodes at 3am.
 - Fewest files possible. Shortest working diff wins.
 - Trust-boundary validation, type safety, auth checks, data integrity, error recovery, and accessibility are NEVER cut.
+
+## See Also
+
+- `references/karpathy-and-caveman-rules.md` — Andrej Karpathy's 4 LLM Coding Pillars (Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution) and Caveman Answer-First Output Compression (`[File:Line] [Root Cause] [Reason]. [Verification].`).

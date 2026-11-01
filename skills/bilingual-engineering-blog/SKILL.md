@@ -137,3 +137,13 @@ git commit -m "Feat(blog): Add bilingual <topic> engineering deep-dive"
 git push origin main
 gh -R khanhdp-labs/kido-blog run list --limit 1
 ```
+
+---
+
+## 6. Anti-AI-Writing & Humanizer Pass (`blader/humanizer`)
+
+Before finalizing any Vietnamese (`VI`) or English (`EN`) article, apply the **26 Anti-AI-Writing Rules** in [`references/humanizer-anti-ai-writing.md`](references/humanizer-anti-ai-writing.md):
+- **Zero "Not X, but Y" Contrast Formulas** (*"Singleflight is not just a cache — it is..."* / *"Không chỉ là X, mà còn là Y"*). State what the mechanism does directly in sentence 1.
+- **Zero Banned AI Watchwords**: Never use `delve`, `tapestry`, `testament`, `pivotal`, `underscores`, `seamless`, `game-changer`, `bức tranh toàn cảnh`, or `minh chứng sống động`.
+- **Break the Rule-of-Three & Em-Dash (`—`) Addiction**: Maximum 1 em-dash per section; replace vague 3-adjective lists (`fast, reliable, and scalable`) with exact production numbers (`0.21ms p95`, `0ms TBT`).
+- **Cut Shallow `-ing` Tail Riders**: Delete trailing `, ensuring seamless scalability and enhancing developer productivity` clauses.
