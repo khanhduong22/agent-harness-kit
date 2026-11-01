@@ -12,7 +12,7 @@ bash -n "$kit_root/scripts/promote-skill.sh"
 for hook_script in "$kit_root"/scripts/hooks/*.sh; do
   bash -n "$hook_script"
 done
-/usr/bin/env python3 -m py_compile "$kit_root/scripts/sync_rules.py" "$kit_root/scripts/rollback.py" "$kit_root/scripts/sync_upstream.py" "$kit_root/scripts/verify.py"
+/usr/bin/env python3 -m py_compile "$kit_root/scripts/sync_rules.py" "$kit_root/scripts/rollback.py" "$kit_root/scripts/sync_upstream.py" "$kit_root/scripts/verify.py" "$kit_root/skills/doctor/scripts/env_doctor.py" "$kit_root/skills/skill-doctor/scripts/skill_doctor.py"
 /usr/bin/env python3 "$kit_root/scripts/verify.py" "$@"
 
 # Skips silently unless AGENT_HARNESS_WORKSPACE is set, so a machine without the

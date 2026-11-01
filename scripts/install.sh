@@ -21,6 +21,7 @@ install_rules=false
 rules_mode="merge"
 force_conflicts=false
 dry_run=false
+run_doctor_only=false
 install_index=false
 project_path=""
 rollback_target=""
@@ -69,6 +70,7 @@ Options:
   --rollback [latest|<timestamp>]
                 Rollback a previous installation run using its receipt
   --force       Back up and replace conflicting skill entries
+  --doctor      Run Environment Doctor (/doctor) and Skill Doctor (/skill-doctor)
   --dry-run     Print changes without writing
   -h, --help
 EOF
@@ -113,6 +115,10 @@ while (($#)); do
       force_conflicts=true
       shift
       ;;
+    --doctor)
+      run_doctor_only=true
+      shift
+      ;;
     --dry-run)
       dry_run=true
       shift
@@ -128,6 +134,11 @@ while (($#)); do
       ;;
   esac
 done
+
+if [[ "$run_doctor_only" == true ]]; then
+  /usr/bin/env python3 "$kit_root/skills/doctor/scripts/env_doctor.py" --skills-dir "$kit_root/skills"
+  exit $?
+fi
 
 if [[ -n "$rollback_target" ]]; then
   backup_base_dir="${AGENT_HARNESS_BACKUP_DIR:-${kit_home_root}/.agent-harness-backups}"
@@ -565,3 +576,7 @@ for requested_target in "${requested_targets[@]}"; do
   seen_adapters+="${normalized_adapter},"
   install_target "$requested_target"
 done
+
+if [[ "$dry_run" == false && -z "${AGENT_HARNESS_HOME:-}" && -f "$kit_root/skills/doctor/scripts/env_doctor.py" ]]; then
+  /usr/bin/env python3 "$kit_root/skills/doctor/scripts/env_doctor.py" --skills-dir "$kit_root/skills" --summary || true
+fi
