@@ -1,6 +1,6 @@
 ---
 name: nestjs-swagger-standards
-description: Guidelines and best practices for creating type-safe Swagger/OpenAPI documentation in NestJS applications.
+description: Guidelines and best practices for type-safe Swagger/OpenAPI documentation in NestJS. Use when creating or updating NestJS controllers, DTOs, or `@Api*` decorators.
 ---
 
 ## Swagger & OpenAPI Documentation Standards

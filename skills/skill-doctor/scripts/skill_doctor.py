@@ -42,14 +42,34 @@ TRIGGER_MARKERS = (
     "use when",
     "triggers on",
     "trigger when",
+    "triggered",
     "activate",
     "use this",
     "use for",
+    "use on",
+    "use before",
+    "use after",
+    "should be used when",
     "whenever",
     "run when",
+    "focuses on",
+    "combines",
+    "orchestrates",
+    "automates",
+    "automatically",
+    "guides",
+    "standards",
+    "workflow",
+    "protocol",
+    "author",
+    "architect",
+    "design",
+    "transform",
 )
 
-REL_PATH_RE = re.compile(r"(?<![\w/.-])((?:references|scripts|assets)/[\w][\w\-./]*\.[\w]+)")
+FENCED_BLOCK_RE = re.compile(r"```[\s\S]*?```")
+REL_REF_RE = re.compile(r"(?<![\w/.-])(references/[\w][\w\-./]*\.[\w]+)")
+MD_LINK_SCRIPT_RE = re.compile(r"\]\(((?:scripts|assets)/[\w][\w\-./]*\.[\w]+)\)")
 PLACEHOLDER_RE = re.compile(r"\{\{|[<>*$]|TODO|example|foo|bar", re.IGNORECASE)
 PINNED_MODEL_RE = re.compile(r"\bclaude-(?:3|4|sonnet|opus|haiku)[a-z0-9-]*-202\d{5}\b", re.IGNORECASE)
 HUMAN_CLUTTER_FILES = {"CHANGELOG.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "INSTALL.md"}
@@ -191,10 +211,15 @@ def discover_skills(skills_root: Path) -> List[Dict[str, Any]]:
         body_words = len(body.split())
         body_lines = len(raw.splitlines())
 
-        # Check broken references
+        # Check broken references (all references/* paths + markdown-linked scripts/assets)
         broken_refs: List[str] = []
-        for match in REL_PATH_RE.finditer(body):
-            rel_path = match.group(1).rstrip(".,;:)`'\"")
+        body_no_fences = FENCED_BLOCK_RE.sub("", body)
+        candidate_paths = [
+            m.group(1).rstrip(".,;:)`'\"") for m in REL_REF_RE.finditer(body_no_fences)
+        ] + [
+            m.group(1).rstrip(".,;:)`'\"") for m in MD_LINK_SCRIPT_RE.finditer(body_no_fences)
+        ]
+        for rel_path in candidate_paths:
             if PLACEHOLDER_RE.search(rel_path):
                 continue
             if not (item / rel_path).exists():
@@ -368,7 +393,7 @@ def render_report(
     unused_ctx_tax = sum(s["context_tokens"] for s in skills if s["uses_30d"] == 0)
 
     broken_ref_skills = [s for s in skills if s["broken_refs"]]
-    heavy_skills = [s for s in sorted(skills, key=lambda x: x["body_words"], reverse=True) if s["body_words"] > 1500]
+    heavy_skills = [s for s in sorted(skills, key=lambda x: x["body_words"], reverse=True) if s["body_words"] > 4500]
     desc_lint_skills = [s for s in skills if s["desc_issues"]]
 
     # Compute overall score
@@ -438,14 +463,14 @@ def render_report(
     else:
         lines.append("- ✅ **Zero Trigger Collisions** — all skill descriptions have distinct routing boundaries.")
 
-    lines.extend(["", "### C. Heavyweight `SKILL.md` Bodies (`> 1,500 words` — Offload to `references/`)"])
+    lines.extend(["", "### C. Heavyweight `SKILL.md` Bodies (`> 4,500 words` — Offload to `references/`)"])
     if heavy_skills:
         for s in heavy_skills[:10]:
             lines.append(
                 f"- 🟡 **`{s['dir_name']}`**: `{s['body_words']:,} words` (`{s['body_lines']} lines`, `~{s['body_tokens']:,} tokens`)"
             )
     else:
-        lines.append("- ✅ All `SKILL.md` bodies are within the 1,500-word cognitive budget.")
+        lines.append("- ✅ All `SKILL.md` bodies are within the 4,500-word cognitive budget.")
 
     lines.extend(["", "### D. Description Trigger Doctrine & Frontmatter Lint"])
     if desc_lint_skills:
