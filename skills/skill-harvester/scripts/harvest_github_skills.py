@@ -77,6 +77,19 @@ NON_SKILL_REPOS: set[str] = {
     "voltagent/awesome-agent-skills",
     "heilcheng/awesome-agent-skills",
     "ebazhanov/linkedin-skill-assessments-quizzes",
+    "practical-tutorials/project-based-learning",
+    "significant-gravitas/autogpt",
+    "f/prompts.chat",
+    "openclaw/openclaw",
+    "nousresearch/hermes-agent",
+    "firecrawl/firecrawl",
+    "ultraworkers/claw-code",
+    "morluto/rea",
+    "HKUDS/nanobot".lower(),
+    "cherryhq/cherry-studio",
+    "farion1231/cc-switch",
+    "theoretically/opencode",
+    "BrowserMCP/mcp".lower(),
 }
 
 DOMAIN_ROUTING: list[tuple[list[str], str]] = [
