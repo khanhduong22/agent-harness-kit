@@ -1,6 +1,6 @@
 ---
 name: mermaid
-description: Guidelines and syntax rules for writing valid Mermaid diagrams (flowcharts, sequence, journey maps, etc.) to prevent rendering errors.
+description: Guidelines and syntax rules for writing valid Mermaid diagrams (flowcharts, sequence, journey maps) to prevent rendering errors. Use when authoring or fixing Mermaid diagrams in Markdown or docs.
 ---
 
 # Mermaid Diagram Guide

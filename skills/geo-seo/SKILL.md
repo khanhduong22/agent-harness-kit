@@ -1,6 +1,6 @@
 ---
 name: geo-seo
-description: "GEO-SEO Suite & AI Search Optimization (Generative Engine Optimization + Knowledge Graph + Technical SEO). Audits and optimizes websites for Google AI Overviews, ChatGPT Search, Perplexity, Claude, Gemini, and Google Knowledge Graph (/g/..., Wikidata, ORCID). Includes 0-100 composite GEO scoring, passage citability scoring (134-167w blocks), Princeton 9 GEO methods, llms.txt generation, AI crawler & IETF Content-Signal checks, Markdown content negotiation, JSON-LD schema validation, and Page-1 Share-of-SERP (10-Domain Entity Fortress) audits. Triggers on 'geo', 'seo', 'geo-seo', 'ai search', 'ai overview', 'citability', 'llms.txt', 'knowledge panel', or '/geo'."
+description: "GEO-SEO Suite & AI Search Optimization (Generative Engine Optimization, Knowledge Graph, Technical SEO). Audits and optimizes sites for Google AI Overviews, ChatGPT Search, Perplexity, Gemini, and Knowledge Graph (/g/..., Wikidata, ORCID), including 0-100 GEO scoring, passage citability, llms.txt, JSON-LD, and Page-1 SERP audits. Triggers on 'geo', 'seo', 'geo-seo', 'ai search', 'citability', 'llms.txt', or '/geo'."
 ---
 
 # GEO-SEO Suite — AI Search, Knowledge Graph & Generative Engine Optimization

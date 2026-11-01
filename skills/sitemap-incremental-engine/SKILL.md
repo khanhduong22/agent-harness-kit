@@ -1,6 +1,6 @@
 ---
 name: sitemap-incremental-engine
-description: High-performance Cold/Hot incremental sitemap generation and zero-copy Nginx static serving. Eliminates SSR CPU spikes, 504 timeouts during bot crawling, pre-gzips static XML, and serves with <1ms TTFB via Nginx sendfile.
+description: High-performance Cold/Hot incremental sitemap generation and zero-copy Nginx static serving (<1ms TTFB). Use when eliminating SSR sitemap CPU spikes, 504 bot timeouts, or pre-gzipping static XML sitemaps.
 ---
 
 # High-Performance Incremental Sitemap Engine & Nginx Zero-Copy Serving
