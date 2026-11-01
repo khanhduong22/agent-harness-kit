@@ -272,5 +272,6 @@ Read [`references/docker-buildkit-and-cdn-migration.md`](references/docker-build
   - **§8.1**: Eliminating the 120s+ BuildKit post-build `contenthash` scan and avoiding the Linux `overlay2` lowerdir whiteout trap (never `rm -rf node_modules` on a lowerdir inherited from `FROM deps AS builder`; delete only upperdir `.next/standalone/node_modules`).
   - **§8.2 – §8.4**: Per-environment BuildKit cache namespaces (`id=next-cache-${CACHE_ENV}`), zero-copy `FROM deps AS builder` runner layering, and pre-source `bun prisma generate` caching.
   - **§8.5 – §8.7**: Blue-Green zombie container cleanup (`StartedAt` resolution + healthcheck failure exit trap), Alpine IPv4 `http://127.0.0.1` healthchecks, Next.js 16 RSC OpenTelemetry `Math.random` pre-binding (`otel.js`), and `deploy.sh --check` hash-gated migration fast-path.
+- Read [`references/terraform-opentofu-iac-guardrails.md`](references/terraform-opentofu-iac-guardrails.md) (`antonbabenko/terraform-skill`) for Diagnose-First Terraform/OpenTofu guardrails: `for_each = toset()` over `count` to prevent identity churn, declarative `moved` blocks, Terraform 1.10+ native S3 `use_lockfile = true`, Terraform 1.11+ `write_only` secret arguments, and Safe Destroy protocols.
 
 
