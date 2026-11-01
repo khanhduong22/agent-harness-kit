@@ -316,6 +316,7 @@ function useToggleTask() {
 
 - `references/claude-design-system-and-anti-slop.md` — Anthropic's official `/design-system` (`audit | document | extend`) report templates, 5 Anti-AI-Slop Studio Rules, Aesthetic Archetype Matrix, 4-Layer Design Critique, and UX Microcopy rules.
 - `references/impeccable-taste-and-polish.md` — Synthesized from `pbakaus/impeccable` (`★ 98k`) and `Leonxlnx/taste-skill` (`★ 107k`, 247 studied gallery sites): the 4 Surface Modes (`Persuade | Operate | Read | Experience`), Subject Inventory, Competitor Test, Two-Line Headline Arithmetic (`26–34 chars`), Equal Outer Margins, and 17 Impeccable Steering Verbs (`critique`, `polish`, `distill`, `bolder`, `quieter`, `harden`, `typeset`).
+- `references/motion-and-scroll-craft.md` — Synthesized from `nateherkai/scroll-craft` (`★ 4.3k`) and `LottieFiles/motion-design-skill` (`★ 2.6k`): the 6-Beat Scrollytelling Spine, 4-Plane Dimensional Hero Layering, 4 Motion Personality Archetypes, Duration & Easing Tables, and the `1/3` Choreography Rule.
 - `references/accessibility-checklist.md` — WCAG 2.1 Level AA contrast matrix, keyboard focus lifecycle, semantic ARIA checklist, and severity-ranked accessibility review template.
 - `scripts/audit_design_system.py` — Deterministic Python CLI scanner for token naming, hardcoded hex/pixel bypasses, 7-state component matrix, Anti-AI-Slop tells, and WCAG 2.1 AA static checks.
 

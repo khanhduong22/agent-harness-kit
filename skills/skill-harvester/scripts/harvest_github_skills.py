@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-GitHub Skill Harvester & 8-Point Security Inspector for agent-harness-kit.
-Scans 500–2,000+ GitHub repositories across sharded star bands (bypassing GitHub's
-1,000-result search ceiling), deduplicates against already-absorbed skills, and
-audits candidate SKILL.md files for prompt injection, RCE, and slop.
+GitHub Skill Harvester, Local Shallow Git Cache Sync & 8-Point Security Inspector.
+Supports:
+  1. Star-Band Sharded Discovery (--limit 500|1000|2000) across GitHub
+  2. Local Upstream Git Mirror Cache (--sync-cache) in ~/.agent-harness/upstream-cache/
+     so weekly updates only need a fast `git fetch/pull` + security diff check
+  3. Combined Weekly Digest (--weekly-digest): pulls all tracked upstream repos + scans Top 500
+  4. Deep Security & Anti-Slop Inspection (--inspect owner/repo)
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ from typing import Any
 
 KIT_ROOT = Path(__file__).resolve().parents[3]
 SKILLS_DIR = KIT_ROOT / "skills"
+UPSTREAM_CACHE_DIR = Path.home() / ".agent-harness" / "upstream-cache"
 
 # Repositories already absorbed into agent-harness-kit (upstream -> kit target)
 ABSORBED_REPOS: dict[str, str] = {
@@ -32,13 +36,22 @@ ABSORBED_REPOS: dict[str, str] = {
     "dietrichgebert/ponytail": "ponytail",
     "leonxlnx/taste-skill": "frontend-ui-engineering/references/impeccable-taste-and-polish.md",
     "pbakaus/impeccable": "frontend-ui-engineering/references/impeccable-taste-and-polish.md",
+    "nateherkai/scroll-craft": "frontend-ui-engineering/references/motion-and-scroll-craft.md",
+    "lottiefiles/motion-design-skill": "frontend-ui-engineering/references/motion-and-scroll-craft.md",
     "blader/humanizer": "bilingual-engineering-blog/references/humanizer-anti-ai-writing.md",
     "cloudflare/security-audit-skill": "security-and-hardening/references/cloudflare-trailofbits-audit.md",
     "trailofbits/skills": "security-and-hardening/references/cloudflare-trailofbits-audit.md",
     "vercel-labs/agent-skills": "next-best-practices/vercel-react-19-patterns.md",
+    "vercel-labs/next-skills": "next-best-practices",
     "supabase/agent-skills": "backend-performance-optimization/references/supabase-postgres-best-practices.md",
+    "timescale/pg-aiguide": "backend-performance-optimization/references/timescale-and-pg-table-design.md",
+    "cathrynlavery/diagram-design": "diagram-director/references/editorial-svg-connector-laws.md",
+    "leonxlnx/unlazy": "code-review-and-quality/references/unlazy-gates-and-ts-anti-slop.md",
+    "dmmulroy/anti-slop": "code-review-and-quality/references/unlazy-gates-and-ts-anti-slop.md",
+    "antonbabenko/terraform-skill": "infra-performance-optimization/references/terraform-opentofu-iac-guardrails.md",
     "coreyhaines31/marketingskills": "geo-seo",
     "addyosmani/web-quality-skills": "frontend-performance-lighthouse",
+    "addyosmani/agent-skills": "frontend-performance-lighthouse, code-review-and-quality",
     "nextlevelbuilder/ui-ux-pro-max-skill": "ui-ux-pro-max",
     "obra/superpowers": "test-driven-development, debugging-and-error-recovery, planning-and-task-breakdown",
     "remotion-dev/skills": "tech-reel-factory",
@@ -52,7 +65,7 @@ NON_SKILL_REPOS: set[str] = {
     "trimstray/the-book-of-secret-knowledge",
     "kamranahmedse/developer-roadmap",
     "donnemartin/system-design-primer",
-    "EbookFoundation/free-programming-books",
+    "ebookfoundation/free-programming-books",
     "jwasham/coding-interview-university",
     "codecrafters-io/build-your-own-x",
     "public-apis/public-apis",
@@ -63,19 +76,20 @@ NON_SKILL_REPOS: set[str] = {
     "behisecc/awesome-claude-skills",
     "voltagent/awesome-agent-skills",
     "heilcheng/awesome-agent-skills",
+    "ebazhanov/linkedin-skill-assessments-quizzes",
 }
 
-# Domain routing table for recommending zero-tax references/ merges
 DOMAIN_ROUTING: list[tuple[list[str], str]] = [
     (["react", "nextjs", "next.js", "rsc", "app-router"], "next-best-practices"),
     (["lighthouse", "cwv", "web-vitals", "lcp", "cls", "inp"], "frontend-performance-lighthouse"),
-    (["design-system", "ui", "ux", "tailwind", "css", "a11y", "accessibility", "taste", "figma"], "frontend-ui-engineering"),
-    (["postgres", "postgresql", "sql", "supabase", "redis", "prisma", "drizzle", "database", "query"], "backend-performance-optimization"),
-    (["cloudflare", "nginx", "caddy", "docker", "vps", "linux", "kubernetes", "k8s", "terraform"], "infra-performance-optimization"),
+    (["design-system", "ui", "ux", "tailwind", "css", "a11y", "accessibility", "taste", "scroll", "motion"], "frontend-ui-engineering"),
+    (["postgres", "postgresql", "sql", "supabase", "timescale", "redis", "prisma", "drizzle", "database", "query"], "backend-performance-optimization"),
+    (["cloudflare", "nginx", "caddy", "docker", "vps", "linux", "kubernetes", "k8s", "terraform", "opentofu"], "infra-performance-optimization"),
     (["security", "owasp", "pentest", "vulnerability", "audit", "cve", "appsec", "crypto"], "security-and-hardening"),
     (["nda", "opsec", "pii", "red-team", "sanitize"], "op-nda"),
     (["debug", "investigate", "root-cause", "bisect", "flake", "incident"], "debugging-and-error-recovery"),
     (["refactor", "simplify", "architecture", "domain-modeling", "clean-code"], "code-simplification"),
+    (["review", "lint", "anti-slop", "quality", "oxlint", "sonarqube"], "code-review-and-quality"),
     (["playwright", "e2e", "cypress", "browser-test"], "playwright-e2e-testing"),
     (["tdd", "unit-test", "vitest", "jest", "testing"], "test-driven-development"),
     (["blog", "writing", "humanizer", "copywriting", "editorial"], "bilingual-engineering-blog"),
@@ -85,7 +99,6 @@ DOMAIN_ROUTING: list[tuple[list[str], str]] = [
     (["wiki", "obsidian", "knowledge-base", "second-brain"], "llm-wiki"),
 ]
 
-# 8-Point Security Gate regex patterns
 SECURITY_PATTERNS: list[tuple[str, str, re.Pattern[str]]] = [
     (
         "HIGH",
@@ -119,7 +132,6 @@ SECURITY_PATTERNS: list[tuple[str, str, re.Pattern[str]]] = [
 
 
 def run_gh_api(endpoint: str) -> Any:
-    """Call gh api and parse JSON response."""
     cmd = ["gh", "api", endpoint]
     proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if proc.returncode != 0:
@@ -131,9 +143,8 @@ def run_gh_api(endpoint: str) -> Any:
 
 
 def recommend_target_skill(text: str) -> str:
-    """Recommend which existing agent-harness-kit skill should absorb a repo's patterns."""
     lower = text.lower()
-    best_skill = "code-simplification (or standalone skill if distinct workflow)"
+    best_skill = "code-simplification/references/"
     best_hits = 0
     for keywords, target in DOMAIN_ROUTING:
         hits = sum(1 for kw in keywords if kw in lower)
@@ -143,11 +154,163 @@ def recommend_target_skill(text: str) -> str:
     return best_skill
 
 
+def scan_text_security(content: str) -> list[dict[str, str]]:
+    findings: list[dict[str, str]] = []
+    for severity, label, pattern in SECURITY_PATTERNS:
+        for match in pattern.finditer(content):
+            findings.append({"severity": severity, "rule": label, "match": match.group(0)[:80]})
+    return findings
+
+
+def sync_upstream_cache(repos_to_sync: list[str] | None = None) -> list[dict[str, Any]]:
+    """
+    Maintain local shallow blobless git clones in ~/.agent-harness/upstream-cache/<owner>__<repo>.
+    On first run: clones with `--depth 1 --filter=blob:none`.
+    On weekly runs: runs `git fetch --depth 2 origin`, checks `HEAD..FETCH_HEAD` for modified
+    SKILL.md / references files, runs the 8-Point Security Gate on diffs, and fast-forwards if clean.
+    """
+    UPSTREAM_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    targets = repos_to_sync or list(ABSORBED_REPOS.keys())
+    results: list[dict[str, Any]] = []
+
+    for repo in targets:
+        slug = repo.lower().replace("/", "__")
+        repo_dir = UPSTREAM_CACHE_DIR / slug
+        url = f"https://github.com/{repo}.git"
+        kit_target = ABSORBED_REPOS.get(repo.lower(), recommend_target_skill(repo))
+
+        if not (repo_dir / ".git").is_dir():
+            proc = subprocess.run(
+                ["git", "clone", "--depth", "1", "--filter=blob:none", url, str(repo_dir)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if proc.returncode != 0:
+                results.append(
+                    {
+                        "repo": repo,
+                        "status": "CLONE_FAILED",
+                        "kit_target": kit_target,
+                        "details": proc.stderr.strip()[:120],
+                    }
+                )
+                continue
+            head_sha = subprocess.run(
+                ["git", "-C", str(repo_dir), "rev-parse", "--short", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.strip()
+            results.append(
+                {
+                    "repo": repo,
+                    "status": "CLONED_FRESH",
+                    "sha": head_sha,
+                    "kit_target": kit_target,
+                    "changed_skills": [],
+                }
+            )
+            continue
+
+        # Already cached locally -> fast git fetch & diff check
+        old_sha = subprocess.run(
+            ["git", "-C", str(repo_dir), "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        fetch_proc = subprocess.run(
+            ["git", "-C", str(repo_dir), "fetch", "--depth", "2", "origin"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if fetch_proc.returncode != 0:
+            results.append(
+                {
+                    "repo": repo,
+                    "status": "FETCH_ERROR",
+                    "sha": old_sha,
+                    "kit_target": kit_target,
+                    "details": fetch_proc.stderr.strip()[:100],
+                }
+            )
+            continue
+
+        new_sha = subprocess.run(
+            ["git", "-C", str(repo_dir), "rev-parse", "--short", "FETCH_HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+
+        if old_sha == new_sha or not new_sha:
+            results.append(
+                {
+                    "repo": repo,
+                    "status": "UP_TO_DATE",
+                    "sha": old_sha,
+                    "kit_target": kit_target,
+                    "changed_skills": [],
+                }
+            )
+            continue
+
+        # Inspect changed files between HEAD and FETCH_HEAD
+        diff_files_proc = subprocess.run(
+            ["git", "-C", str(repo_dir), "diff", "--name-only", "HEAD..FETCH_HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        changed_files = [
+            f for f in diff_files_proc.stdout.splitlines() if f.endswith(".md") or "skill" in f.lower()
+        ]
+
+        diff_content_proc = subprocess.run(
+            ["git", "-C", str(repo_dir), "diff", "HEAD..FETCH_HEAD", "--", "*.md"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        sec_findings = scan_text_security(diff_content_proc.stdout)
+        high_risk = any(f["severity"] == "HIGH" for f in sec_findings)
+
+        if high_risk:
+            results.append(
+                {
+                    "repo": repo,
+                    "status": "BLOCKED_SECURITY",
+                    "sha": f"{old_sha}..{new_sha}",
+                    "kit_target": kit_target,
+                    "changed_skills": changed_files[:8],
+                    "security_findings": sec_findings,
+                }
+            )
+            continue
+
+        # Safe to fast-forward local cache
+        subprocess.run(
+            ["git", "-C", str(repo_dir), "reset", "--hard", "FETCH_HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        results.append(
+            {
+                "repo": repo,
+                "status": "UPDATED",
+                "sha": f"{old_sha}->{new_sha}",
+                "kit_target": kit_target,
+                "changed_skills": changed_files[:8],
+            }
+        )
+
+    return results
+
+
 def harvest_repositories(limit: int, extra_query: str = "") -> list[dict[str, Any]]:
-    """
-    Scan up to `limit` (500–2,000+) GitHub repositories by sharding across star bands
-    and query families to overcome GitHub Search API's 1,000-result cap per query.
-    """
     star_bands = [
         "stars:>5000",
         "stars:1000..5000",
@@ -172,7 +335,6 @@ def harvest_repositories(limit: int, extra_query: str = "") -> list[dict[str, An
             if len(seen) >= limit:
                 break
             raw_q = f"{family}+{band}{q_suffix}".replace(" ", "+")
-            # Fetch up to 2 pages (200 items) per (band, family) shard
             for page in (1, 2):
                 if len(seen) >= limit:
                     break
@@ -216,7 +378,6 @@ def harvest_repositories(limit: int, extra_query: str = "") -> list[dict[str, An
 
 
 def inspect_repository(repo: str) -> dict[str, Any]:
-    """Inspect all SKILL.md files in a GitHub repository and run the 8-Point Security Gate."""
     meta = run_gh_api(f"repos/{repo}")
     if not meta:
         return {"error": f"Could not fetch repository metadata for {repo}"}
@@ -232,7 +393,7 @@ def inspect_repository(repo: str) -> dict[str, Any]:
     ]
 
     inspected_files: list[dict[str, Any]] = []
-    for path in skill_paths[:8]:  # Inspect up to 8 SKILL.md files per repo
+    for path in skill_paths[:8]:
         blob = run_gh_api(f"repos/{repo}/contents/{path}")
         if not blob or "content" not in blob:
             continue
@@ -242,11 +403,7 @@ def inspect_repository(repo: str) -> dict[str, Any]:
             continue
 
         lines = content.splitlines()
-        findings: list[dict[str, str]] = []
-        for severity, label, pattern in SECURITY_PATTERNS:
-            for match in pattern.finditer(content):
-                findings.append({"severity": severity, "rule": label, "match": match.group(0)[:80]})
-
+        findings = scan_text_security(content)
         if len(lines) < 35:
             findings.append(
                 {
@@ -276,19 +433,66 @@ def inspect_repository(repo: str) -> dict[str, Any]:
     }
 
 
+def print_sync_table(sync_results: list[dict[str, Any]]) -> None:
+    print("=" * 110)
+    print(f"LOCAL UPSTREAM GIT CACHE SYNC (~/.agent-harness/upstream-cache) — {len(sync_results)} Tracked Repos")
+    print("=" * 110)
+    print(f"{'Upstream Repository':<38} {'Status':<16} {'Commit':<18} {'Mapped Kit Target'}")
+    print("-" * 110)
+    for item in sync_results:
+        sha = item.get("sha", "-")
+        print(f"{item['repo'][:37]:<38} {item['status']:<16} {sha:<18} {item['kit_target'][:36]}")
+        for chg in item.get("changed_skills", []):
+            print(f"    ↳ Changed: {chg}")
+    print("-" * 110)
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="GitHub Skill Harvester & Security Inspector")
+    parser = argparse.ArgumentParser(description="GitHub Skill Harvester & Local Git Cache Sync")
     parser.add_argument(
         "--limit",
         type=int,
         default=500,
-        help="Maximum number of repositories to scan across star bands (e.g. 300, 500, 1000, 2000)",
+        help="Maximum number of repositories to scan across star bands (default: 500)",
     )
     parser.add_argument("--query", type=str, default="", help="Optional domain keyword filter")
     parser.add_argument("--inspect", type=str, default="", help="Deep-inspect a specific owner/repo")
+    parser.add_argument(
+        "--sync-cache",
+        action="store_true",
+        help="Clone or git pull all 28 tracked upstream skill repos in ~/.agent-harness/upstream-cache/",
+    )
+    parser.add_argument(
+        "--weekly-digest",
+        action="store_true",
+        help="Run weekly maintenance: (1) git pull all local cached upstream repos + (2) scan Top 500 for new gems",
+    )
     parser.add_argument("--top", type=int, default=35, help="Number of top candidates to print in table")
     parser.add_argument("--json", action="store_true", help="Emit JSON output")
     args = parser.parse_args()
+
+    if args.sync_cache:
+        sync_res = sync_upstream_cache()
+        if args.json:
+            print(json.dumps(sync_res, indent=2))
+            return 0
+        print_sync_table(sync_res)
+        return 0
+
+    if args.weekly_digest:
+        sync_res = sync_upstream_cache()
+        repos = harvest_repositories(limit=500, extra_query=args.query)
+        candidates = [r for r in repos if r["status"] == "candidate"]
+        if args.json:
+            print(json.dumps({"upstream_sync": sync_res, "top_500_new_candidates": candidates[:20]}, indent=2))
+            return 0
+        print_sync_table(sync_res)
+        print(f"\nTOP 20 UNABSORBED CANDIDATES IN GITHUB TOP 500 (Scanned: {len(repos)}):")
+        print("-" * 110)
+        for idx, r in enumerate(candidates[:20], 1):
+            star_str = f"★ {r['stars']:,}"
+            print(f"{idx:<4} {r['full_name'][:38]:<39} {star_str:>10}  ->  {r['target'][:45]}")
+        return 0
 
     if args.inspect:
         report = inspect_repository(args.inspect)
@@ -345,7 +549,7 @@ def main() -> int:
         status_str = "ABSORBED ✓" if r["status"] == "absorbed" else "CANDIDATE"
         print(f"{idx:<5} {r['full_name'][:37]:<38} {star_str:>9} {status_str:<11} {r['target'][:42]}")
     print("-" * 110)
-    print("Tip: Run `--inspect <owner/repo>` to audit SKILL.md files with the 8-Point Security Gate.")
+    print("Tip: Run `--sync-cache` or `--weekly-digest` for weekly git pull + Top-500 delta scan.")
     return 0
 
 

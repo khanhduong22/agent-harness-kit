@@ -394,3 +394,4 @@ After review is complete:
 - [ ] Dependency upgrades were reviewed against their changelog, isolated per package, and verified by a green suite with the lockfile diff reviewed
 
 **Presumptive blockers:** surface and propose the simpler design for each of these; escalate to Required only when the change actively makes structure worse: a refactor that relocates complexity instead of reducing it; a change that pushes a file past the size boundary with no decomposition; feature logic added to a shared module; a near-duplicate of an existing canonical helper; a silent fallback that hides an unclear invariant.
+- See `references/unlazy-gates-and-ts-anti-slop.md` (`Leonxlnx/unlazy` + `dmmulroy/anti-slop`) for the 4-Pass Unlazy Leaf Discipline (`CHECK:`/`EXPECT:` runnable gate oracles) and 12 TypeScript/React Anti-Slop lint rules (`no-accumulating-spread`, `no-array-filter-map`, `no-chained-type-assertions`, `require-safety-comment-for-type-assertion`).

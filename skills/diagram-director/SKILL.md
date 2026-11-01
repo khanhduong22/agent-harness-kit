@@ -260,3 +260,4 @@ Fonts is the one external host the Artifact sandbox permits, so a `fonts.googlea
 stylesheet and the `fonts.gstatic.com` files it pulls are allowed and expected (always behind a
 real fallback stack). Every other external host is blocked. Same wording in STEP 1 above,
 `references/pre-delivery-checklist.md` item 5.
+- Read `references/editorial-svg-connector-laws.md` (`cathrynlavery/diagram-design` `★ 63k`) for the 6 Non-Negotiable SVG Orthogonal Connector Geometry Rules (`r=8` elbows, `6–10px` opaque label masks, bridge hops, fan attach points), the `<= 9 node` complexity budget, and accessible `<svg role="img" aria-labelledby="...">` markup.
