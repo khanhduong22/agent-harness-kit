@@ -27,17 +27,17 @@ GitHub skill repositories follow a steep **Power-Law Distribution**:
 ## Quick Start Commands
 
 ```bash
-# 1. Weekly All-in-One Digest (git pull 28 local cached upstream repos + scan Top 500 for new gems):
+# 1. Weekly All-in-One Digest (git pull 29 local cached upstream repos + scan Top 250 ★4,000+ sweet spot):
 python3 ~/agent-harness-kit/skills/skill-harvester/scripts/harvest_github_skills.py --weekly-digest
 
 # 2. Sync/Pull Only Local Shallow Git Cache (~/.agent-harness/upstream-cache/):
 python3 ~/agent-harness-kit/skills/skill-harvester/scripts/harvest_github_skills.py --sync-cache
 
-# 3. Scan top 500–2,000 GitHub skill repos across sharded star bands (deduped against installed kit):
-python3 ~/agent-harness-kit/skills/skill-harvester/scripts/harvest_github_skills.py --limit 500
+# 3. Scan top 250–2,000 GitHub skill repos across sharded star bands (default: 250):
+python3 ~/agent-harness-kit/skills/skill-harvester/scripts/harvest_github_skills.py --limit 250
 
 # 4. Filter discovery by domain keyword (e.g. security, postgres, design, rust, k8s):
-python3 ~/agent-harness-kit/skills/skill-harvester/scripts/harvest_github_skills.py --limit 600 --query security
+python3 ~/agent-harness-kit/skills/skill-harvester/scripts/harvest_github_skills.py --limit 300 --query security
 
 # 5. Deep-inspect a specific repo (lists all SKILL.md files, runs 8-Point Security Gate, and recommends merge target):
 python3 ~/agent-harness-kit/skills/skill-harvester/scripts/harvest_github_skills.py --inspect trailofbits/skills

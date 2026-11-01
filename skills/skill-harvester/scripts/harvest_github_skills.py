@@ -2,10 +2,10 @@
 """
 GitHub Skill Harvester, Local Shallow Git Cache Sync & 8-Point Security Inspector.
 Supports:
-  1. Star-Band Sharded Discovery (--limit 500|1000|2000) across GitHub
+  1. Star-Band Sharded Discovery (--limit 250|500|1000|2000) across GitHub
   2. Local Upstream Git Mirror Cache (--sync-cache) in ~/.agent-harness/upstream-cache/
      so weekly updates only need a fast `git fetch/pull` + security diff check
-  3. Combined Weekly Digest (--weekly-digest): pulls all tracked upstream repos + scans Top 500
+  3. Combined Weekly Digest (--weekly-digest): pulls all tracked upstream repos + scans Top 250 (★ 4,000+)
   4. Deep Security & Anti-Slop Inspection (--inspect owner/repo)
 """
 
@@ -452,22 +452,22 @@ def main() -> int:
     parser.add_argument(
         "--limit",
         type=int,
-        default=500,
-        help="Maximum number of repositories to scan across star bands (default: 500)",
+        default=250,
+        help="Maximum number of repositories to scan across star bands (default: 250 — Top 200-300 ★4k+ sweet spot)",
     )
     parser.add_argument("--query", type=str, default="", help="Optional domain keyword filter")
     parser.add_argument("--inspect", type=str, default="", help="Deep-inspect a specific owner/repo")
     parser.add_argument(
         "--sync-cache",
         action="store_true",
-        help="Clone or git pull all 28 tracked upstream skill repos in ~/.agent-harness/upstream-cache/",
+        help="Clone or git pull all 29 tracked upstream skill repos in ~/.agent-harness/upstream-cache/",
     )
     parser.add_argument(
         "--weekly-digest",
         action="store_true",
-        help="Run weekly maintenance: (1) git pull all local cached upstream repos + (2) scan Top 500 for new gems",
+        help="Run weekly maintenance: (1) git pull all local cached upstream repos + (2) scan Top 250 (★4k+) for new gems",
     )
-    parser.add_argument("--top", type=int, default=35, help="Number of top candidates to print in table")
+    parser.add_argument("--top", type=int, default=25, help="Number of top candidates to print in table")
     parser.add_argument("--json", action="store_true", help="Emit JSON output")
     args = parser.parse_args()
 
@@ -480,16 +480,27 @@ def main() -> int:
         return 0
 
     if args.weekly_digest:
+        scan_limit = args.limit if args.limit != 250 else 250
         sync_res = sync_upstream_cache()
-        repos = harvest_repositories(limit=500, extra_query=args.query)
+        repos = harvest_repositories(limit=scan_limit, extra_query=args.query)
         candidates = [r for r in repos if r["status"] == "candidate"]
         if args.json:
-            print(json.dumps({"upstream_sync": sync_res, "top_500_new_candidates": candidates[:20]}, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "scanned_limit": scan_limit,
+                        "scanned_total": len(repos),
+                        "upstream_sync": sync_res,
+                        "top_candidates": candidates[:15],
+                    },
+                    indent=2,
+                )
+            )
             return 0
         print_sync_table(sync_res)
-        print(f"\nTOP 20 UNABSORBED CANDIDATES IN GITHUB TOP 500 (Scanned: {len(repos)}):")
+        print(f"\nTOP 15 UNABSORBED CANDIDATES IN GITHUB TOP {scan_limit} (★ 4,000+ Sweet Spot | Scanned: {len(repos)}):")
         print("-" * 110)
-        for idx, r in enumerate(candidates[:20], 1):
+        for idx, r in enumerate(candidates[:15], 1):
             star_str = f"★ {r['stars']:,}"
             print(f"{idx:<4} {r['full_name'][:38]:<39} {star_str:>10}  ->  {r['target'][:45]}")
         return 0
