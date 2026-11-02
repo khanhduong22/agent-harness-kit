@@ -54,7 +54,20 @@ Never rewrite an entire skill from scratch without a diagnostic finding. Follow 
 - **Cognitive Budget**: Keep `SKILL.md` under `1,500 words` (`< 400 lines`). Offload deep lookup tables, templates, and schemas into `references/`.
 - **Agent Harness Lifecycle**: After fixing any skill in `agent-harness-kit`, run `./scripts/verify.sh && bash tests/test_harness.sh`, commit, push, and propagate via `./scripts/install.sh --targets all --rules`.
 
+### Step 4: Empirical 60/40 Train/Test Trigger Optimization & Paired A/B Eval
+When a skill exhibits routing misfires or needs empirical validation after edits, run the `skill-creator` evaluation suite bundled in [`self-improving-distiller`](../self-improving-distiller/SKILL.md):
+```bash
+cd skills/self-improving-distiller
+python3 -m scripts.run_loop \
+  --eval-set /tmp/trigger-eval.json \
+  --skill-path ../<skill-name> \
+  --model claude-sonnet-4 \
+  --max-iterations 5 \
+  --verbose
+```
+
 ## See Also
 
 - `references/skill-doctor-standards.md` — Detailed 4-Layer `P0/P1/P2` Audit Matrix, Description Trigger Doctrine, Always-On Context Token Budgets, and 10 Forbidden Red Lines.
 - `scripts/skill_doctor.py` — Deterministic CLI scanner for `/skill-doctor` telemetry and `/doctor` environment health.
+- [`self-improving-distiller`](../self-improving-distiller/SKILL.md) — Paired `with_skill` vs `without_skill` subagent evaluation, assertion grading, and 60/40 train/test description optimizer.

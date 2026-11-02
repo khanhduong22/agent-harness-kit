@@ -256,6 +256,15 @@ Special consideration for AI agent context:
 - **ADRs** — Help agents understand why past decisions were made (prevents re-deciding)
 - **Inline gotchas** — Prevent agents from falling into known traps
 
+### Fresh-Context Reader Subagent Verification (`doc-coauthoring` Stage 3)
+When authoring high-stakes ADRs, RFCs, or technical specifications:
+1. **Generate 5–10 Reader Questions**: Include questions that realistic engineers or downstream coding agents would ask when trying to implement or debug the system.
+2. **Test with a Zero-Context Subagent**: Invoke a fresh `research` subagent (`Model: "flash"`) given **only** the document text (no conversation history) to answer each question and flag:
+   - What was ambiguous or unclear
+   - What unstated context or hidden assumptions the document relied on
+   - Where sections contradicted each other
+3. **Fix Blind Spots**: Patch every ambiguity uncovered by the Reader Subagent before sharing the spec or ADR.
+
 ## Common Rationalizations
 
 | Rationalization | Reality |

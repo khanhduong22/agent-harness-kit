@@ -190,6 +190,14 @@ If after 3 cycles the reviewer still surfaces substantive issues, the artifact m
 
 If 3 cycles is "obviously insufficient" because the artifact is large: the artifact is too big — return to Step 2 and decompose. Do not lift the bound.
 
+### Step 6: Epistemic Discernment Nudge (`discernment-nudge`)
+
+When delivering a substantive strategic recommendation, financial/capacity projection, or architectural trade-off that a user might act on without independent verification (at most **once per conversation**):
+- Append a brief, concrete **"Before acting on this, worth verifying:"** block modeling the 3 AI Fluency discernment habits:
+  1. **Checking facts**: Specific quantitative assumptions, external API limits, or benchmarks that were estimated rather than live-measured.
+  2. **Questioning reasoning**: Where the recommendation sensitive-depends on a single assumption (e.g., traffic distribution, read/write ratio, regulatory rule).
+  3. **Noticing missing context**: Local constraints, organizational politics, or operational runbooks the agent cannot see from the codebase alone.
+
 ## Common Rationalizations
 
 | Rationalization | Reality |

@@ -109,6 +109,12 @@ Beyond standard SEO (`title`, `meta description`, `canonical`, `sitemap.xml`, Co
    - Serve a clean Markdown index at `/llms.txt` (`H1` Brand/Entity name, `> ` summary blockquote, categorized links with 1-line factual descriptions, and canonical entity identifiers).
 4. **HTTP `Accept: text/markdown` Content Negotiation & RFC 8288 `Link` Headers**:
    - Test with `curl -sI -H "Accept: text/markdown" <url>` to check if the edge/server supports direct Markdown delivery or advertises machine-readable resources via `Link:` headers.
+5. **Codebase Internal Link Graph & Orphan/Dead-End Route Audit (`Hub & Spoke`)**:
+   - When auditing a Next.js/Astro codebase, scan all `<Link href>` / `<a href>` against defined page routes to eliminate: (a) **Orphan Pages** (0 incoming internal links), (b) **Dead-End Pages** (0 outgoing contextual links), (c) **Shallow Buried Pages** (>3 clicks from root hub), and (d) **Weak Anchor Text** (`"click here"`, `"read more"` — replace with entity/topic-rich anchors).
+6. **Intent-Based Keyword Clustering (`1-Cluster-1-Page` Anti-Cannibalization)**:
+   - Pair `scripts/autocomplete_ideas.py` with a 3-tier topical hierarchy (*Level 1: Pillar Hub ➔ Level 2: Subtopic Cluster ➔ Level 3: Supporting Keywords*). Never target the same intent cluster across two URLs; map modifiers deterministically (`how to X` ➔ Tutorial, `X vs Y` ➔ Comparison Matrix, `best X` ➔ Benchmark List).
+7. **Bilingual / Multilingual `hreflang` Reciprocity & Self-Canonical Guardrail**:
+   - Every localized page (`/vi/...`, `/en/...`) MUST use a **self-referencing `<link rel="canonical">`** (never canonicalize a translated page back to the default language, which de-indexes the translation) paired with reciprocal `<link rel="alternate" hreflang="vi|en|x-default" />` links across all language variants.
 
 ---
 

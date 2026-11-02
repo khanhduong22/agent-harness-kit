@@ -292,3 +292,17 @@ After designing an API:
 - [ ] New fields are additive and optional (backward compatible)
 - [ ] Naming follows consistent conventions across all endpoints
 - [ ] API documentation or types are committed alongside the implementation
+
+## MCP Server Design & TypeScript SDK v2 (`mcp-builder`)
+
+When building or upgrading Model Context Protocol (MCP) servers for LLM agents:
+- **SDK Version**: Use MCP TypeScript SDK v2 (`@modelcontextprotocol/server` + `@modelcontextprotocol/client` + `zod@^4.0.0`), never the deprecated v1 `@modelcontextprotocol/sdk` package. Migrate existing v1 servers with `npx @modelcontextprotocol/codemod@latest v1-to-v2 .`.
+- **Tool Naming & Annotations**: Prefix tool names by service (`slack_send_message`, `github_list_issues`) and always declare `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`).
+- **Transport**: Use `StdioServerTransport` for local CLI tools and stateless `NodeStreamableHTTPServerTransport` (`sessionIdGenerator: undefined`) for remote HTTP servers.
+- **10-Question Multi-Hop Evaluation**: Validate new MCP servers by authoring 10 realistic, read-only, multi-hop `<qa_pair>` questions with single verifiable answers.
+
+## See Also
+
+- `references/mcp-best-practices.md` — MCP server/tool naming conventions, response formats (JSON vs Markdown), pagination, transport selection, and tool annotations.
+- `references/node-mcp-server-v2.md` — Complete TypeScript MCP SDK v2 (`@modelcontextprotocol/server`) implementation guide, Zod v4 schemas, Streamable HTTP, and v1-to-v2 migration.
+- `references/mcp-evaluation-guide.md` — 10-question multi-hop read-only MCP evaluation harness and grading rubric.

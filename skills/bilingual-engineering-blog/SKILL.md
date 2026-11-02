@@ -57,8 +57,8 @@ All blog posts on `blog.khanhdp.com` are public-facing engineering monographs. *
 | `tikat`, `tikat.vn`, `fbstory.tikat.vn`, `tikat-gemini-auto-gen-image` | `micro-saas-suite`, `media-saas.example.com` |
 | `200lab`, `gonnacrash`, `systemdesign.200lab.io` | `Distributed Traffic Simulator`, `architecture-simulator.example.com` |
 | `Techcombank`, `Vietcombank`, `MBBank`, `BIDV`, `VPBank`, `TPBank`, `Sacombank`, `ACB` | `Tier-1 Banking Gateway`, `ISO-8583 / OpenBanking Webhook Provider` |
-| `Contabo`, `OVH`, `Hetzner`, `DigitalOcean`, `Vultr`, `Linode` | `Bare-Metal Cloud VPS`, `Dedicated NVMe Compute Node` |
-| `144.91.88.242`, `15.235.244.192`, `vps-friend`, `asus-tuf` | `103.xx.xx.xx`, `secondary-vps-node`, `local-gpu-workstation` |
+| `Contabo`, `OVH`, `Hetzner`, `DigitalOcean`, `Vultr`, `Linode`, `BunnyCDN` | `Bare-Metal Cloud VPS`, `Dedicated NVMe Compute Node`, `Edge CDN` |
+| `144.91.88.242`, `15.235.244.192`, `100.105.0.60`, `ovh-sgp`, `vps-friend`, `asus-tuf`, `ASUS TUF` | `103.xx.xx.xx`, `100.64.0.10` (RFC 6598 placeholder), `edge-gateway-sgp`, `secondary-vps-node`, `Local GPU Workstation` |
 | `tvadiep`, `Điệp`, `trinhcongly`, `employee Nhi`, `Nhi` | `frontend-engineer-d`, `Kỹ sư Đ` (VI) / `Engineer D` (EN), `lead-reviewer`, `Staff Member #104` |
 | `Sơn Đinh`, `Nguyễn Tiến Mạnh`, `Tuấn Trương`, `Minh Chu`, `Đức Trung`, `Khang Trần`, `Tuấn Kiên`, `Duy Nguyễn`, `Văn Tới` | `User #8842`, `User #4012`, `User #7109`, `Master Coach`, etc. |
 
