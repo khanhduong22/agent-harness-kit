@@ -27,7 +27,7 @@ GitHub skill repositories follow a steep **Power-Law Distribution**:
 ## Quick Start Commands
 
 ```bash
-# 1. Weekly All-in-One Digest (git pull 29 local cached upstream repos + scan Top 250 ★4,000+ sweet spot):
+# 1. Weekly All-in-One Digest (git pull 36 local cached upstream repos + scan Top 250 ★4,000+ sweet spot):
 python3 ~/agent-harness-kit/skills/skill-harvester/scripts/harvest_github_skills.py --weekly-digest
 
 # 2. Sync/Pull Only Local Shallow Git Cache (~/.agent-harness/upstream-cache/):

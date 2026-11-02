@@ -51,10 +51,17 @@ ABSORBED_REPOS: dict[str, str] = {
     "antonbabenko/terraform-skill": "infra-performance-optimization/references/terraform-opentofu-iac-guardrails.md",
     "coreyhaines31/marketingskills": "geo-seo",
     "addyosmani/web-quality-skills": "frontend-performance-lighthouse",
-    "addyosmani/agent-skills": "frontend-performance-lighthouse, code-review-and-quality",
+    "addyosmani/agent-skills": "frontend-performance-lighthouse, code-review-and-quality/references/pr-head-sha-gate-and-caller-validation.md",
     "nextlevelbuilder/ui-ux-pro-max-skill": "ui-ux-pro-max",
     "obra/superpowers": "test-driven-development, debugging-and-error-recovery, planning-and-task-breakdown",
     "remotion-dev/skills": "tech-reel-factory",
+    "affaan-m/ecc": "security-and-hardening/references/ecc-agent-runtime-security-hardening.md, context-engineering/references/ecc-agent-harness-and-self-debug.md, llm-eval-design/references/ecc-head-to-head-agent-eval.md",
+    "msitarzewski/agency-agents": "frontend-ui-engineering/references/ui-finish-gate-and-design-contract.md",
+    "github/spec-kit": "spec-driven-development/references/github-spec-kit-constitution.md",
+    "graphify-labs/graphify": "llm-wiki/references/graphify-knowledge-graph-architecture.md",
+    "browser-use/browser-use": "browser-testing-with-devtools/references/cdp-ax-tree-and-daemon-patterns.md",
+    "paperclipai/paperclip": "code-review-and-quality/references/pr-head-sha-gate-and-caller-validation.md, llm-eval-design/references/ecc-head-to-head-agent-eval.md",
+    "thedotmack/claude-mem": "context-engineering/references/ecc-agent-harness-and-self-debug.md",
 }
 
 # Popular repos that match "skills" queries but are awesome-lists, GUI apps, or non-skill tools
@@ -90,6 +97,9 @@ NON_SKILL_REPOS: set[str] = {
     "farion1231/cc-switch",
     "theoretically/opencode",
     "BrowserMCP/mcp".lower(),
+    "jlevy/the-art-of-command-line",
+    "harry0703/moneyprinterturbo",
+    "earendil-works/pi",
 }
 
 DOMAIN_ROUTING: list[tuple[list[str], str]] = [
@@ -402,7 +412,7 @@ def inspect_repository(repo: str) -> dict[str, Any]:
     skill_paths = [
         item["path"]
         for item in tree
-        if item.get("type") == "blob" and item.get("path", "").endswith("SKILL.md")
+        if item.get("type") == "blob" and item.get("path", "").lower().endswith("skill.md")
     ]
 
     inspected_files: list[dict[str, Any]] = []

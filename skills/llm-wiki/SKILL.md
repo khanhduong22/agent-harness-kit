@@ -123,3 +123,4 @@ Build only the chosen tier's rows; write the next tier's rows down as later work
   otherwise the lookup and its citations logged; the lint rerun.
 - The last entry of `log.md` is the last ingest: date, source, pages created or changed.
 - `ai_tutor_recommend` ran once; lesson reads stayed within 12.
+- See `references/graphify-knowledge-graph-architecture.md` (`Graphify-Labs/graphify`) for the 7-stage hybrid Tree-sitter AST + semantic knowledge graph pipeline, epistemic edge tagging (`EXTRACTED` / `INFERRED` / `AMBIGUOUS`), and `god_nodes` / import-cycle / community clustering analyses.
