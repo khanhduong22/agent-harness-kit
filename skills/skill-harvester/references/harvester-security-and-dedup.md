@@ -25,6 +25,14 @@ The following top-starred GitHub repositories have already been audited, distill
 | `supabase/agent-skills` | `★ 4.2k+` | `backend-performance-optimization/references/supabase-postgres-best-practices.md` |
 | `coreyhaines31/marketingskills` | `★ 23k+` | `geo-seo` |
 | `addyosmani/web-quality-skills` | `★ 6k+` | `frontend-performance-lighthouse` |
+| `addyosmani/agent-skills` | `★ 112k+` | `frontend-performance-lighthouse`, `code-review-and-quality/references/pr-head-sha-gate-and-caller-validation.md` |
+| `affaan-m/ECC` | `★ 294k+` | `security-and-hardening/references/ecc-agent-runtime-security-hardening.md`, `context-engineering/references/ecc-agent-harness-and-self-debug.md`, `llm-eval-design/references/ecc-head-to-head-agent-eval.md` |
+| `msitarzewski/agency-agents` | `★ 165k+` | `frontend-ui-engineering/references/ui-finish-gate-and-design-contract.md` |
+| `github/spec-kit` | `★ 145k+` | `spec-driven-development/references/github-spec-kit-constitution.md` |
+| `Graphify-Labs/graphify` | `★ 140k+` | `llm-wiki/references/graphify-knowledge-graph-architecture.md` |
+| `browser-use/browser-use` | `★ 119k+` | `browser-testing-with-devtools/references/cdp-ax-tree-and-daemon-patterns.md` |
+| `paperclipai/paperclip` | `★ 109k+` | `code-review-and-quality/references/pr-head-sha-gate-and-caller-validation.md`, `llm-eval-design/references/ecc-head-to-head-agent-eval.md` |
+| `thedotmack/claude-mem` | `★ 109k+` | `context-engineering/references/ecc-agent-harness-and-self-debug.md` |
 
 ---
 

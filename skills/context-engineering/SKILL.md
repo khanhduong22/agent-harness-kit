@@ -287,3 +287,4 @@ After setting up context, confirm:
 - [ ] Agent output follows the patterns shown in the rules file
 - [ ] Agent references actual project files and APIs (not hallucinated ones)
 - [ ] Context is refreshed when switching between major tasks
+- See `references/ecc-agent-harness-and-self-debug.md` (`affaan-m/ECC` + `thedotmack/claude-mem`) for Action Space tool granularity, 3-Layer Progressive Memory Recall (`Search -> Timeline -> Observations`), the 4-Phase Self-Debug Loop, and Agent Outcome Economics (`Rework` lock & 16-pattern waste taxonomy).

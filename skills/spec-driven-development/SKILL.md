@@ -206,3 +206,4 @@ Before proceeding to implementation, confirm:
 - [ ] Success criteria are specific and testable
 - [ ] Boundaries (Always/Ask First/Never) are defined
 - [ ] The spec is saved to a file in the repository
+- See `references/github-spec-kit-constitution.md` (`github/spec-kit`) for the 5 Binding SDD Constitution Principles (transport/domain separation, parity tests, offline-first determinism, SHA-256 manifest-tracked writes) and the pre-implementation `Constitution Check` gate.

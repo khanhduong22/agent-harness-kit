@@ -466,3 +466,5 @@ After implementing security-relevant code:
 - [ ] Rate limiting active on auth endpoints
 - [ ] Server-side URL fetches validated against an allowlist (no SSRF)
 - [ ] LLM/model output validated and encoded before use (if AI features present)
+- See `references/ecc-agent-runtime-security-hardening.md` (`affaan-m/ECC`) for AI agent runtime trust-boundary mapping, identifier/CLI argv separation, portable filesystem containment, and pre-log secret redaction.
+- See `references/cloudflare-trailofbits-audit.md` (`cloudflare` + `trailofbits`) for edge/worker and differential security auditing.

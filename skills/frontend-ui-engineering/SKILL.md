@@ -359,4 +359,5 @@ After building UI:
 - [ ] **Contrast Guardrail**: Minimum `4.5:1` contrast ratio for normal text and `3:1` for large text/icons against backgrounds (WCAG AA).
 - [ ] **Text & Badge Truncation**: Ensure labels, status badges, and pills do not awkwardly truncate or overflow on mobile (`text-ellipsis`, flex-wrap).
 - [ ] **Motion Sensitivity**: Respect `prefers-reduced-motion` for all transitions and continuous loops.
+- See `references/ui-finish-gate-and-design-contract.md` (`msitarzewski/agency-agents`) for the pre-ship Screen Design Contract, forbidden generic SaaS defaults, 6-axis implementation audit (`1440px` & `390px`), and hard `PASS`/`HOLD` Finish Gate.
 

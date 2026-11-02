@@ -125,3 +125,4 @@ Build only the chosen tier's rows; write the next tier's rows down as later work
 - MVP and up: the gate command exits 0 on the baseline and non-zero on a seeded regression (both
   outputs pasted), and the leakage check (part `comparison-and-gate`) printed no hit.
 - `ai_tutor_recommend` ran once; lesson reads stayed within 12.
+- See `references/ecc-head-to-head-agent-eval.md` (`affaan-m/ECC` + `paperclipai/paperclip`) for declarative YAML task contracts, per-trial git worktree isolation, and 3-tier hybrid grading (`pass@1`, `pass^k`, cost-per-completed-task).
