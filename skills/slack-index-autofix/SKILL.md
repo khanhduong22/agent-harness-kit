@@ -37,12 +37,13 @@ Activate this skill whenever:
 
 ---
 
-## 5-Step Autonomous Workflow
+## 5-Step Triage & Autofix Workflow
 
 ```mermaid
 flowchart TD
-    A["Step 1: Scan Channel or Fetch Thread<br/>(node .agents/scripts/fetch-slack-thread.mjs --latest)"] --> B["Step 2: Read summary.md & Inspect Screenshots<br/>(call read_file on /tmp/slack-thread-*/attachments/)"]
-    B --> C["Step 3: Extract Tasks for @Khánh Dương P.<br/>& Create GitHub Native Sub-Issues (github-task-breakdown)"]
+    A["Step 1: Scan Channel or Fetch Thread<br/>(node .agents/scripts/fetch-slack-thread.mjs --latest)"] --> B["Step 2: Read summary.md, Inspect Screenshots<br/>& Check Existing GitHub Sub-Issues / Root Cause"]
+    B --> G{"Step 2.5: Mandatory Confirmation Gate<br/>Present Triage Table & Ask User (ask_question)"}
+    G -- "Approved by User" --> C["Step 3: Create Missing GitHub Native Sub-Issues<br/>(github-task-breakdown)"]
     C --> D["Step 4: Dispatch Parallel Subagents<br/>(maximum-parallel-subagents: fix root cause & run tests)"]
     D --> E["Step 5: Ship via 1-Commit PRs<br/>& Output Handover Summary Table"]
 ```
@@ -72,7 +73,7 @@ The script outputs:
 
 ---
 
-### Step 2: Read Markdown Summary & Inspect Screenshots
+### Step 2: Read Markdown Summary, Inspect Screenshots & Triage Root Cause
 
 1. **Read the Summary**:
    Load `/tmp/slack-thread-<ts>/summary.md` to see the complete message sequence, author notes, and linked GitHub ticket URLs.
@@ -82,22 +83,31 @@ The script outputs:
    - Analyze UI discrepancies, red annotations, highlighted buttons, or error overlays.
    - Note exact URL paths shown in browser address bars or navigation headers in screenshots (e.g. `/cong-dong`, `/chung-khoan`, home page tabs).
 
+3. **Check Existing GitHub Sub-Issues & Trace Root Cause (Read-Only)**:
+   - Check the `## 🎯 Detected Direct Tasks for @Khánh Dương P.` section in `summary.md`.
+   - Query the parent GitHub issue (read-only) to see which sub-issues or PRs already exist:
+     ```bash
+     env -u GITHUB_TOKEN gh issue view <parent_issue_number> --repo idx-vn/index-web --json title,body
+     env -u GITHUB_TOKEN gh pr list --repo idx-vn/index-web --state all --limit 15
+     ```
+   - Locate the affected files in `index-web`, `index-api`, or `index-admin-cms` and diagnose the root cause.
+
 ---
 
-### Step 3: Identify Tasks & Create GitHub Native Sub-Issues
+### Step 2.5: Mandatory Confirmation Gate (Confirm Before Mutating)
 
-1. **Inspect Detected Direct Tasks**:
-   Check the `## 🎯 Detected Direct Tasks for @Khánh Dương P.` section generated in `summary.md`.
-   - Identify which tasks are explicitly assigned to `<@U09NR1YEC3Y>` (`@Khánh Dương P.` / `khanhduong22`) or marked as shared tasks.
-   - Note any parent GitHub issue linked in the thread root (e.g. `https://github.com/idx-vn/index-web/issues/3844`).
+**CRITICAL**: Before creating any GitHub issues/sub-issues, modifying code, committing/pushing, opening PRs, or sending Slack notifications:
+1. Present a clear **Triage & Proposed Action Plan Table**:
+   - `# | Slack Task / Feedback | Assignee | Existing Sub-Issue / PR | Root Cause & Affected Files | Proposed Fix`
+2. Call `ask_question` (or ask the user directly) to confirm which tasks to create sub-issues for and fix.
+3. **Wait for explicit user confirmation** before proceeding to Step 3 (especially on scheduled sidecar runs or when scanning `#index-dev`).
 
-2. **Query Parent Issue for Existing Sub-Issues**:
-   ```bash
-   gh issue view <parent_issue_number> --repo idx-vn/index-web --json title,body,subIssues
-   ```
+---
 
-3. **Create Missing Sub-Issues via `github-task-breakdown`**:
-   For each task assigned to `khanhduong22` that does not yet have a sub-issue on GitHub:
+### Step 3: Create Missing GitHub Native Sub-Issues (After Confirmation)
+
+1. **Create Approved Sub-Issues via `github-task-breakdown`**:
+   For each confirmed task assigned to `khanhduong22` that does not yet have a sub-issue on GitHub:
    - Use the GraphQL `addSubIssue` mutation (or `gh-subissue` helper from `github-task-breakdown`) to link it directly under the parent issue.
    - Title format: `[<Domain>] [<Page/Component>] <Concise Action Title>` (e.g. `[FE] [Home] Fix 404 navigation and expand click target for Community section`).
    - Assign to `khanhduong22`.
