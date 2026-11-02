@@ -57,8 +57,8 @@ All blog posts on `blog.khanhdp.com` are public-facing engineering monographs. *
 | `media-client`, `media-app.example`, `story.media-app.example`, `media-auto-gen-service` | `micro-saas-suite`, `media-saas.example.com` |
 | `200lab`, `legacy-project`, `systemdesign.200lab.io` | `Distributed Traffic Simulator`, `architecture-simulator.example.com` |
 | `Techcombank`, `Vietcombank`, `MBBank`, `BIDV`, `VPBank`, `TPBank`, `Sacombank`, `ACB` | `Tier-1 Banking Gateway`, `ISO-8583 / OpenBanking Webhook Provider` |
-| `Contabo`, `OVH`, `Hetzner`, `DigitalOcean`, `Vultr`, `Linode` | `Bare-Metal Cloud VPS`, `Dedicated NVMe Compute Node` |
-| `198.51.100.10`, `198.51.100.20`, `<secondary-vps-node>`, `<workstation-host>` | `103.xx.xx.xx`, `secondary-vps-node`, `local-gpu-workstation` |
+| `Contabo`, `OVH`, `Hetzner`, `DigitalOcean`, `Vultr`, `Linode`, `BunnyCDN` | `Bare-Metal Cloud VPS`, `Dedicated NVMe Compute Node`, `Edge CDN` |
+| `198.51.100.10`, `198.51.100.20`, `100.64.0.10`, `<ssh-host-alias>`, `<secondary-vps-node>`, `<workstation-host>`, `<workstation-model>` | `103.xx.xx.xx`, `100.64.0.10` (RFC 6598 placeholder), `edge-gateway-sgp`, `secondary-vps-node`, `Local GPU Workstation` |
 | `colleague-j`, `Điệp`, `colleague-b`, `staff member`, `Nhi` | `frontend-engineer-d`, `Kỹ sư Đ` (VI) / `Engineer D` (EN), `lead-reviewer`, `Staff Member #104` |
 | `Colleague I`, `Colleague A`, `Colleague C`, `Colleague H`, `Colleague G`, `Customer D`, `Colleague F`, `Customer E`, `Client Founder` | `User #8842`, `User #4012`, `User #7109`, `Master Coach`, etc. |
 

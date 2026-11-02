@@ -45,14 +45,15 @@ python3 ~/agent-harness-kit/skills/skill-harvester/scripts/harvest_github_skills
 
 ---
 
-## The 4-Stage Harvester Workflow
+## The 5-Stage Harvester & Eval Workflow
 
 ```mermaid
 flowchart LR
     S1["1. Star-Band Sharding<br/>(500–2,000+ GitHub Repos)"] --> S2["2. Kit Deduplication<br/>(Absorbed Registry + Fuzzy Match)"]
     S2 --> S3["3. 8-Point Security &<br/>Anti-Slop Gate"]
     S3 --> S4["4. Zero-Tax Absorption<br/>(references/ vs Standalone)"]
-    S4 --> V["Verify: ./scripts/verify.sh<br/>& /skill-doctor = 100/100"]
+    S4 --> S5["5. Paired A/B Eval &<br/>60/40 Trigger Gate"]
+    S5 --> V["Verify: ./scripts/verify.sh<br/>& /skill-doctor = 100/100"]
 ```
 
 ### Stage 1: Bypassing GitHub's 1,000-Result Ceiling via Star-Band Sharding
@@ -82,9 +83,17 @@ To keep `/skill-doctor` at **`100/100`**, always prefer **Option A (Reference Me
 - **Option B — New Standalone Skill (`+45–75 tokens/turn` Context Tax)**:
   Only create a new `skills/<new-skill>/SKILL.md` when the capability represents a genuinely distinct trigger domain not covered by any existing skill. Keep `SKILL.md` `< 300 lines` and frontmatter `description` `< 65 tokens`.
 
+### Stage 5: Post-Harvest Paired A/B Eval & 60/40 Trigger Optimization Gate (`skill-creator`)
+Whenever the Monday Weekly Harvester absorbs a new skill or merges significant upstream commits into an existing skill, validate it with the `skill-creator` evaluation suite in [`self-improving-distiller`](../self-improving-distiller/SKILL.md):
+1. **Paired A/B Subagent Eval (`with_skill` vs `old_skill` / `without_skill`)**:
+   Run 2–3 realistic prompts in parallel subagents with and without the harvested changes, grade assertions via `agents/grader.md`, and run `python3 -m scripts.aggregate_benchmark` to confirm pass-rate lift without token bloat.
+2. **60/40 Train/Test Trigger Check (for new or modified `description`s)**:
+   Verify zero trigger collisions (`skill_doctor.py`) and run `python3 -m scripts.run_loop` on 20 trigger queries (60% train / 40% held-out test) if routing boundaries changed.
+
 ---
 
 ## See Also
 
 - `references/harvester-security-and-dedup.md` — Absorbed Upstream Registry, 8-Point Security Gate regex patterns, and domain-to-skill mapping table.
 - `scripts/harvest_github_skills.py` — Executable Star-Band GitHub Skill Harvester & Security Inspector.
+- [`self-improving-distiller`](../self-improving-distiller/SKILL.md) — Paired A/B Subagent Eval (`with_skill` vs `without_skill`), `aggregate_benchmark.py`, and 60/40 `run_loop.py` trigger optimizer.

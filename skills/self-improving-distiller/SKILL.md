@@ -135,3 +135,55 @@ Finally, propagate the new skill across installed local agent harnesses:
 | **Actionable Steps** | Includes copy-pasteable commands and code | Fails quality review; abstract advice is discarded. |
 | **Anti-Patterns Stated** | Documents at least one trap / false hypothesis | Risk of future agents repeating identical failed steps. |
 | **Verification Gate** | Clear command to prove problem is solved | Cannot verify outcome reliably. |
+| **Explain the Why** | Explain *why* a directive exists rather than overusing rigid `MUST`/`NEVER` | Models generalize better to edge cases when they understand the reasoning. |
+| **Bundle Repeated Scripts** | If test subagents repeatedly write the same helper script, move it into `scripts/` | Saves tokens and wall-clock execution time across every invocation. |
+
+---
+
+## Phase 2: Paired A/B Subagent Evaluation & Benchmark Viewer (`skill-creator`)
+
+Whenever creating a high-leverage skill or upgrading an existing skill, empirically verify that the skill improves outcomes over the baseline using the `skill-creator` evaluation suite bundled in this directory:
+
+### 1. Paired `with_skill` vs `without_skill` (or `old_skill`) Subagent Runs
+- Define 2–3 realistic test prompts in `evals/evals.json` (schema in [`references/schemas.md`](references/schemas.md)).
+- In the **same turn**, spawn parallel subagent runs for each test prompt:
+  - **`with_skill`**: Subagent loads the candidate skill at `<skill-path>`.
+  - **`without_skill` / `old_skill`**: Baseline subagent runs the identical prompt without the skill (or against an `old_skill` snapshot when iterating on an existing skill).
+- Capture `timing.json` (`total_tokens`, `duration_ms`) and outputs inside `<workspace>/iteration-<N>/eval-<ID>/{with_skill,without_skill}/outputs/`.
+
+### 2. Quantitative Assertion Grading & Blind Comparison
+- **Assertion Grader**: Follow [`agents/grader.md`](agents/grader.md) to evaluate concrete assertions against the outputs and save `grading.json` (must use exact fields `text`, `passed`, `evidence`).
+- **Blind Comparator & Analyzer (Optional)**: Use [`agents/comparator.md`](agents/comparator.md) and [`agents/analyzer.md`](agents/analyzer.md) for blind A/B quality comparison without knowing which output used the skill.
+- **Aggregate Benchmark**:
+  ```bash
+  python3 -m scripts.aggregate_benchmark <workspace>/iteration-1 --skill-name <skill-name>
+  ```
+  Produces `benchmark.json` and `benchmark.md` comparing `with_skill` vs `without_skill` pass rates, elapsed time (`mean ± stddev`), and token consumption.
+- **Interactive Eval Viewer**:
+  ```bash
+  python3 eval-viewer/generate_review.py <workspace>/iteration-1 \
+    --skill-name "<skill-name>" \
+    --benchmark <workspace>/iteration-1/benchmark.json \
+    --static <workspace>/iteration-1/review.html
+  ```
+  (Use `--previous-workspace <workspace>/iteration-<N-1>` on subsequent iterations to show side-by-side diffs.)
+
+### 3. 60/40 Train/Test Trigger Description Optimization (`run_loop.py`)
+To optimize a skill's frontmatter `description` for 100% routing precision without overfitting:
+1. Create 20 trigger eval queries (`10 should_trigger: true`, `10 should_trigger: false` near-misses) and review them via [`assets/eval_review.html`](assets/eval_review.html).
+2. Run the automated 60% train / 40% held-out test optimization loop:
+   ```bash
+   python3 -m scripts.run_loop \
+     --eval-set /tmp/trigger-eval.json \
+     --skill-path skills/<skill-name> \
+     --model claude-sonnet-4 \
+     --max-iterations 5 \
+     --verbose
+   ```
+   The loop splits queries into 60% train and 40% held-out test sets, runs 3x per query (`scripts/run_eval.py`), calls `scripts/improve_description.py` with blinded test scores to prevent overfitting, and selects `best_description` by **held-out test score**.
+
+## See Also
+- [`references/schemas.md`](references/schemas.md) — JSON schemas for `evals.json`, `grading.json`, `benchmark.json`, `timing.json`, and `history.json`.
+- [`agents/grader.md`](agents/grader.md) — Subagent prompt for assertion grading with strict evidence citations.
+- [`agents/comparator.md`](agents/comparator.md) & [`agents/analyzer.md`](agents/analyzer.md) — Blind A/B output comparator and post-hoc variance analyzer.
+- [`skill-doctor`](../skill-doctor/SKILL.md) — Clinical health audit, context tax profiler, and trigger collision detector.

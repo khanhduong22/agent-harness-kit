@@ -276,6 +276,15 @@ Slack configured still succeeds.
   "<Google Drive Video URL>" "<Issue Info>" "<Flow Steps>"
 ```
 
+### 6.1. Ephemeral Multi-Server Lifecycle Wrapper (`scripts/with_server.py`)
+Khi chạy Playwright E2E trên môi trường chưa có dev server chạy sẵn (hoặc cần bật đồng thời Backend API + Frontend Web và tự động dọn sạch process tree sau khi test xong), dùng [`scripts/with_server.py`](scripts/with_server.py):
+```bash
+python3 scripts/with_server.py \
+  --server "cd backend && bun run start:dev" --port 4000 \
+  --server "cd frontend && bun run dev" --port 3000 \
+  -- npx playwright test
+```
+
 ---
 
 ## 7. Verification Checklist Before Handover

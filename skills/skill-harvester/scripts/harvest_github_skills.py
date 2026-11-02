@@ -26,7 +26,7 @@ UPSTREAM_CACHE_DIR = Path.home() / ".agent-harness" / "upstream-cache"
 
 # Repositories already absorbed into agent-harness-kit (upstream -> kit target)
 ABSORBED_REPOS: dict[str, str] = {
-    "anthropics/skills": "frontend-ui-engineering, code-simplification, skill-doctor",
+    "anthropics/skills": "self-improving-distiller, skill-doctor, api-and-interface-design, documentation-and-adrs, doubt-driven-development, playwright-e2e-testing, frontend-ui-engineering",
     "anthropics/knowledge-work-plugins": "frontend-ui-engineering/references/claude-design-system-and-anti-slop.md",
     "anthropics/claude-plugins-official": "code-simplification",
     "mattpocock/skills": "code-simplification/references/deep-modules-and-domain-modeling.md",
