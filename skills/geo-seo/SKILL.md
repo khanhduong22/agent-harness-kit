@@ -92,6 +92,15 @@ Empirical findings from Princeton / Georgia Tech / Allen AI / IIT Delhi (*GEO: G
 | **8. Fluency Optimization** | **+15–30%** | Clean transitions, semantic HTML5 (`<article>`, `<section>`, `<dl>`, `<table>`) |
 | ~~9. Keyword Stuffing~~ | **-10% (Penalty)** | **NEVER stuff keywords** — LLMs penalize unnatural repetition |
 
+### 3.4. Zero-Manual-Handoff Syndication & Pipeline Execution (`~/profile/media/pipeline/`)
+Whenever syndicating or updating Kido's articles/skills across Viblo, DEV.to, IndexNow, or Agensi.io:
+1. **Use Pre-Configured CLI Publishers (`~/profile/.env`) — NEVER Open Browser for DEV.to/Viblo Keys**:
+   - `DEVTO_API_KEY`, `VIBLO_API_KEY`, and `INDEXNOW_KEY` are permanently stored in `~/profile/.env` and auto-loaded by the pipeline scripts.
+   - **Viblo (`@khanhdp`)**: Run `python3 ~/profile/media/pipeline/publish_viblo.py --publish <postXX>` (or `--publish-all` / `--ping-index`).
+   - **DEV.to (`@khanhduong22`)**: Run `python3 ~/profile/media/pipeline/publish_devto.py --publish <postXX>` (or `--publish-all`, which enforces a 5s cooldown between articles). **NEVER** open Chrome to search for `DEVTO_API_KEY` on `dev.to/settings/extensions` or ask the user for the token.
+   - **Agensi.io (`@khanhdp` — 22 Skills)**: Run `node ~/profile/media/pipeline/publish_agensi.js` (`--status`, `--update-bio`) and `node ~/kido-infra/scripts/agensi-triage.js`. Agensi uses the `creator-profile` Chrome profile via `osascript` (`tell application "Google Chrome" to execute t javascript ...`) + Agensi MCP `submit_skill` (`https://mcp.agensi.io/mcp/auth`).
+2. **100% Language Purity**: Keep English assets (`~/khanhduong22/README.md`, `/en/` pages, DEV.to, Agensi) 100% pure English (only keeping `Dương Phúc Khánh` as the entity anchor).
+
 ---
 
 ## 4. Agent-Readiness & Technical Infrastructure Checks
