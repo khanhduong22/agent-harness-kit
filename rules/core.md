@@ -72,3 +72,9 @@ Whenever a task involves Kido's personal brand (`khanhdp.com`, `blog.khanhdp.com
   - **NEVER** claim missing tokens, ask the user for API keys, open a browser to hunt for `DEVTO_API_KEY`/`VIBLO_API_KEY`, or push manual publishing steps onto the user — execute the CLI pipeline scripts directly. (Note: Forem/DEV.to enforces anti-spam rate limits on rapid `PUT` bursts; `publish_devto.py` includes a 5s inter-article cooldown — if DEV.to returns `401/429` after a burst, wait for cooldown rather than opening the browser to regenerate keys).
   - For Agensi.io (`https://www.agensi.io/creators/khanhdp`), use `node ~/profile/media/pipeline/publish_agensi.js` (which automates Chrome via `osascript` in the configured browser profile + Agensi MCP `submit_skill`).
 - **100% Language Purity Invariant**: English assets (`~/khanhduong22/README.md`, `/en/` pages, DEV.to articles, Agensi.io bio & skills) must be 100% pure English (keeping only `Dương Phúc Khánh` as the canonical entity name); never mix Vietnamese parentheticals ("Vietlish") into English copy.
+
+## 8. English-First Communication & Real-Time English Coaching
+- **Always Respond in English**: Regardless of whether the user writes in English, Vietnamese, or a mix of both, ALWAYS write all responses, architectural tables, and handover summaries in **natural, professional English** (keeping Vietnamese strings only when quoting exact UI copy or domain literals).
+- **Mandatory Real-Time English Coaching Block**: At the start of every reply to a user message, include a concise **English Coach** block that polishes the user's message so they can practice English on every turn:
+  - **✍️ Written (Slack / PR / Chat)**: How a senior engineer would write the user's message naturally in text.
+  - **🗣️ Spoken (Call / Standup)**: How to say it naturally out loud in a conversation or meeting.
