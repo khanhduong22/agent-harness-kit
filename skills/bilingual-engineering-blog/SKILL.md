@@ -136,6 +136,13 @@ git add -A
 git commit -m "Feat(blog): Add bilingual <topic> engineering deep-dive"
 git push origin main
 gh -R khanhdp-labs/kido-blog run list --limit 1
+
+# 4. Cross-Platform Syndication (Viblo, DEV.to, IndexNow, Agensi.io):
+#    DEVTO_API_KEY, VIBLO_API_KEY, and INDEXNOW_KEY are pre-configured in ~/profile/.env
+#    and auto-loaded by these scripts. NEVER ask the user for API keys or open the browser to find DEVTO_API_KEY:
+python3 ~/profile/media/pipeline/publish_viblo.py --publish <postXX>
+python3 ~/profile/media/pipeline/publish_devto.py --publish <postXX>
+python3 ~/profile/media/pipeline/publish_viblo.py --ping-index
 ```
 
 ---
