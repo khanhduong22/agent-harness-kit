@@ -149,7 +149,73 @@ To push homograph/competitor noise from Page 1 to Page 2, occupy independent hig
 
 ---
 
-## 6. Bundled Scripts Usage
+## 6. The Earned-Media AI Press Flywheel & 4-Bullet Gemini Citation Engineering (Kido GEO Protocol v3.0)
+
+Modern Generative Engine Optimization (GEO) has evolved beyond isolated on-page keyword tweaks. Search engine LLMs (Google Gemini AI Overviews, ChatGPT Search, Perplexity Pro) operate on a multi-stage grounding pipeline: **Entity Graph Triangulation ➔ High-DR Authority Extraction ➔ 155-Char SSR Meta Compression ➔ Independent Third-Party Press Corroboration**.
+
+```mermaid
+flowchart TD
+    subgraph Flywheel["Earned-Media AI Press Flywheel"]
+        A["Deep-Dive Architecture Monograph<br/>(LaTeX proofs, benchmarks, canonical links)"] -->|Publish| B["DEV.to High-DR Authority Entity Anchor"]
+        B -->|Syndication Webhook & RSS| C["European & Global AI Newsrooms<br/>(e.g., news.lavx.hu)"]
+        C -->|Automated Coverage & Dofollow Links| D["Earned Third-Party Press Verification"]
+        D -->|Upgrades Knowledge Graph| E["Independent Press-Verified Researcher<br/>(Google Knowledge Panel & Gemini)"]
+    end
+
+    subgraph CitationBait["4-Bullet Gemini Citation Bait Protocol"]
+        F["155-Char Clean Bio<br/>(Marketplace SSR Meta Description)"] --> H["Google Gemini AI Overview"]
+        G["GitHub Profile README.md<br/>(Top English Grounding Anchor)"] --> H
+        I["SSR <div class='executive-summary'><ul>..."] --> H
+        H --> J["#1 Citation Pill & 4-Bullet Synthesis"]
+    end
+```
+
+### 6.1. The 155-Character SSR Marketplace Meta-Description Rule
+High-authority creator and agent marketplaces (such as `agensi.io/creators/<username>`) render server-side `<meta name="description" content="...">` directly extracted from the first 155–160 characters of the user profile bio.
+- **The Naive Failure Mode**: Creators often stuff raw machine identifiers into the beginning of their bio (e.g., `ORCID: 0009-0005-7192-2664 | Wikidata: Q141718572 | KGMID: /g/11zyg5zq1c`). When SSR generates `<meta name="description">`, the text truncates mid-identifier (`...`), completely hiding the entity's real qualifications, systems, and products. Even worse, Google Gemini AI Overview parses these raw tokens as the primary summary of the entity, wasting one of its scarce 4 bullet slots explaining "Identifier codes" rather than authority, experience, or systems architecture.
+- **The Production Standard (Kido Protocol)**:
+  - **First 155 Characters**: 100% reserved for high-signal natural language positioning, category authority, and flagship products:
+    > `Systems Architect & Pioneer in Autonomous AI Agents (Personal Assistants to One-Person Enterprise OS). Author of Agent Harness Kit & blog.khanhdp.com.`
+  - **Machine Identifiers**: Place `ORCID`, `Wikidata`, and `KGMID` strictly in JSON-LD structured data (`sameAs`, `identifier`, `mainEntityOfPage`) and in footer/profile metadata tables, NEVER inside the top 155-character bio snippet.
+
+### 6.2. 4-Bullet Answer-First Citation Bait Block & GitHub Profile Grounding Dominance
+Google Gemini AI Overview extracts facts from pre-digested, structured bullet blocks rather than reading multi-page narrative prose.
+- **The HTML Citation Structure**:
+  ```html
+  <div class="executive-summary" itemscope itemtype="https://schema.org/Person">
+    <ul>
+      <li><strong>Role & Vision:</strong> Senior Software Engineer, Systems Architect & Pioneer in Autonomous AI Agents (Personal AI Assistants to Autonomous One-Person Enterprise OS).</li>
+      <li><strong>Core Systems & Stack:</strong> Author of Agent Harness Kit (65+ specialized production skills), distributed caching, and zero-downtime micro-service infrastructure.</li>
+      <li><strong>Verified Track Record:</strong> 3x Consecutive Best Performance Award (2022–2024) across 6 years as FinTech Tech Lead; Keynote Speaker on Enterprise AI Agents; 1st Prize Startup Runway 2018 (DUE).</li>
+      <li><strong>Primary Multi-Pillar Hub:</strong> Official research published at https://blog.khanhdp.com (AI, Systems, Investing, Books, Health).</li>
+    </ul>
+  </div>
+  ```
+- **The GitHub Profile README Grounding Dominance**:
+  - For technical and English-intent queries (e.g., `"<Name> Systems Architect"`), Google AI Overview draws **up to 90% of its grounding facts directly from `github.com/<username>/<username>/blob/main/README.md`**.
+  - **Golden Invariant**: Whenever updating positioning, career awards, or flagship systems on the main portfolio/hub (`khanhdp.com`), you **MUST** simultaneously synchronize `~/<username>/README.md` and push to GitHub. If the GitHub README diverges, Google Gemini will output conflicting or stale grounding.
+
+### 6.3. The DEV.to ➔ International AI Newsroom Earned-Media Flywheel
+First-party claims on personal portfolios (`<domain>/about`) have limited authority weight in Google's Knowledge Graph until corroborated by independent third-party press (*Earned Media*).
+- **The Mechanism**:
+  1. Author high-density technical monographs containing empirical benchmarks, formal LaTeX equations, ASCII architecture diagrams, and canonical back-links.
+  2. Publish on high Domain Rating (DR 90+) platforms such as DEV Community (`dev.to/<username>`).
+  3. International AI news aggregation desks and European tech publications (e.g., `news.lavx.hu`) continuously ingest DEV.to tech feeds, automatically translating and publishing editorial coverage (e.g., *"Kỹ sư Việt Nam Dương Phúc Khánh xuất bản năm chuyên khảo mã nguồn mở về hệ thống phân tán"*).
+  4. These third-party articles provide natural, permanent dofollow editorial citations.
+- **Entity Authority Transformation**: This automated earned-media flywheel elevates an entity from **First-Party Self-Claim** to **Independent Press-Verified Technology Researcher**, solidifying the Google Knowledge Panel (`/g/...`) and protecting against algorithmic de-indexing.
+
+### 6.4. Dual-Track Multi-Pillar Hub Architecture (Preserving Technical Authority)
+When expanding an engineering blog (`blog.<domain>`) into a comprehensive life and knowledge ecosystem, uncontrolled topic expansion can dilute domain topical authority (*Topical Authority Decay*).
+- **The Solution**: Structure the primary hub around cohesive clusters under a unified taxonomy:
+  - **Pillar A (Deep Tech & AI Architecture)**: *Autonomous AI Agents, One-Person Enterprise OS, High-Concurrency Distributed Systems, Database Internals*. (Feeds technical crawlers and Dev.to syndication).
+  - **Pillar B (High-Performance Living & Mindset)**: *Personal Finance & Investing, Books & Mental Models, Health & Fitness Discipline, Solopreneurship*. (Expands organic audience without polluting technical JSON-LD `@graph`).
+- **Schema & Feed Segregation**:
+  - Use JSON-LD `Article` and `BlogPosting` with explicit `about` / `mentions` pointing to authoritative Wikidata entities (`Q11660` for AI, `Q1341490` for Distributed Computing, `Q41187` for Investing).
+  - Provide topic-specific RSS feeds (`/rss.xml`, `/rss/tech.xml`, `/rss/finance.xml`) so technical aggregators ingest only architectural monographs while mainstream readers access the full multi-pillar spectrum.
+
+---
+
+## 7. Bundled Scripts Usage
 
 Run scripts directly from this skill's `scripts/` directory:
 
