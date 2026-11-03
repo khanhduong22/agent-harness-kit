@@ -9,6 +9,9 @@
   - **`index-web` (Client Web App)**: Next.js App Router (`:3000`). Rules: `index-web/AGENTS.md`.
   - **`index-signoz` (Observability)**: OpenTelemetry Collector & ClickHouse. Rules: `index-signoz/.agents/AGENTS.md`.
 - **Cross-Service Data Contracts**: Keep API envelopes (`{ data, meta }`) and `parseApiResponseEnvelope` synchronized across `index-api`, `index-admin-cms`, `index-data`, and `index-web`.
+- **Mozyfin Market Data Normalization Invariants (`index-web` / `mozyfin-financial-api` skill)**:
+  - **Index Tickers MUST Have `.VN`**: Every call to Mozyfin `/api/v2/market/market-index/{ticker}/ohlcv` MUST append `.VN` (`VNINDEX.VN`, `VN30.VN`, `HNX.VN`, `UPCOM.VN`, `VN100.VN`, `HNX30.VN`). Omitting `.VN` returns `200 OK` with empty arrays `{"c":[]}` and triggers stale fallback flashes on client hydration.
+  - **Stock Batch OHLCV & `change_percent`**: Always append `.VN` to stock symbols in `/api/v2/market/exchange/entity/ohlcv/batch`, compute/verify `changePercent` against `change_value / (current_price - change_value) * 100` (since Mozyfin `change_percent` is a decimal ratio `0.0901` = `9.01%`), and never overwrite live SSR quotes with stale `localStorage` cache on mount.
 - **Developer Ownership Policy**:
   - **Writable (Full-Stack)**: `index-web`, `index-api`, `index-admin-cms`, and `index-data`.
   - **Issue-Repo vs. True Service Owner**: Even if an issue is filed under `index-web`, any DB query, bulk aggregation, or static generation (sitemaps, feeds, cache warming) MUST be implemented in `index-admin-cms` or `index-api`. `index-web` only calls lightweight backend HTTP endpoints.
