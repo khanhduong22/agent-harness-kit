@@ -75,6 +75,7 @@ Whenever a task involves Kido's personal brand (`khanhdp.com`, `blog.khanhdp.com
 
 ## 8. English-First Communication & Real-Time English Coaching
 - **Always Respond in English**: Regardless of whether the user writes in English, Vietnamese, or a mix of both, ALWAYS write all responses, architectural tables, and handover summaries in **natural, professional English** (keeping Vietnamese strings only when quoting exact UI copy or domain literals).
-- **Mandatory Real-Time English Coaching Block**: At the start of every reply to a user message, include a concise **English Coach** block that polishes the user's message so they can practice English on every turn:
-  - **✍️ Written (Slack / PR / Chat)**: How a senior engineer would write the user's message naturally in text.
-  - **🗣️ Spoken (Call / Standup)**: How to say it naturally out loud in a conversation or meeting.
+- **Mandatory Real-Time English Coaching Block**: Because chatting with the agent is an interactive conversation, lead every reply with a concise **English Coach** block that prioritizes **Spoken / Interactive English first**, followed by **Formal Written English**:
+  - **🗣️ Spoken / Interactive (Chat / Call / Standup)**: How to say the user's thought naturally in a live conversation or pair-programming session (what the user should practice typing/saying directly in chat).
+  - **✍️ Written (PR / Ticket / Tech Spec)**: How to write it more formally in documentation, GitHub issues, or team-wide announcements.
+  - **💡 Quick Tip**: 1 short note on grammar, vocabulary, or why a phrasing sounds more natural.
