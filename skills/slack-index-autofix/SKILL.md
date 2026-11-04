@@ -106,8 +106,9 @@ The script outputs:
 
 ### Step 3: Create Missing GitHub Native Sub-Issues (After Confirmation)
 
-1. **Create Approved Sub-Issues via `github-task-breakdown`**:
+1. **Create Approved Sub-Issues via `github-task-breakdown` + `est-point`**:
    For each confirmed task assigned to `khanhduong22` that does not yet have a sub-issue on GitHub:
+   - Estimate the Story Point (`1, 2, 3, 5, 8, 13, 21`) using the **[`est-point`](../est-point/SKILL.md)** skill (`BUG-01..BUG-14` / `FE-01..FE-18` / `BE-01..BE-21`) and populate `Point Est` (`PVTF_lADODcsuC84BDOQkzhoOFI0`) in GitHub Projects V2.
    - Use the GraphQL `addSubIssue` mutation (or `gh-subissue` helper from `github-task-breakdown`) to link it directly under the parent issue.
    - Title format: `[<Domain>] [<Page/Component>] <Concise Action Title>` (e.g. `[FE] [Home] Fix 404 navigation and expand click target for Community section`).
    - Assign to `khanhduong22`.
