@@ -17,6 +17,17 @@ ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 ABSOLUTE_USER_RE = re.compile(r"(?<![a-zA-Z0-9_.-])/(?:Users|home)/[^/\s]+/")
+INLINE_SECRET_RE = re.compile(
+    r"(?:"
+    r"\b(?:gh[pousr]_[A-Za-z0-9_]{30,}|github_pat_[A-Za-z0-9_]{30,})\b"
+    r"|\bsk-(?:proj-|ant-)?[A-Za-z0-9]{24,}\b"
+    r"|\bAIza[0-9A-Za-z_\-]{33}\b"
+    r"|\bxox[baprs]-[0-9A-Za-z\-]{10,}\b"
+    r"|https://hooks\.slack\.com/services/T[A-Za-z0-9]+/B[A-Za-z0-9]+/[A-Za-z0-9]+"
+    r"|-----BEGIN (?:RSA|OPENSSH|EC|DSA|PGP) PRIVATE KEY-----"
+    r"|\b(?:DEVTO_API_KEY|VIBLO_API_KEY|INDEXNOW_KEY|MOZY_API_KEY|STRIPE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY)\s*=\s*['\"]?(?!\$|<|your_|xxx|placeholder|change_me|example|[A-Za-z0-9_]+\.\.\.)[A-Za-z0-9_\-\.\/\+]{16,}"
+    r")"
+)
 SECRET_KEY_RE = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH", re.IGNORECASE)
 VAR_REF_RE = re.compile(r"^\$\{[A-Za-z_][A-Za-z0-9_]*\}$")
 EMBEDDED_CREDENTIAL_RE = re.compile(r"://[^/\s:@]++:([^/\s@]++)@")
@@ -316,6 +327,8 @@ def main(argv: list[str] | None = None) -> int:
             continue
         if ABSOLUTE_USER_RE.search(content):
             errors.append(f"{candidate}: contains a machine-specific home path")
+        if INLINE_SECRET_RE.search(content):
+            errors.append(f"{candidate}: contains a hardcoded secret or API key literal")
 
     # Validate native manifests and marketplace catalogs
     manifest_files = [
