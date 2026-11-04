@@ -1,20 +1,40 @@
 ---
 name: github-task-breakdown
-description: Automatically break down epic/feature specs into implementation sub-issues, link via GitHub Native Sub-Issues GraphQL, and populate GitHub Projects V2 fields (Status, Estimate, Type, Sprint).
+description: "Automatically break down epic/feature specs into implementation sub-issues, calculate standardized Story Points via the est-point skill, link via GitHub Native Sub-Issues GraphQL, and populate GitHub Projects V2 fields (Status, Point Est, Point Act, Estimate, Type, Sprint)."
 ---
 
-# GitHub Task Breakdown & Projects V2 Synchronization
+# GitHub Task Breakdown & Projects V2 Synchronization (Linked with `est-point`)
 
 ## Purpose
-Automate the end-to-end lifecycle of breaking down complex feature specifications, suggestions, or epic issues into discrete, implementable sub-issues (Frontend, Backend, Admin CMS, Data), linking them into GitHub's native Sub-issues tree hierarchy, and populating **GitHub Projects V2** custom fields (Status, Estimate hours, Type, Sprint iterations) with zero manual data entry.
+Automate the end-to-end lifecycle of breaking down complex feature specifications, suggestions, bug reports, or epic issues into discrete, implementable sub-issues (Frontend, Backend, Admin CMS, Data), **calculating standardized Story Points using the [`est-point`](../est-point/SKILL.md) skill**, linking them into GitHub's native Sub-issues tree hierarchy, and populating **GitHub Projects V2** custom fields (`Status`, `Point Est`, `Point Act`, `Estimate`, `Type`, `Sprint` iterations) with zero manual data entry.
 
 ---
 
 ## When to Use This Skill
 Activate this skill whenever:
-- The user asks to "break task", "tạo sub issue", "tạo task FE/BE đối ứng", "phân rã tính năng".
-- The user requests assigning sub-tasks to a developer with estimates and distributing across multiple sprints (e.g. "điền estimate và trải đều qua các sprint 56 - 59").
-- Synchronizing newly created issues into a GitHub Project V2 table (updating columns: `Status`, `Estimate`, `Type`, `Sprint`, `Assignees`).
+- The user asks to "break task", "tạo sub issue", "tạo task FE/BE đối ứng", "phân rã tính năng", or "tạo issue bug vào sprint".
+- The user requests assigning sub-tasks to a developer with Story Point estimates (`est-point`) and distributing across sprints (e.g. "điền point estimate và trải đều qua các sprint 60+").
+- Synchronizing newly created or existing issues into a GitHub Project V2 table (updating columns: `Status`, `Point Est`, `Point Act`, `Estimate`, `Type`, `Sprint`, `Assignees`).
+
+---
+
+## 0. Mandatory Story Point Estimation via `est-point`
+
+Starting from **Sprint 60**, the estimation system uses **Story Points (`Point Est` / `Point Act`)** governed by the **[`est-point`](../est-point/SKILL.md)** skill (TechPulse 2026 & Story Point Estimation Reference v1.0).
+
+Before creating or updating any task/sub-issue/bug:
+1. **Read & Apply `est-point`**:
+   - Consult `~/.gemini/config/skills/est-point/SKILL.md` (or run `node ~/.gemini/config/skills/est-point/scripts/estimate.js`).
+   - Match the task against the role Casebook (`FE-01..FE-18`, `BE-01..BE-21`, `DB-01..DB-11`, `MO-01..MO-15`, `QA-01..QA-12`, `BA-01..BA-12`, `UX-01..UX-11`, `DO-01..DO-13`, `BUG-01..BUG-14`) to determine the **Base Casebook Point** on the Fibonacci scale (`1, 2, 3, 5, 8, 13, 21`, where `1 Point = 1 Standard Day`).
+   - Apply TechPulse modifiers when appropriate (`Senior = 0.5x`, `Junior = 1.0x`; Repeat `1st = 1.0x`, `2nd = 0.7x`, `3rd+ = 0.4x`) via:
+     ```bash
+     node ~/.gemini/config/skills/est-point/scripts/estimate.js search "<keyword>"
+     node ~/.gemini/config/skills/est-point/scripts/estimate.js calc <basePoint> <senior|junior> <1|2|3>
+     ```
+   - Enforce the **Epic-as-a-Feature** anti-fragmentation rule: any item > `13 Points` MUST be decomposed into smaller sub-tasks (`1, 2, 3, 5, 8 Points`).
+2. **Populate `Point Est` (and `Point Act`) in GitHub Projects V2 (`PVT_kwDODcsuC84BDOQk`)**:
+   - `Point Est` (`PVTF_lADODcsuC84BDOQkzhoOFI0`): Required on every task/bug in Sprint 60+.
+   - `Point Act` (`PVTF_lADODcsuC84BDOQkzhoOFJM`): Populate when the task is completed (`Done`).
 
 ---
 
@@ -45,12 +65,12 @@ Before creating any issue:
 
 2. **Formulate High-Quality Implementation Sub-Tasks**:
    For each sub-task, craft:
-   - **Clean Title**: `[<Domain>] [<Feature/Page>] <Concise Action Title>` (e.g. `[FE] [Home] Global Search Bar` or `[CMS] Quản lý chiến dịch quảng cáo`).
+   - **Clean Title**: `[<Domain>] [<Feature/Page>] <Concise Action Title>` (e.g. `[FE] [Home] Global Search Bar` or `Bug - [Home] Fix Mobile Header Gap`).
    - **Structured Body**:
      ```markdown
      ### 📋 Thông tin Task (<Domain>)
      - **Sprint**: Sprint <N>
-     - **Estimate**: <X>h
+     - **Point Est**: <P> Point (`<CASE-ID>`: <Case Name>)
      - **Assignee**: @<username>
      - **Related Spec / Design**: #<specIssueId>
      - **Parent Epic**: #<parentNumber>
@@ -194,23 +214,32 @@ Once authenticated with `project` scope:
 
 ---
 
-## 5. Batch Synchronization Engine (Python Automation Pattern)
+## 5. Batch Synchronization Engine (Story Point Automation Pattern)
 
-When updating 5+ tasks, execute batch updates via a Python/Node script with combined GraphQL mutations to avoid rate limits:
+For the **Index** GitHub Project V2 (`PVT_kwDODcsuC84BDOQk`), the canonical field IDs are:
+- **`Status`**: `PVTSSF_lADODcsuC84BDOQkzg1NEQU` (`Backlog`: `f75ad846`, `Ready`: `08afe404`, `In progress`: `47fc9ee4`, `In review`: `4cc61d42`, `Ready for QA`: `22fec96b`, `Done`: `98236657`)
+- **`Point Est`**: `PVTF_lADODcsuC84BDOQkzhoOFI0` (`NUMBER` — Story Points calculated via `est-point`)
+- **`Point Act`**: `PVTF_lADODcsuC84BDOQkzhoOFJM` (`NUMBER` — Actual Story Points when completed)
+- **`Estimate`**: `PVTF_lADODcsuC84BDOQkzg1NEgA` (`NUMBER` — legacy/parallel numeric estimate field)
+- **`Sprint`**: `PVTIF_lADODcsuC84BDOQkzg1NEgE` (`Sprint 60`: `eb7091f1`, `Sprint 61`: `0760d96a`, `Sprint 62`: `73fee5ea`, `Sprint 63`: `f01d7afe`, `Sprint 64`: `c5ff0599`, `Sprint 65`: `97a30e92`, `Sprint 66`: `eef2ec0a`, `Sprint 67`: `aaac6376`, `Sprint 68`: `d97432d5`, `Sprint 69`: `5788f6b8`)
+- **`Type`**: `PVTSSF_lADODcsuC84BDOQkzgz79-I` (`Task`: `997d2238`, `Bug`: `492c2999`, `Feat`: `0b98368f`, `Epic`: `b0245420`)
+
+When updating 5+ tasks, execute batch updates via a Python/Node script with combined GraphQL aliases to avoid rate limits (note: always pass string IDs with `-f` in `gh api graphql` so all-digit option IDs like `98236657` are not coerced to integers):
 
 ```python
 import subprocess
 import time
 
-PROJECT_ID = "PVT_kw..."
-STATUS_FIELD_ID = "PVTSSF_..."
+PROJECT_ID = "PVT_kwDODcsuC84BDOQk"
+STATUS_FIELD_ID = "PVTSSF_lADODcsuC84BDOQkzg1NEQU"
 STATUS_READY_ID = "08afe404"
-ESTIMATE_FIELD_ID = "PVTF_..."
-SPRINT_FIELD_ID = "PVTIF_..."
-SPRINT_IDS = {56: "ae074ea7", 57: "f551ff8d", 58: "8d5348e6", 59: "07a942fa"}
-TYPE_TASK_ID = "IT_kw..."
+POINT_EST_FIELD_ID = "PVTF_lADODcsuC84BDOQkzhoOFI0"
+POINT_ACT_FIELD_ID = "PVTF_lADODcsuC84BDOQkzhoOFJM"
+SPRINT_FIELD_ID = "PVTIF_lADODcsuC84BDOQkzg1NEgE"
+SPRINT_IDS = {60: "eb7091f1", 61: "0760d96a", 62: "73fee5ea"}
+TYPE_TASK_ID = "IT_kwDODcsuC84BDOQk..."
 
-items = [...]  # [{num, itemId, issueId, sprint, est}]
+items = [...]  # [{num, itemId, issueId, sprint, pointEst, pointAct}]
 
 for it in items:
     mutation = f"""
@@ -222,11 +251,11 @@ for it in items:
         value: {{ singleSelectOptionId: "{STATUS_READY_ID}" }}
       }}) {{ projectV2Item {{ id }} }}
 
-      mEstimate: updateProjectV2ItemFieldValue(input: {{
+      mPointEst: updateProjectV2ItemFieldValue(input: {{
         projectId: "{PROJECT_ID}",
         itemId: "{it['itemId']}",
-        fieldId: "{ESTIMATE_FIELD_ID}",
-        value: {{ number: {it['est']} }}
+        fieldId: "{POINT_EST_FIELD_ID}",
+        value: {{ number: {it['pointEst']} }}
       }}) {{ projectV2Item {{ id }} }}
 
       mSprint: updateProjectV2ItemFieldValue(input: {{
@@ -235,16 +264,10 @@ for it in items:
         fieldId: "{SPRINT_FIELD_ID}",
         value: {{ iterationId: "{SPRINT_IDS[it['sprint']]}" }}
       }}) {{ projectV2Item {{ id }} }}
-
-      mType: updateIssueIssueType(input: {{
-        issueId: "{it['issueId']}",
-        issueTypeId: "{TYPE_TASK_ID}"
-      }}) {{ issue {{ id }} }}
     }}
     """
-    subprocess.run(["gh", "api", "graphql", "-f", f"query={mutation}"], check=True)
-    subprocess.run(["gh", "issue", "edit", str(it['num']), "--add-label", "task"], check=True)
-    time.sleep(0.5)  # Throttle for rate limits
+    subprocess.run(["env", "-u", "GITHUB_TOKEN", "gh", "api", "graphql", "-f", f"query={mutation}"], check=True)
+    time.sleep(0.3)  # Throttle for rate limits
 ```
 
 ---
@@ -253,8 +276,8 @@ for it in items:
 Before concluding task breakdown:
 - [ ] Every sub-issue has a parent link and is visible in GitHub Native Sub-Issues tree.
 - [ ] Every task has an Assignee set.
-- [ ] Every task has Status set to requested state (e.g. `Ready`).
-- [ ] Every task has numeric Estimate hours filled in Project table.
+- [ ] Every task has Status set to requested state (e.g. `Ready` or `Done`).
+- [ ] Every task has **Story Points (`Point Est`)** calculated via `est-point` and filled in the Project table (`Point Act` also filled if `Done`).
 - [ ] Tasks are balanced across target Sprints (no single sprint overloaded).
-- [ ] Type column displays `Task` icon and label `task` is attached.
-- [ ] Handover report shows a clean Markdown table with direct issue links, sprint allocations, and estimates.
+- [ ] Type column displays `Task` or `Bug` icon and corresponding label is attached.
+- [ ] Handover report shows a clean Markdown table with direct issue links, sprint allocations, Casebook IDs, and Story Points (`Point Est` / `Point Act`).
