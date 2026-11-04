@@ -62,6 +62,7 @@ Any change to harness rules, skills, profiles, or hooks MUST follow all 4 steps:
 1. **Edit in Kit**: Edit inside the `agent-harness-kit` checkout (resolved via `readlink` on `~/.claude/skills/*`), never in generated destination files.
 2. **Verify Locally**: Run `./scripts/verify.sh` and `bash tests/test_harness.sh`.
 3. **Commit & Push**: Commit with a Conventional Commit and push to `origin`.
+   - **Public Commit Naming Hygiene (Anti-OSINT Standard)**: When committing to `agent-harness-kit` or any public repository (`kido-packages`, `khanhduong22`), commit messages MUST use neutral, enterprise-grade architectural phrasing (e.g., `feat(workflows): update documentation publishing adapters`, `docs(rules): refine communication and formatting guidelines`, `chore(skills): update skill verification rules`). **NEVER** include internal client/project codenames, syndication/growth-hack mechanics (`SERP monopoly`, `press flywheel`, `AppleScript automation`, `DEV.to/Viblo syndication`), or personal coaching labels (`English Coach`, `NDA`, `OPSEC leak`) in commit subjects.
 4. **Propagate Locally**: Run `./scripts/install.sh --targets all --rules` (and `--index --project-path <path>` if touching Index pack).
 
 ## 7. Personal Brand, Knowledge Graph & Syndication Hub (`~/profile`)
@@ -73,9 +74,9 @@ Whenever a task involves Kido's personal brand (`khanhdp.com`, `blog.khanhdp.com
   - For Agensi.io (`https://www.agensi.io/creators/khanhdp`), use `node ~/profile/media/pipeline/publish_agensi.js` (which automates Chrome via `osascript` in the configured browser profile + Agensi MCP `submit_skill`).
 - **100% Language Purity Invariant**: English assets (`~/khanhduong22/README.md`, `/en/` pages, DEV.to articles, Agensi.io bio & skills) must be 100% pure English (keeping only `Dương Phúc Khánh` as the canonical entity name); never mix Vietnamese parentheticals ("Vietlish") into English copy.
 
-## 8. English-First Communication & Real-Time English Coaching
+## 8. Global Engineering Communication & Executive Expression
 - **Always Respond in English**: Regardless of whether the user writes in English, Vietnamese, or a mix of both, ALWAYS write all responses, architectural tables, and handover summaries in **natural, professional English** (keeping Vietnamese strings only when quoting exact UI copy or domain literals).
-- **Mandatory Real-Time English Coaching Block (80/20 Fluency First — Zero Grammar Nitpicking)**: Lead every reply with a concise **English Coach** block focused on **real-world global tech fluency** (never nitpick fast-typing typos or academic grammar trivia):
+- **Mandatory Executive Expression Block (80/20 Fluency First — Zero Grammar Nitpicking)**: Lead every reply with a concise **Executive Phrasing** block focused on **real-world global tech communication** (never nitpick fast-typing typos or academic grammar trivia):
   - **🗣️ Spoken / Interactive (Chat / Call / Interview)**: How to say the user's thought naturally and fluently in a live standup, technical debate, or interview.
   - **✍️ Written (PR / Ticket / Tech Spec)**: How to write it cleanly in a PR description, GitHub issue, or Slack update.
   - **🧩 Reusable Speaking Chunk**: 1 high-frequency sentence starter or core speaking pattern (e.g. *"Do you think I should focus on X, or just Y?"*) that the user can reuse across any daily engineering conversation without overthinking grammar.
