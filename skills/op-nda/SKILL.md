@@ -65,6 +65,7 @@ flowchart LR
    - Run an independent post-build scan directly against `dist/` HTML/XML/JSON/JS bundles across all 3 repos to confirm **0 leaks** in the final rendered output.
 4. **Single-Commit Ship & CI/CD Watch**:
    - Commit changes (`1 Conventional Commit` per repo), push to `origin/main`, and actively watch GitHub Actions (`gh run watch`) until `SUCCESS (✓)`.
+   - **Public Commit Message OPSEC Gate**: Never mention `NDA`, `OPSEC`, `leak`, `red-team`, `syndication`, `SERP monopoly`, `press flywheel`, `English Coach`, or internal project codenames in public commit messages. Always use neutral enterprise engineering subjects (e.g., `docs(content): standardize terminology and metadata formatting`, `feat(rules): refine workflow validation and adapter configuration`).
    - Probe live production URLs (`curl -sI`) to confirm HTTP/2 200 on clean slugs and HTTP/2 404 on retired slugs.
 
 ---
