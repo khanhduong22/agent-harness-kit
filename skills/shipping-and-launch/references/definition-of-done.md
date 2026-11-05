@@ -1,6 +1,6 @@
 # Definition of Done (DoD)
 
-Companion reference for `incremental-implementation`, `planning-and-task-breakdown`, and `shipping-and-launch`.
+Companion reference for `incremental-implementation` and `shipping-and-launch`.
 
 ## Mandatory Completion Criteria
 1. **Scoped Implementation**: All acceptance criteria in the task specification are implemented at the root cause with zero unrelated file churn.
