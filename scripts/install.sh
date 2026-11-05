@@ -25,6 +25,9 @@ run_doctor_only=false
 install_index=false
 project_path=""
 rollback_target=""
+# WSL2 dual-home: when set, also rsync skills/rules to the Windows host .gemini dir.
+# Auto-detected from WSL_DISTRO_NAME + /mnt/c/Users/<user>/.gemini if not overridden.
+windows_gemini_home="${WINDOWS_GEMINI_HOME:-}"
 # Captured before the option loop below shifts $@ away, and before any
 # per-invocation suffixing of backup_stamp: this is the one place the
 # original command line still exists in full, and init_receipt (called with
@@ -72,6 +75,10 @@ Options:
   --force       Back up and replace conflicting skill entries
   --doctor      Run Environment Doctor (/doctor) and Skill Doctor (/skill-doctor)
   --dry-run     Print changes without writing
+  --windows-home <path>
+                Path to Windows user home (e.g. /mnt/c/Users/ASUS_TUF) for WSL2
+                dual-home install. Skills and rules are rsynced there via copy.
+                Auto-detected when running in WSL2 and WINDOWS_GEMINI_HOME is set.
   -h, --help
 EOF
 }
@@ -122,6 +129,10 @@ while (($#)); do
     --dry-run)
       dry_run=true
       shift
+      ;;
+    --windows-home)
+      windows_gemini_home="${2:?--windows-home requires a value}/.gemini"
+      shift 2
       ;;
     -h|--help)
       usage
@@ -579,4 +590,48 @@ done
 
 if [[ "$dry_run" == false && -z "${AGENT_HARNESS_HOME:-}" && -f "$kit_root/skills/doctor/scripts/env_doctor.py" ]]; then
   /usr/bin/env python3 "$kit_root/skills/doctor/scripts/env_doctor.py" --skills-dir "$kit_root/skills" --summary || true
+fi
+
+# ── WSL2 Dual-Home: rsync skills + rules to the Windows host .gemini dir ──────
+# When running inside WSL2, Antigravity also runs on the Windows host side
+# (C:\Users\<user>\.gemini\). Symlinks that point into /root/... are broken on
+# Windows, so we copy (rsync) skills and GEMINI.md there instead.
+#
+# Auto-detect: if WSL_DISTRO_NAME is set and we can resolve the Windows user
+# profile automatically via /mnt/c/Users/<USERPROFILE basename>, do so.
+# Override with WINDOWS_GEMINI_HOME env var or --windows-home flag.
+if [[ "$dry_run" == false && -n "${WSL_DISTRO_NAME:-}" ]]; then
+  # Auto-detect Windows .gemini home if not explicitly set
+  if [[ -z "$windows_gemini_home" ]]; then
+    win_userprofile="$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r\n' | sed 's|\\|/|g' | sed 's|C:|/mnt/c|')" 2>/dev/null || true
+    if [[ -n "$win_userprofile" && -d "$win_userprofile" ]]; then
+      windows_gemini_home="${win_userprofile}/.gemini"
+    fi
+  fi
+
+  if [[ -n "$windows_gemini_home" ]]; then
+    printf '\n── WSL2 dual-home sync → %s ──\n' "$windows_gemini_home"
+    win_skills_dir="${windows_gemini_home}/config/skills"
+    /bin/mkdir -p "$win_skills_dir"
+    # Rsync (copy, not symlink) all kit skills to Windows .gemini/config/skills/
+    for source_skill in "$kit_root"/skills/*/; do
+      [[ -f "${source_skill}SKILL.md" ]] || continue
+      skill_name="$(basename "$source_skill")"
+      win_dest="${win_skills_dir}/${skill_name}"
+      if [[ -d "$win_dest" ]]; then
+        printf 'win-sync unchanged: %s\n' "$win_dest"
+      else
+        /bin/cp -R "$source_skill" "$win_dest"
+        printf 'win-sync installed (copy): %s\n' "$win_dest"
+      fi
+    done
+    # Also sync the GEMINI.md rule file if it was updated
+    linux_gemini_md="${kit_home_root}/.gemini/GEMINI.md"
+    win_gemini_md="${windows_gemini_home}/GEMINI.md"
+    if [[ -f "$linux_gemini_md" ]]; then
+      /bin/cp "$linux_gemini_md" "$win_gemini_md"
+      printf 'win-sync GEMINI.md → %s\n' "$win_gemini_md"
+    fi
+    printf '── WSL2 dual-home sync complete ──\n'
+  fi
 fi

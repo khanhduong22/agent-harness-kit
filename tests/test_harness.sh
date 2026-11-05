@@ -142,7 +142,7 @@ project_a="$test_root/projects/index-api"
 project_b="$test_root/projects/index-admin-cms"
 /bin/mkdir -p "$project_a" "$project_b"
 printf '{\n  "mcpServers": {\n    "project-b-only": {\n      "command": "node"\n    }\n  }\n}\n' > "$project_b/.mcp.json"
-project_b_before="$(/sbin/md5 -q "$project_b/.mcp.json")"
+project_b_before="$(file_md5 "$project_b/.mcp.json")"
 
 AGENT_HARNESS_BACKUP_DIR="$test_root/backups-mcp" \
   "$kit_root/scripts/install.sh" --index --project-path "$project_a" --targets claude >/dev/null
@@ -162,7 +162,7 @@ refute "a literal Figma token must never be written to disk" \
   grep -q 'figd_' "$project_a/.mcp.json"
 
 assert "project B .mcp.json is byte-for-byte untouched" \
-  test "$(/sbin/md5 -q "$project_b/.mcp.json")" = "$project_b_before"
+  test "$(file_md5 "$project_b/.mcp.json")" = "$project_b_before"
 
 assert "no .mcp.json leaked into any global harness path" \
   test -z "$(/usr/bin/find "$kit_test_home" -name '.mcp.json')"
@@ -238,7 +238,7 @@ printf '=== Test 8: MCP rollback ===\n'
 project_d="$test_root/projects/index-ai"
 /bin/mkdir -p "$project_d"
 printf '{\n  "mcpServers": {\n    "pre-existing": {\n      "command": "node"\n    }\n  }\n}\n' > "$project_d/.mcp.json"
-project_d_before="$(/sbin/md5 -q "$project_d/.mcp.json")"
+project_d_before="$(file_md5 "$project_d/.mcp.json")"
 
 AGENT_HARNESS_BACKUP_DIR="$test_root/backups-rollback" \
   "$kit_root/scripts/install.sh" --index --project-path "$project_d" --targets claude >/dev/null
@@ -256,7 +256,7 @@ AGENT_HARNESS_BACKUP_DIR="$test_root/backups-rollback" \
   "$kit_root/scripts/install.sh" --rollback latest >/dev/null
 
 assert "rollback restored .mcp.json byte-for-byte" \
-  test "$(/sbin/md5 -q "$project_d/.mcp.json")" = "$project_d_before"
+  test "$(file_md5 "$project_d/.mcp.json")" = "$project_d_before"
 refute "rollback removed the injected postgres entry" \
   grep -q '"postgres"' "$project_d/.mcp.json"
 assert "rollback removed the settings file it created" \
@@ -357,9 +357,9 @@ printf '# Existing Agents\n\nShared paragraph that both files carry.\n' > "$proj
 printf '# Claude Only Rule\n\nShared paragraph that both files carry.\n\n<!-- agent-harness-kit:index:start -->\nstale pack copy\n<!-- agent-harness-kit:index:end -->\n' \
   > "$project_m/.claude/CLAUDE.md"
 printf '# Root Claude Rule\n' > "$project_m/CLAUDE.md"
-agents_before="$(/sbin/md5 -q "$project_m/AGENTS.md")"
-dot_before="$(/sbin/md5 -q "$project_m/.claude/CLAUDE.md")"
-root_before="$(/sbin/md5 -q "$project_m/CLAUDE.md")"
+agents_before="$(file_md5 "$project_m/AGENTS.md")"
+dot_before="$(file_md5 "$project_m/.claude/CLAUDE.md")"
+root_before="$(file_md5 "$project_m/CLAUDE.md")"
 
 install_claude "$project_m" >/dev/null
 first_run="$(basename "$(readlink "$mig_backups/latest")")"
@@ -381,12 +381,12 @@ assert "both legacy files were backed up under distinct names" \
     -a -f "$mig_backups/$first_run/claude-index/legacy/CLAUDE.md"
 
 # 11b: a second identical run changes nothing
-agents_after="$(/sbin/md5 -q "$project_m/AGENTS.md")"
+agents_after="$(file_md5 "$project_m/AGENTS.md")"
 install_claude "$project_m" > "$test_root/migrate-again.log"
 assert "reinstall after migration reports rules unchanged" \
   grep -q 'rules unchanged' "$test_root/migrate-again.log"
 assert "reinstall after migration leaves AGENTS.md byte-for-byte identical" \
-  test "$(/sbin/md5 -q "$project_m/AGENTS.md")" = "$agents_after"
+  test "$(file_md5 "$project_m/AGENTS.md")" = "$agents_after"
 assert "reinstall after migration removed nothing else" \
   test ! -e "$project_m/.claude/CLAUDE.md" -a ! -e "$project_m/CLAUDE.md"
 
@@ -394,11 +394,11 @@ assert "reinstall after migration removed nothing else" \
 AGENT_HARNESS_HOME="$mig_home" AGENT_HARNESS_BACKUP_DIR="$mig_backups" \
   "$kit_root/scripts/install.sh" --rollback "$first_run" >/dev/null
 assert "rollback restored .claude/CLAUDE.md byte-for-byte" \
-  test "$(/sbin/md5 -q "$project_m/.claude/CLAUDE.md")" = "$dot_before"
+  test "$(file_md5 "$project_m/.claude/CLAUDE.md")" = "$dot_before"
 assert "rollback restored the root CLAUDE.md byte-for-byte" \
-  test "$(/sbin/md5 -q "$project_m/CLAUDE.md")" = "$root_before"
+  test "$(file_md5 "$project_m/CLAUDE.md")" = "$root_before"
 assert "rollback restored AGENTS.md byte-for-byte" \
-  test "$(/sbin/md5 -q "$project_m/AGENTS.md")" = "$agents_before"
+  test "$(file_md5 "$project_m/AGENTS.md")" = "$agents_before"
 
 # 11d: a symlinked CLAUDE.md is never migrated
 project_s="$test_root/projects/migrate-symlink"
