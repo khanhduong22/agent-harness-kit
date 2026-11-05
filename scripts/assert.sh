@@ -35,6 +35,20 @@ refute() {
   fi
 }
 
+# Portable MD5 hex digest of a file.
+# Fallback chain: md5sum (Linux) -> md5 -q (macOS BSD) -> python3 hashlib.
+# Usage: file_md5 <path>
+file_md5() {
+  local file="$1"
+  if command -v md5sum &>/dev/null; then
+    md5sum "$file" | cut -d' ' -f1
+  elif /sbin/md5 -q "$file" &>/dev/null 2>&1; then
+    /sbin/md5 -q "$file"
+  else
+    python3 -c "import hashlib,sys; print(hashlib.md5(open(sys.argv[1],'rb').read()).hexdigest())" "$file"
+  fi
+}
+
 # Echo the names of real skills shipped by the kit, one per line. Suites sample
 # from this instead of hardcoding names, which rot every time a skill is
 # renamed or purged.

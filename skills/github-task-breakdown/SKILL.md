@@ -134,9 +134,11 @@ When `gh project list` or `projectsV2` returns `INSUFFICIENT_SCOPES`:
    echo "Y" | gh auth refresh -h github.com -s project
    ```
 2. Parse the one-time device code (e.g. `XXXX-XXXX`).
-3. Copy the code to clipboard (`echo -n "XXXX-XXXX" | pbcopy`) and open the authorization page:
+3. Copy the code to clipboard and open the authorization page:
    ```bash
-   open "https://github.com/login/device"
+   # macOS: echo -n "XXXX-XXXX" | pbcopy && open "https://github.com/login/device"
+   # Linux: echo -n "XXXX-XXXX" | xclip -selection clipboard; xdg-open "https://github.com/login/device" 2>/dev/null || true
+   # Windows (WSL2): echo -n "XXXX-XXXX" | clip.exe; cmd.exe /c start "https://github.com/login/device"
    ```
 4. Notify the user in 1 line:
    > "Mã cấp quyền `XXXX-XXXX` đã được copy vào clipboard và tab trình duyệt đã mở. Bạn chỉ cần bấm Continue / Authorize để cấp quyền `project` cho GitHub CLI."
