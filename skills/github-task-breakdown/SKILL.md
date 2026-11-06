@@ -1,18 +1,18 @@
 ---
 name: github-task-breakdown
-description: "Automatically break down epic/feature specs into implementation sub-issues, calculate standardized Story Points via the est-point skill, link via GitHub Native Sub-Issues GraphQL, and populate GitHub Projects V2 fields (Status, Point Est, Point Act, Estimate, Type, Sprint)."
+description: "Create tasks and sub-issues, break down epic/feature specs into implementation sub-issues with standardized Story Points via the est-point skill, link via GitHub Native Sub-Issues GraphQL, and populate GitHub Projects V2 fields (Status, Point Est, Point Act, Estimate, Type, Sprint). Triggers on 'create task', 'tạo task', 'create work', 'tạo sub issue', or 'break task'."
 ---
 
 # GitHub Task Breakdown & Projects V2 Synchronization (Linked with `est-point`)
 
 ## Purpose
-Automate the end-to-end lifecycle of breaking down complex feature specifications, suggestions, bug reports, or epic issues into discrete, implementable sub-issues (Frontend, Backend, Admin CMS, Data), **calculating standardized Story Points using the [`est-point`](../est-point/SKILL.md) skill**, linking them into GitHub's native Sub-issues tree hierarchy, and populating **GitHub Projects V2** custom fields (`Status`, `Point Est`, `Point Act`, `Estimate`, `Type`, `Sprint` iterations) with zero manual data entry.
+Automate the end-to-end lifecycle of creating and breaking down complex feature specifications, suggestions, bug reports, or epic issues into discrete, implementable sub-issues (Frontend, Backend, Admin CMS, Data), **calculating standardized Story Points using the [`est-point`](../est-point/SKILL.md) skill**, linking them into GitHub's native Sub-issues tree hierarchy, and populating **GitHub Projects V2** custom fields (`Status`, `Point Est`, `Point Act`, `Estimate`, `Type`, `Sprint` iterations) with zero manual data entry.
 
 ---
 
 ## When to Use This Skill
 Activate this skill whenever:
-- The user asks to "break task", "tạo sub issue", "tạo task FE/BE đối ứng", "phân rã tính năng", or "tạo issue bug vào sprint".
+- The user asks to "create task", "tạo task", "create work", "thêm task", "break task", "tạo sub issue", "tạo task FE/BE đối ứng", "phân rã tính năng", or "tạo issue bug vào sprint".
 - The user requests assigning sub-tasks to a developer with Story Point estimates (`est-point`) and distributing across sprints (e.g. "điền point estimate và trải đều qua các sprint 60+").
 - Synchronizing newly created or existing issues into a GitHub Project V2 table (updating columns: `Status`, `Point Est`, `Point Act`, `Estimate`, `Type`, `Sprint`, `Assignees`).
 
