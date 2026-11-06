@@ -28,6 +28,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import url from 'node:url';
 
 // ==========================================
 // 1. Constants & Defaults
@@ -935,7 +936,18 @@ Required Slack OAuth Scopes:
 }
 
 // Run when executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isDirectExecution() {
+  if (!process.argv[1]) return false;
+  try {
+    const currentPath = fs.realpathSync(url.fileURLToPath(import.meta.url));
+    const executedPath = fs.realpathSync(process.argv[1]);
+    return currentPath === executedPath;
+  } catch {
+    return import.meta.url === `file://${process.argv[1]}`;
+  }
+}
+
+if (isDirectExecution()) {
   main().catch(err => {
     console.error(`\x1b[31mError:\x1b[0m ${err.message}`);
     process.exit(1);
