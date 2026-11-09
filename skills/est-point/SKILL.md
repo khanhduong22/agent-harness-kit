@@ -1,290 +1,146 @@
 ---
 name: est-point
-description: "Thực hiện ước lượng Story Point chuẩn hóa cho User Story, Task, Subtask và Bug theo Khung Quy Chuẩn TechPulse 2026 & Story Point Estimation Reference v1.0 (Fibonacci 1, 2, 3, 5, 8, 13, 21, đối chiếu Casebook đa vai trò FE/BE/MO/DB/QA/BA/UX/DO/BUG, hệ số Senior/Junior & Learning Curve, tích hợp trực tiếp với github-task-breakdown để đồng bộ trường Point Est / Point Act trên GitHub Projects V2)."
+description: "Thực hiện ước lượng Story Point chuẩn hóa cho User Story, Task, Subtask và Bug theo Khung Quy Chuẩn Vận Hành TechPulse 2026 (1 Point = 1 Ngày Công Việc Standard, quy đổi Level Junior 1.0x / Senior 0.5x, Learning Curve Lần 1 1.0x / Lần 2 0.7x / Lần 3+ 0.4x, Bảng Mẫu Định Giá Task 0.2 - 3.0 Points, tích hợp trực tiếp với github-task-breakdown để đồng bộ trường Point Est / Point Act trên GitHub Projects V2)."
 license: MIT
 metadata:
-  version: 1.0.0
+  version: 2.0.0
   author: TechPulse Engineering & Architecture Team
   category: agile-engineering
   domain: task-estimation
-  tags: [story-point, agile, scrum, estimation, techpulse, planning-poker, sprint-planning]
+  tags: [story-point, agile, scrum, estimation, techpulse, sprint-planning, standard-day]
 ---
 
-# EST POINT — Story Point Estimation & Productivity Framework
+# EST POINT — Khung Quy Chuẩn Vận Hành TechPulse 2026 (`1 Point = 1 Ngày Công Việc Standard`)
 
-Hệ thống kỹ năng thẩm định và ước lượng **Story Point** chuẩn hóa, kết hợp giữa **Story Point Estimation Reference v1.0 (Practical Casebook)** và **Khung Quy Chuẩn Vận Hành TechPulse 2026 (Point-Based System)**.
-
----
-
-## 1. Triết lý & Các Nguyên Tắc Bất Biến
-
-1. **Bản chất của Point:** Point phản ánh **độ phức tạp của bài toán, quy mô kỹ thuật và rủi ro**, không phải đơn vị tính thời gian hành chính (Man-day / Man-hour) hay KPI đo tốc độ cá nhân.
-2. **Mốc neo khởi tạo (TechPulse Baseline):**  
-   $$\text{1 Point} = \text{1 Ngày Công Việc Standard}$$  
-   Mốc 1 Point đại diện cho khối lượng và độ phức tạp tiêu chuẩn mà một nhân sự giải quyết trọn vẹn trong 1 ngày làm việc bình thường.
-3. **Thang điểm Fibonacci chuẩn:**  
-   Chỉ sử dụng tập số chuẩn: `[1, 2, 3, 5, 8, 13, 21]`.
-   - **1 (Trivial):** Rất nhỏ; phạm vi rõ; rủi ro gần như bằng 0.
-   - **2 (Simple):** Đơn giản; một chức năng hoặc thay đổi nhỏ.
-   - **3 (Standard):** Công việc thông thường; có xử lý logic và kiểm thử.
-   - **5 (Medium-High):** Nhiều thành phần; có tích hợp hoặc xử lý ngoại lệ.
-   - **8 (Complex):** Nhiều luồng xử lý; phụ thuộc hoặc rủi ro đáng kể.
-   - **13 (Very Complex):** Phạm vi lớn hoặc nhiều điểm chưa rõ; **bắt buộc phân rã**.
-   - **21 (Epic):** **Tuyệt đối không đưa trực tiếp vào Sprint**; phải phân tích và chia nhỏ.
-4. **Không cộng điểm cơ học theo checklist:** Phân tích tổng thể tác động và rủi ro để chọn mức Fibonacci tiệm cận phù hợp.
-5. **Ghi nhận điểm đơn cấp (No Double Counting):** Điểm chỉ được cộng **duy nhất một lần** ở một cấp quản lý (hoặc Story cha, hoặc Subtask con). Tuyệt đối không cộng cả hai.
-6. **Bug Fixing (Severity ≠ Point):** Severity đo mức độ ảnh hưởng (Critical/Major/Minor); Point đo độ phức tạp sửa lỗi. Bug Critical có thể chỉ 1 Point nếu do gán sai biến; Bug Minor có thể 8 Point nếu liên quan race condition.
-7. **Epic as a Feature (Chống phân rã vụn vặt):** Không cho phép xé nhỏ task thành các sub-task quá vụn để lấy số lượng / tích điểm ảo. Mỗi task được estimate phải tạo ra giá trị tính năng thực sự (*Feature value*).
+Hệ thống kỹ năng thẩm định và ước lượng **Story Point** chuẩn hóa theo **[Khung Quy Chuẩn Vận Hành TechPulse 2026](https://docs.google.com/presentation/d/15YZOTSmp-PWgte3DsmVwN01hmZzXV0w32INu84Lt0ug/edit?slide=id.p2#slide=id.p2)** (*Hướng dẫn Đo lường Năng suất & Hiệu quả Làm việc*).
 
 ---
 
-## 2. Ma Trận Điều Chỉnh: Level & Learning Curve (Đường Cong Học Tập)
+## 1. Triết Lý & Mốc Neo Khởi Tạo Nguyên Bản (Slide 2)
 
-Quy chuẩn TechPulse áp dụng các hệ số hiệu chỉnh thực tế:
-
-### A. Hệ số Trình độ (Senior vs Junior)
-| Cấp bậc | Hệ số điều chỉnh | Mô tả |
-| :--- | :---: | :--- |
-| **Junior** | `1.0x` (Mốc chuẩn) | Chưa có kinh nghiệm sẵn, cần thời gian làm quen và làm theo hướng dẫn |
-| **Senior** | `0.5x` | Đã có sẵn kinh nghiệm, kiến thức nền tảng và template kiến trúc |
-
-### B. Hệ số Đường cong học tập (Learning Curve)
-| Tần suất thực hiện | Hệ số điều chỉnh | Ví dụ minh họa |
-| :--- | :---: | :--- |
-| **Lần 1 (Task mới)** | `1.0x` | Xây dựng Module API CRUD lần đầu tiên |
-| **Lần 2 (Task tương tự)** | `0.7x` | Làm Module CRUD cho đối tượng khác có cấu trúc tương đương |
-| **Lần 3+ (Đã chuẩn hóa)** | `0.4x` | Tái sử dụng template, script tự động, component có sẵn |
-
-> **Công thức tính điểm điều chỉnh:**  
-> $$\text{Adjusted Point} = \text{Base Casebook Point} \times \text{Level Factor} \times \text{Learning Curve Factor}$$  
-> *Sau đó snap về mốc Fibonacci chuẩn gần nhất hoặc báo cáo chi tiết.*
+1. **Bản chất của Point:** Point phản ánh **độ phức tạp của bài toán**, quy mô kỹ thuật và rủi ro, không phải đơn vị chấm công hành chính (Man-hour) thuần túy.
+2. **Mốc Khởi Tạo Nguyên Bản (`TechPulse Baseline`):**
+   $$\text{1.0 Point} = \text{1 Ngày Công Việc Standard (1 Standard Working Day)}$$
+   - Mốc **`1.0 Point`** đại diện cho khối lượng và độ phức tạp tiêu chuẩn mà một nhân sự giải quyết trọn vẹn trong **1 ngày làm việc bình thường**.
+   - Tuyệt đối **KHÔNG** dùng thang Fibonacci nguyên tối thiểu 1 (`1, 2, 3, 5, 8...`) cho các task nhỏ (vì gán `1.0 - 2.0 Point` cho một bugfix 1–2 giờ sẽ làm sai lệch hoàn toàn định mức 1 ngày công việc).
+3. **Thang Điểm Chuẩn Hóa (`TechPulse Standard Point Scale`):**
+   - Sử dụng các mốc thập phân chuẩn theo Bảng Mẫu Định Giá TechPulse:
+     `[0.2, 0.25, 0.3, 0.4, 0.5, 0.7, 1.0, 1.5, 2.0, 2.5, 3.0]`
+4. **Vai Trò 01 — Kiểm Soát Point (Thẩm Định & Duyệt ETA Point - Slide 5):**
+   - **Kiểm tra lịch sử task:** Rà soát xem nhân sự đã từng thực hiện task tương tự chưa để hạ Point hợp lý theo **Learning Curve**.
+   - **Duyệt Point theo Level:** Phân bổ đúng điểm ứng với trình độ **Junior (`1.0x`)** / **Senior (`0.5x`)**.
+5. **Vai Trò 02 — Epic as a Feature & Chống Cộng Trùng (Slide 5):**
+   - **Chống phân rã vụn vặt:** Không xé nhỏ task thành các sub-task quá vụn để lấy số lượng. Mỗi task được đánh Point phải tạo ra giá trị tính năng thực sự (*Feature value*).
+   - **Ghi nhận điểm đơn cấp (`No Double Counting`):** Điểm chỉ được ghi nhận ở **Sub-issue thực thi** (hoặc ở Issue độc lập nếu không có sub-issue). Nếu một Epic/Story cha đã được tách thành các Sub-issue có Point, thì Story cha để `Point Est = null / 0` (hoặc tổng hợp báo cáo nhưng không cộng trùng vào tổng Point cá nhân).
 
 ---
 
-## 3. Danh Mục Tham Chiếu Chuẩn (Casebook Reference V1.0)
+## 2. Hệ Số Quy Đổi Theo Level & Learning Curve (Slide 2 & Slide 3)
 
-### A. Frontend Development
-| Mã | Case công việc | Base Point | Điều kiện / Phạm vi chuẩn |
-| :--- | :--- | :---: | :--- |
-| `FE-01` | Thay đổi text, label | 1 | Không đổi layout hoặc logic |
-| `FE-02` | Thay đổi màu, font, border | 1 | Có sẵn Design System |
-| `FE-03` | Điều chỉnh spacing/kích thước | 1 | Không ảnh hưởng responsive |
-| `FE-04` | Thêm Button theo thiết kế sẵn | 1 | Tái sử dụng component hiện có |
-| `FE-05` | Thêm Input đơn giản | 2 | Có validation cơ bản |
-| `FE-06` | Xây dựng Modal / Popup | 2 | Có thiết kế và component nền |
-| `FE-07` | Bảng dữ liệu đơn giản | 3 | Có API, phân trang cơ bản |
-| `FE-08` | Form nhập liệu hoàn chỉnh | 3 | Validation, submit, loading, error state |
-| `FE-09` | Trang Listing | 3 | Có API, loading, empty, error state |
-| `FE-10` | Trang Detail | 3 | Có API, hiển thị dữ liệu và trạng thái |
-| `FE-11` | Search UI | 3 | Search API đã có |
-| `FE-12` | Filter nhiều điều kiện | 5 | Kết hợp filter, sort và pagination |
-| `FE-13` | Dashboard nhiều biểu đồ | 5 | API và thư viện chart đã có |
-| `FE-14` | Phân quyền hiển thị UI | 3 | Backend đã cung cấp permission |
-| `FE-15` | Luồng đăng nhập nhiều bước | 5 | Nhiều trạng thái và validation |
-| `FE-16` | Realtime UI | 8 | WebSocket, reconnect, đồng bộ trạng thái |
-| `FE-17` | Giao diện kéo-thả phức tạp | 8 | Nhiều trạng thái và xử lý dữ liệu kéo thả |
-| `FE-18` | Refactor toàn bộ module FE | 13 | Bắt buộc phân rã nhỏ |
+### A. Quy Đổi Theo Level (Slide 2)
+| Cấp bậc | Hệ số Level | Ví dụ Task A (Tính năng Đăng nhập / CRUD cơ bản) | Mô tả |
+| :--- | :---: | :---: | :--- |
+| **Level Junior** | `1.0x` | **`1.0 Point`** | Chưa có kinh nghiệm sẵn, cần thời gian làm quen |
+| **Level Senior** | `0.5x` | **`0.5 Point`** | Đã có sẵn kiến thức nền tảng, kiến trúc & template |
 
-### B. Backend Development
-| Mã | Case công việc | Base Point | Điều kiện / Phạm vi chuẩn |
-| :--- | :--- | :---: | :--- |
-| `BE-01` | Thêm field vào Entity | 1 | Không có migration phức tạp |
-| `BE-02` | API lấy dữ liệu đơn giản | 2 | 1 bảng, logic đơn giản |
-| `BE-03` | API CRUD cơ bản | 3 | Validation, xử lý lỗi đầy đủ |
-| `BE-04` | API Search / Filter | 3 | Truy vấn trên schema sẵn có |
-| `BE-05` | API Pagination / Sorting | 2 | Không yêu cầu tối ưu đặc biệt |
-| `BE-06` | API Upload file | 3 | Có sẵn storage service (S3/GCS) |
-| `BE-07` | API Download file | 2 | Có sẵn cơ chế lưu trữ |
-| `BE-08` | Role / Permission | 5 | Nhiều role và ma trận permission |
-| `BE-09` | Đăng nhập JWT (Access + Refresh) | 5 | Quản lý token, refresh logic |
-| `BE-10` | Google / Facebook OAuth | 3 | SDK và provider đã sẵn sàng |
-| `BE-11` | Email Notification | 3 | Có sẵn email provider |
-| `BE-12` | Notification có trạng thái đọc | 5 | Lưu trữ, trạng thái read/unread |
-| `BE-13` | Realtime Notification | 8 | WebSocket, quản lý connection pool |
-| `BE-14` | Tích hợp Cổng thanh toán | 8 | Sandbox hoạt động, scope 1 provider |
-| `BE-15` | Webhook Receiver | 5 | Signature verification, idempotency, retry |
-| `BE-16` | Referral System | 8 | Rule thưởng và cây giới thiệu |
-| `BE-17` | Commission Calculation | 8 | Nhiều điều kiện và đối soát |
-| `BE-18` | Tối ưu 1 truy vấn DB | 3 | Đã xác định slow query và nguyên nhân |
-| `BE-19` | Thiết kế lại DB Module | 8 | Nhiều bảng và ràng buộc quan hệ |
-| `BE-20` | Queue Processing | 8 | Queue, retry, dead-letter failure handling |
-| `BE-21` | Pipeline Data lớn | 13 | Bắt buộc phân rã nhỏ |
+### B. Tối Ưu Năng Suất Qua Tích Lũy Kinh Nghiệm — Learning Curve (Slide 3)
+| Tần suất thực hiện | Hệ số Learning Curve | Ví dụ Module API CRUD (Mốc 1.0 Point) | Mô tả |
+| :--- | :---: | :---: | :--- |
+| **Lần 1 (Task Mới)** | `1.0x` | **`1.0 Point`** | Xây dựng Module API CRUD lần đầu tiên |
+| **Lần 2 (Task Tương Tự)** | `0.7x` | **`0.7 Point`** | Làm Module CRUD cho đối tượng khác tương đương |
+| **Lần 3+ (Đã Chuẩn Hóa)** | `0.4x` | **`0.4 Point`** | Sử dụng lại Template, Component & Script tự động |
 
-### C. Database Development
-| Mã | Case công việc | Base Point | Điều kiện / Phạm vi chuẩn |
-| :--- | :--- | :---: | :--- |
-| `DB-01` | Thêm 1 column | 1 | Migration đơn giản, tương thích dữ liệu |
-| `DB-02` | Thêm index cho 1 bảng | 1 | Đã xác định index và tác động |
-| `DB-03` | Thêm 1 bảng mới | 2 | Schema đơn giản |
-| `DB-04` | Tạo quan hệ giữa 2 bảng | 2 | Quan hệ rõ, không convert data lớn |
-| `DB-05` | Migration có transform data | 3 | Có rollback / backup kế hoạch |
-| `DB-06` | Schema cho module nhỏ | 3 | Ít bảng, quan hệ đơn giản |
-| `DB-07` | Schema nhiều quan hệ | 5 | Nhiều bảng và constraint |
-| `DB-08` | Tối ưu query nhiều JOIN | 5 | Có query plan và test dataset |
-| `DB-09` | Deduplicate dữ liệu lớn | 8 | Cần rule deduplicate và kiểm chứng |
-| `DB-10` | Thay đổi cấu trúc DB Live | 8 | Zero-downtime migration, backward compatible |
-| `DB-11` | Migration đa module | 13 | Bắt buộc phân rã theo batch |
-
-### D. Mobile Development (iOS / Android / Flutter / React Native)
-| Mã | Case công việc | Base Point | Điều kiện / Phạm vi chuẩn |
-| :--- | :--- | :---: | :--- |
-| `MO-01` | Thay text hoặc icon | 1 | Không đổi luồng |
-| `MO-02` | Thay UI component đơn giản | 1 | Component có sẵn |
-| `MO-03` | Màn hình thông tin tĩnh | 2 | Layout và API đơn giản |
-| `MO-04` | Form nhập liệu | 3 | Validation, submit state |
-| `MO-05` | Tích hợp API vào màn hình | 2 | API ổn định, mapping rõ |
-| `MO-06` | Luồng đăng nhập Mobile | 5 | Token, biometric, error state |
-| `MO-07` | Tích hợp Camera | 3 | Dùng API/lib chuẩn |
-| `MO-08` | Scan QR / Barcode | 5 | Permission, camera preview, scan state |
-| `MO-09` | Push Notification | 5 | FCM/APNs và deep link cơ bản |
-| `MO-10` | GPS / Location tracking | 5 | Permission, background fetch, lỗi pin |
-| `MO-11` | Offline Data & Sync | 8 | SQLite/Realm, conflict resolution |
-| `MO-12` | Background Processing | 8 | Xử lý lifecycle iOS/Android ngặt nghèo |
-| `MO-13` | In-App Purchase (IAP) | 8 | StoreKit / Google Play Billing |
-| `MO-14` | Tương thích đa phiên bản OS | 5 | Ma trận thiết bị xác định |
-| `MO-15` | Tối ưu hiệu năng toàn app | 13 | Bắt buộc phân rã theo màn hình/profiling |
-
-### E. QA / Tester
-*(Chỉ dùng khi QA được quản lý thành Task estimate độc lập; không cộng dồn nếu Story đã bao gồm DoD kiểm thử)*
-- `QA-01`: Kiểm tra thay đổi text / UI đơn giản $\rightarrow$ **1 Point**
-- `QA-03`: Kiểm thử Form cơ bản $\rightarrow$ **2 Point**
-- `QA-05`: Kiểm thử CRUD hoàn chỉnh $\rightarrow$ **3 Point**
-- `QA-08`: Kiểm thử ma trận Phân quyền (Multi-role) $\rightarrow$ **5 Point**
-- `QA-09`: Kiểm thử luồng Thanh toán (Sandbox, Callback, Edge-cases) $\rightarrow$ **5 Point**
-- `QA-10`: Kiểm thử tích hợp đa hệ thống $\rightarrow$ **8 Point**
-- `QA-12`: Regression toàn hệ thống $\rightarrow$ **13 Point** (Bắt buộc chia nhỏ)
-
-### F. BA & UI/UX Design
-- **BA:** Viết Story đơn giản (**1pt**) | Viết AC (**2pt**) | Flow chức năng (**2pt**) | BRD Module (**5pt**) | Payment/Commission phức tạp (**8pt**).
-- **UI/UX:** Sửa component/icon (**1pt**) | Thiết kế Form/Popup (**2pt**) | Dashboard (**3pt**) | Full State Flow (Loading, Empty, Error, Success) (**5pt**) | Design System component batch (**8pt**).
-
-### G. DevOps & System
-- `DO-01`: Thay biến môi trường / Config $\rightarrow$ **1 Point**
-- `DO-03`: Cấu hình SSL / Domain $\rightarrow$ **2 Point**
-- `DO-04`/`DO-05`: CI/CD Pipeline cơ bản $\rightarrow$ **3 Point**
-- `DO-06`: Dockerize 1 Service $\rightarrow$ **3 Point**
-- `DO-09`: Centralized Logging $\rightarrow$ **5 Point**
-- `DO-10`: Thiết lập Staging / Prod Environment $\rightarrow$ **5 Point**
-- `DO-11`: Auto-scaling & Performance Tuning $\rightarrow$ **8 Point**
-
-### H. Bug Fixing Matrix
-- **Bug UI / Typo / CSS / Handler thiếu:** **1 Point**
-- **Bug Form Validation / Mapping API sai:** **2 Point**
-- **Bug Filter nhiều điều kiện / Lỗi công thức nghiệp vụ:** **3 Point**
-- **Bug Permission / Đồng bộ giữa 2 module:** **5 Point**
-- **Bug Payment Callback / Mất dữ liệu / Race Condition Concurrency:** **8 Point**
-- *Nếu chưa rõ nguyên nhân bug:* **Tạo Spike 1 - 2 Point để điều tra; không đoán Point.**
+> **Công thức tính điểm chuẩn TechPulse:**
+> $$\text{Point} = \text{Junior Base Point} \times \text{Level Factor} \times \text{Learning Curve Factor}$$
+> *(Hoặc tra trực tiếp từ **Bảng Mẫu Định Giá Task Tham Chiếu** ở Mục 3 bên dưới).*
 
 ---
 
-## 4. Quy Trình 5 Bước Thẩm Định Cho AI Agent
+## 3. Bảng Mẫu Định Giá Task Tham Chiếu Chuẩn (Slide 6 — PM & Tech Lead)
 
-Khi nhận yêu cầu ước lượng từ User / PM / Tech Lead:
+Đây là **bảng chuẩn bắt buộc** từ Slide 6 của Khung Quy Chuẩn Vận Hành TechPulse 2026:
 
-```mermaid
-flowchart TD
-    A["1. Tiếp nhận Task & Đọc Scope"] --> B{"Đầy đủ DoR tối thiểu?"}
-    B -- "Thiếu thông tin quan trọng" --> C["Yêu cầu làm rõ / Đề xuất Spike"]
-    B -- "Đạt DoR" --> D["2. Đối chiếu Casebook Reference"]
-    D --> E["3. Áp dụng Hệ số Level & Learning Curve"]
-    E --> F{"Điểm >= 13?"}
-    F -- "Có (>=13 hoặc 21)" --> G["4. Đề xuất Kế hoạch Phân Rã (Split)"]
-    F -- "Không (<13)" --> H["4. Snap về thang Fibonacci"]
-    G --> I["5. Xuất JSON Contract & Báo cáo Thẩm Định"]
-    H --> I
-```
-
-### Checklist Kiểm Tra DoR (Definition of Ready):
-1. Mục tiêu và phạm vi có tường minh không?
-2. Đã có Acceptance Criteria (Tiêu chí chấp nhận) có thể kiểm chứng chưa?
-3. Phụ thuộc (Dependencies) và ranh giới tích hợp đã xác định chưa?
-4. Đã xác định rõ cấp ghi nhận điểm (Story level hay Subtask level) chưa?
+| Loại Công Việc (Task Category) | Độ Phức Tạp (Complexity) | Junior Point (Lần 1) | Senior Point (Lần 1) | Lần 2+ (Lặp lại / Đã có Template) |
+| :--- | :---: | :---: | :---: | :---: |
+| **1. Fix Bug thường / Refactoring nhỏ / Chỉnh UI-CSS-Layout nhỏ** | Thấp | **`0.5 Point`** | **`0.25 Point`** | **`0.2 Point`** |
+| **2. CRUD API cơ bản / Form đơn giản / 1 Section hoặc Component UI** | Thấp | **`1.0 Point`** | **`0.5 Point`** | **`0.3 - 0.4 Point`** |
+| **3. Tích hợp Cổng thanh toán / Third-party / Trang hoàn chỉnh + API / Multi-flow** | Trung bình | **`2.0 Points`** | **`1.0 Point`** | **`0.7 Point`** |
+| **4. Tối ưu Kiến trúc / Core Service System / Engine phức tạp** | Rất cao | *Không phân công* | **`2.0 - 3.0 Points`** | **`1.5 Points`** |
 
 ---
 
-## 5. Output Contract Chuẩn (JSON & Markdown)
+## 4. Danh Mục Tham Chiếu Chi Tiết Theo Vai Trò (`1 Point = 1 Ngày Công Việc Standard`)
 
-Khi trả kết quả, luôn cung cấp **JSON Contract** kèm theo phân tích thẩm định chi tiết:
+### A. Frontend Development (`FE`)
+| Mã | Case công việc | Junior (1st) | Senior (1st) | Lần 2+ (Repeat) | Điều kiện / Phạm vi chuẩn |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| `FE-01` | Thay đổi text, label, link, màu, spacing, ẩn scrollbar | `0.5` | **`0.25`** | **`0.2`** | UI tweak / CSS / không đổi kiến trúc |
+| `FE-02` | Thêm Button / Input / Pill Tab / Header đồng bộ Figma | `0.5` | **`0.25`** | **`0.2`** | Có sẵn Design System |
+| `FE-03` | Xây dựng Modal / Popup / Bottom Sheet đơn giản | `1.0` | **`0.5`** | **`0.3 - 0.4`** | Có thiết kế và component nền |
+| `FE-04` | Dark Mode cho 1 Section / Component (Home / Profile section) | `1.0` | **`0.5`** | **`0.3 - 0.4`** | Lần 1: `0.5 pt` (Senior); các section lặp lại tiếp theo: `0.3 pt` |
+| `FE-05` | Form nhập liệu / CRUD UI (Create/Edit Alert, Watchlist) | `1.0` | **`0.5`** | **`0.3 - 0.4`** | Validation, submit, loading, error state |
+| `FE-06` | Trang Listing / Trang Detail / Bảng dữ liệu kết nối API | `1.0` | **`0.5`** | **`0.4`** | Có API, phân trang, empty/loading state |
+| `FE-07` | Chuẩn hóa luồng phức tạp / Multi-condition Filter / Matrix (VD: 13 luồng Notification, Trang Cổ phiếu nổi bật Full) | `2.0` | **`1.0`** | **`0.7`** | Nhiều trạng thái, kết hợp filter/sort/routing hoặc tích hợp API mới |
+| `FE-08` | Kiến trúc Realtime UI / WebSocket / Core State Engine | — | **`2.0`** | **`1.5`** | WebSocket, reconnect, đồng bộ đa luồng |
 
-### Standard JSON Schema:
-```json
-{
-  "task_id": "TECH-2026-XYZ",
-  "suggested_point": 3,
-  "fibonacci_point": 3,
-  "confidence": "high",
-  "baseline": {
-    "case_id": "FE-08",
-    "case_name": "Form nhập liệu hoàn chỉnh",
-    "case_point": 3
-  },
-  "modifiers": {
-    "level": "junior",
-    "level_factor": 1.0,
-    "repeat_count": 1,
-    "learning_curve_factor": 1.0,
-    "raw_calculated_point": 3.0
-  },
-  "rationale": [
-    "Form có 5 trường nhập liệu với validation regex ở client",
-    "Đầy đủ trạng thái loading, error message và disabled submit button",
-    "Gọi API POST có sẵn theo contract swagger"
-  ],
-  "assumptions": [
-    "API backend đã ready trên staging",
-    "Design system có sẵn component Input và Button"
-  ],
-  "uncertainty": [],
-  "comparable_cases": [
-    "FE-08: Form nhập liệu (3 Point)",
-    "BE-03: API CRUD cơ bản (3 Point)"
-  ],
-  "split_recommendation": [],
-  "missing_information": [],
-  "human_approval_required": true
-}
-```
+### B. Backend & Database Development (`BE` / `DB`)
+| Mã | Case công việc | Junior (1st) | Senior (1st) | Lần 2+ (Repeat) | Điều kiện / Phạm vi chuẩn |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| `BE-01` | Thêm field DB / sửa query / fix API mapping hoặc sort/filter nhỏ | `0.5` | **`0.25`** | **`0.2`** | Migration đơn giản, 1 endpoint |
+| `BE-02` | CRUD API cơ bản / Event Listener (VD: `@mention` notification, Watchlist CRUD) | `1.0` | **`0.5`** | **`0.3 - 0.4`** | Validation, unit test, xử lý lỗi đầy đủ |
+| `BE-03` | Tích hợp Third-Party / Multi-channel Notification (In-App + Email + Telegram) / All-in-one Aggregation API | `2.0` | **`1.0`** | **`0.7`** | Kết nối đa dịch vụ, webhook, hoặc nhiều bảng |
+| `BE-04` | Core Service System / Worker Engine / Tối ưu Kiến trúc & Dockerfile / Multi-Portfolio NAV Engine | — | **`2.0 - 3.0`** | **`1.5`** | Kiến trúc lõi, cron/worker matching, hiệu năng cao |
+
+### C. Bug Fixing & Refactoring (`BUG`)
+| Mã | Case công việc | Junior (1st) | Senior (1st) | Lần 2+ (Repeat) | Điều kiện / Phạm vi chuẩn |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| `BUG-01` | Fix Bug UI / CSS / Layout / Link / Auto-close modal / Scrollbar | `0.5` | **`0.25`** | **`0.2`** | Phạm vi 1–2 component trên FE |
+| `BUG-02` | Fix Bug logic vừa / API mapping / Zustand cache tab / Fallback data Mozyfin | `0.5 - 1.0` | **`0.25 - 0.5`** | **`0.2 - 0.3`** | Xử lý state hoặc chuẩn hóa dữ liệu giữa FE & API |
+| `BUG-03` | Fix Bug Fullstack (FE + BE) / Đồng bộ nhiều module (VD: 3 tab Cộng đồng FE+BE, đồng bộ chỉ số Market Index) | `1.0 - 2.0` | **`0.5 - 1.0`** | **`0.4 - 0.7`** | Chạm cả FE lẫn BE hoặc nhiều luồng dữ liệu |
+| `BUG-04` | Fix Bug Race Condition / Mất dữ liệu / Kiến trúc Core | — | **`1.5 - 2.0`** | **`1.0`** | Cần điều tra sâu và bảo toàn dữ liệu |
 
 ---
 
-## 6. Hướng Dẫn CLI Tool Hỗ Trợ
+## 5. Mô Hình Đánh Giá Năng Suất Theo Timeframe (Slide 4)
 
-Skill tích hợp sẵn công cụ Node.js độc lập để tra cứu và tính toán nhanh:
+Năng suất trong Sprint / Tháng được đo lường dựa trên tương quan giữa **Tổng số Point** và **Số lượng Task hoàn thành** (với định mức chuẩn 1 tuần làm việc 5 ngày $\approx 5.0\text{ Points}$ baseline):
+- **Kịch bản 1 — Năng Suất Thấp:** Số Point tích lũy quá ít so với định mức kỳ vọng trong Timeframe $\rightarrow$ *Cần hỗ trợ & Đào tạo*.
+- **Kịch bản 2 — Năng Suất Tăng:** Tổng Point ngang bằng chu kỳ trước, nhưng giải quyết **số lượng Task nhiều hơn** (nhờ Learning Curve giảm Point trên mỗi task lặp lại) $\rightarrow$ *Hiệu suất cải thiện rõ rệt*.
+- **Kịch bản 3 — Tăng Vượt Trội:** Cả **tổng số Point** và **số lượng Task hoàn thành** đều tăng mạnh so với trước $\rightarrow$ *Tuyên dương & Bonus*.
+
+---
+
+## 6. Công Cụ CLI Hỗ Trợ (`scripts/estimate.js`)
 
 ```bash
 # 1. Tra cứu case trong Casebook theo từ khóa
-node ~/.gemini/config/skills/est-point/scripts/estimate.js search "payment"
+node ~/.gemini/config/skills/est-point/scripts/estimate.js search "crud"
 
-# 2. Liệt kê toàn bộ case theo vai trò (frontend, backend, mobile, qa, etc.)
-node ~/.gemini/config/skills/est-point/scripts/estimate.js list backend
+# 2. Liệt kê toàn bộ case theo nhóm (frontend, backend, bug)
+node ~/.gemini/config/skills/est-point/scripts/estimate.js list
 
-# 3. Tính điểm kết hợp hệ số TechPulse (BasePoint, Level [junior|senior], Repeat [1|2|3])
-node ~/.gemini/config/skills/est-point/scripts/estimate.js calc 8 senior 2
-# Output: {"basePoint": 8, "level": "senior", "repeatCount": 2, "adjusted": 2.8, "fibPoint": 3}
+# 3. Tính điểm theo chuẩn TechPulse 2026 (JuniorBasePoint, Level [senior|junior], Repeat [1|2|3])
+node ~/.gemini/config/skills/est-point/scripts/estimate.js calc 1.0 senior 1
+# Output: {"juniorBasePoint": 1, "level": "senior", "repeatCount": 1, "rawPoint": 0.5, "standardPoint": 0.5}
 
-# 4. Tạo mẫu JSON Contract nhanh
-node ~/.gemini/config/skills/est-point/scripts/estimate.js contract "TASK-102" 5 "high" "Tích hợp Webhook payment"
+node ~/.gemini/config/skills/est-point/scripts/estimate.js calc 0.5 senior 2
+# Output: {"juniorBasePoint": 0.5, "level": "senior", "repeatCount": 2, "rawPoint": 0.18, "standardPoint": 0.2}
 ```
 
 ---
 
-## 7. Tài Liệu Tham Khảo Kèm Theo
-- **Casebook V1.0 Đầy Đủ:** `references/casebook.md`
-- **Quy Chuẩn Năng Suất TechPulse 2026:** `references/techpulse-quy-chuan.md`
+## 7. Liên Kết Với `github-task-breakdown` & GitHub Projects V2
 
----
-
-## 8. Liên Kết Với Skill Tạo Task (`github-task-breakdown`) & GitHub Projects V2
-
-Khi tạo mới hoặc cập nhật Task / Sub-issue / Bug trên GitHub thông qua skill **`github-task-breakdown`**:
-1. **Bắt buộc thẩm định điểm qua `est-point` trước khi tạo/cập nhật task**:
-   - Đối chiếu Casebook (`FE-01..FE-18`, `BE-01..BE-21`, `DB-01..DB-11`, `BUG-01..BUG-14`, ...) để lấy **Base Casebook Point**.
-   - Áp dụng hệ số **Level** (`Junior = 1.0x`, `Senior = 0.5x`) và **Learning Curve** (`1st = 1.0x`, `2nd = 0.7x`, `3rd+ = 0.4x`), hoặc chọn mốc Fibonacci chuẩn (`1, 2, 3, 5, 8, 13, 21`) qua `node ~/.gemini/config/skills/est-point/scripts/estimate.js calc <basePoint> <level> <repeat>`.
-2. **Ghi nhận vào Issue Body & GitHub Projects V2 (`Index` — `PVT_kwDODcsuC84BDOQk`)**:
-   - Trong phần `### 📋 Thông tin Task` của Issue Body, ghi rõ:
-     `- **Point Est**: <P> Point (<Case ID> — <Tóm tắt cơ sở ước lượng>)`
-   - Đồng bộ trực tiếp lên bảng **GitHub Projects V2**:
-     - **`Point Est`** (`PVTF_lADODcsuC84BDOQkzhoOFI0`, kiểu `NUMBER`): Điền Story Point ước lượng cho tất cả task từ **Sprint 60 trở đi**.
-     - **`Point Act`** (`PVTF_lADODcsuC84BDOQkzhoOFJM`, kiểu `NUMBER`): Điền Story Point thực tế khi task đã hoàn thành (`Status = Done` / `Ready for QA`).
-     - **`Estimate`** (`PVTF_lADODcsuC84BDOQkzg1NEgA`, kiểu `NUMBER`): Giữ đồng bộ hoặc để theo quy chuẩn Sprint hiện hành.
-
+Khi tạo mới hoặc cập nhật Task / Sub-issue / Bug trên GitHub Projects V2 (`Index` — `PVT_kwDODcsuC84BDOQk`):
+1. **Áp dụng đúng chuẩn `1 Point = 1 Ngày Công Việc Standard`**:
+   - Với **Senior Developer (`khanhduong22`)**:
+     - Bug UI / CSS / Layout nhỏ (`BUG-01`, `FE-01`): **`0.2 - 0.25 Point`**
+     - Bug logic / API mapping / Dark Mode 1 section lặp lại (`BUG-02`, `FE-04 repeat`): **`0.3 - 0.4 Point`**
+     - Task CRUD API / Form / Feature chuẩn / Bug Fullstack (`BE-02`, `FE-05`, `BUG-03`): **`0.5 Point`**
+     - Feature trung bình-lớn / 13 luồng Notification / Trang mới hoàn chỉnh kết nối API (`FE-07`, `BE-03`): **`0.7 - 1.0 Point`**
+     - Core Engine / Kiến trúc lớn (`BE-04`): **`1.5 - 2.0 Points`**
+2. **Không cộng trùng Story Cha (`No Double Counting`)**:
+   - Nếu Issue cha (VD: `#3881`, `#3924`, `#3929`, `#3996`, `#3999`, `#4016`) đã có các Sub-issue con được gán Point, thì chỉ ghi nhận Point ở các **Sub-issue thực thi** (đặt `Point Est` / `Point Act` của Issue cha về `null` hoặc chỉ dùng để nhìn tổng quan, tránh cộng gấp đôi).
+3. **Đồng bộ lên GitHub Projects V2**:
+   - **`Point Est`** (`PVTF_lADODcsuC84BDOQkzhoOFI0`, kiểu `NUMBER`): Điền số thập phân chuẩn (`0.2`, `0.25`, `0.3`, `0.5`, `0.7`, `1.0`, `1.5`, `2.0`).
+   - **`Point Act`** (`PVTF_lADODcsuC84BDOQkzhoOFJM`, kiểu `NUMBER`): Điền khi task chuyển sang `Ready for QA` / `Done`.

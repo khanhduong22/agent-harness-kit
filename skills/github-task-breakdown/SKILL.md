@@ -25,13 +25,13 @@ Starting from **Sprint 60**, the estimation system uses **Story Points (`Point E
 Before creating or updating any task/sub-issue/bug:
 1. **Read & Apply `est-point`**:
    - Consult `~/.gemini/config/skills/est-point/SKILL.md` (or run `node ~/.gemini/config/skills/est-point/scripts/estimate.js`).
-   - Match the task against the role Casebook (`FE-01..FE-18`, `BE-01..BE-21`, `DB-01..DB-11`, `MO-01..MO-15`, `QA-01..QA-12`, `BA-01..BA-12`, `UX-01..UX-11`, `DO-01..DO-13`, `BUG-01..BUG-14`) to determine the **Base Casebook Point** on the Fibonacci scale (`1, 2, 3, 5, 8, 13, 21`, where `1 Point = 1 Standard Day`).
-   - Apply TechPulse modifiers when appropriate (`Senior = 0.5x`, `Junior = 1.0x`; Repeat `1st = 1.0x`, `2nd = 0.7x`, `3rd+ = 0.4x`) via:
+   - Match the task against the TechPulse 2026 Benchmark (`1.0 Point = 1 Standard Working Day`, scale `[0.2, 0.25, 0.3, 0.4, 0.5, 0.7, 1.0, 1.5, 2.0, 2.5, 3.0]`).
+   - Apply TechPulse modifiers (`Senior = 0.5x`, `Junior = 1.0x`; Repeat `1st = 1.0x`, `2nd = 0.7x`, `3rd+ = 0.4x`) via:
      ```bash
      node ~/.gemini/config/skills/est-point/scripts/estimate.js search "<keyword>"
-     node ~/.gemini/config/skills/est-point/scripts/estimate.js calc <basePoint> <senior|junior> <1|2|3>
+     node ~/.gemini/config/skills/est-point/scripts/estimate.js calc <juniorBasePoint> <senior|junior> <1|2|3>
      ```
-   - Enforce the **Epic-as-a-Feature** anti-fragmentation rule: any item > `13 Points` MUST be decomposed into smaller sub-tasks (`1, 2, 3, 5, 8 Points`).
+   - Enforce the **Epic-as-a-Feature** anti-fragmentation and **No Double Counting** rules: any Epic > `3.0 Points` (Senior) MUST be decomposed into sub-tasks (`0.2 - 2.0 Points`), and points are recorded on leaf sub-issues only.
 2. **Populate `Point Est` (and `Point Act`) in GitHub Projects V2 (`PVT_kwDODcsuC84BDOQk`)**:
    - `Point Est` (`PVTF_lADODcsuC84BDOQkzhoOFI0`): Required on every task/bug in Sprint 60+.
    - `Point Act` (`PVTF_lADODcsuC84BDOQkzhoOFJM`): Populate when the task is completed (`Done`).
