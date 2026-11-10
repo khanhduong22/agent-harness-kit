@@ -65,7 +65,15 @@ Before creating any issue:
 
 2. **Formulate High-Quality Implementation Sub-Tasks**:
    For each sub-task, craft:
-   - **Clean Title**: `[<Domain>] [<Feature/Page>] <Concise Action Title>` (e.g. `[FE] [Home] Global Search Bar` or `Bug - [Home] Fix Mobile Header Gap`).
+   - **Clean Title**: `[<Epic|US|Task|Bug>] [<BE|FE|Infra>] [<Repo>] [<Domain>] <Concise Action Title>`
+     - `<Epic|US|Task|Bug>`: Work item level (default `Task` for active sprint/epic scope; only use `Bug` for confirmed post-QA regressions).
+     - `<BE|FE|Infra>`: Engineering layer (`BE`, `FE`, `Infra`, `Data`, `Fullstack`).
+     - `<Repo>`: Short repository identifier (`index-web`, `index-api`, `index-cms`, `index-data`, etc.).
+     - `<Domain>`: Feature or page module (`Notifications`, `Home`, `Alerts`, `Community`, `Footer`, etc.).
+     - Examples:
+       - `[Task] [FE] [index-web] [Notifications] Implement Desktop Notification Dropdown UX`
+       - `[Task] [BE] [index-api] [Notifications] Complete REPOST & ADMIN_REPLY flows`
+       - `[Task] [BE] [index-cms] [Articles] Add auto-publish RBAC guard for editors`
    - **Structured Body**:
      ```markdown
      ### 📋 Thông tin Task (<Domain>)
@@ -102,7 +110,7 @@ GitHub now supports native sub-issues (hierarchy trees) via GraphQL mutation `ad
    ```bash
    ISSUE_URL=$(gh issue create \
      --repo "<owner>/<repo>" \
-     --title "[FE] [Home] Global Search Bar" \
+     --title "[Task] [FE] [index-web] [Home] Global Search Bar" \
      --assignee "<username>" \
      --body "<structured_body>")
    ```
