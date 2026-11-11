@@ -56,3 +56,11 @@ Adding a field to `schema.json` and `strapi_core_store_settings` does NOT grant 
 3. **Translations**: Add labels in `src/admin/extensions/translations/{vi,en}.json`.
 4. **RBAC Backfill (CRITICAL)**: Grant `create`/`read`/`update` in `admin_permissions` (`properties.fields`) for `editor` and `editor-in-chief` via Knex migration or `src/plugins/admin-user-role-guard/`.
 5. **Non-SuperAdmin Verification**: Test with an `editor` account/token (never Super Admin alone) to prove field visibility and mutation.
+
+## 6. Deterministic Morning Pre-Flight & Pre-Report Scope Saturation
+- **Standard Working Day Cap**: Target `<= 1.0 Pt/day` (`0.5 - 1.0 Pt`) standard planned work per session.
+- **Scope Saturation Gate Before Reporting**: Never deliver the Slack Daily Report DM with `0 Pt` / empty scope. If the active sprint has no pending tasks, the workflow must:
+  1. Inspect upcoming sprint / backlog candidates assigned to `@khanhduong22` in `Ready` status.
+  2. Inspect `#index-dev` Slack thread feedback to break down urgent sub-tasks via `est-point`.
+  3. Promote candidate tasks into the current sprint scope.
+  4. Only deliver the Slack Daily Report DM after today's `<= 1.0 Pt` scope is finalized.
