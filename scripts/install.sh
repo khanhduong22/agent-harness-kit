@@ -2,6 +2,7 @@
 set -euo pipefail
 
 kit_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+kit_real_root="$(cd "$kit_root" && pwd -P)"
 kit_home_root="${AGENT_HARNESS_HOME:-${HOME}}"
 # Absolutize immediately: every downstream path (hooks_dir, receipt
 # destinations, backup_root) is derived from this once, at install time. A
@@ -289,9 +290,11 @@ install_one_skill() {
 
   if [[ -L "$destination_skill" ]]; then
     current_target="$(readlink "$destination_skill")"
-    if [[ "$install_mode" == "symlink" && "$current_target" == "$source_skill" ]]; then
-      printf 'unchanged: %s\n' "$destination_skill"
-      return
+    if [[ "$install_mode" == "symlink" ]]; then
+      if [[ "$current_target" == "$source_skill" ]] || [[ -d "$destination_skill" && "$(cd "$destination_skill" 2>/dev/null && pwd -P)" == "$(cd "$source_skill" && pwd -P)" ]]; then
+        printf 'unchanged: %s\n' "$destination_skill"
+        return
+      fi
     fi
   elif [[ ! -e "$destination_skill" ]]; then
     current_target=""
@@ -341,15 +344,20 @@ install_one_skill() {
 # one the operator wrote by hand, so copies are left for manual cleanup.
 prune_orphan_skills() {
   local destination_root="$1"
-  local entry target
+  local entry target target_kit_dir target_real_kit
   [[ -d "$destination_root" ]] || return 0
   for entry in "$destination_root"/*; do
     [[ -L "$entry" ]] || continue
     target="$(readlink "$entry")"
     case "$target" in
-      "$kit_root"/skills/*|"$kit_root"/overlays/*) ;;
+      */skills/*) target_kit_dir="${target%/skills/*}" ;;
+      */overlays/*) target_kit_dir="${target%/overlays/*}" ;;
       *) continue ;;
     esac
+    target_real_kit="$(cd "$target_kit_dir" 2>/dev/null && pwd -P || true)"
+    if [[ "$target_kit_dir" != "$kit_root" && "$target_real_kit" != "$kit_real_root" ]]; then
+      continue
+    fi
     [[ -e "$target" ]] && continue
     if [[ "$dry_run" == true ]]; then
       printf 'would prune orphan: %s -> %s\n' "$entry" "$target"
