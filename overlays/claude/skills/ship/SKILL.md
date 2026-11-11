@@ -26,7 +26,7 @@ If no such convention exists, use normal judgment — a coherent commit per logi
 
 ## 3. One worktree, one objective
 
-If this task is a genuine continuation of an already-open PR's objective (not a new independent change), don't create a new stacked branch for it — go back to that PR's branch directly (step 2 covers the recommit mechanics). Reserve a new branch/PR for work that's actually independent, or that must build on a *prerequisite* PR that hasn't merged yet (in which case: load `parallel-worktree-isolation`, target the prerequisite's branch as base, and say plainly in the PR description that it's stacked and which PR to merge first).
+If this task is a genuine continuation of an already-open PR's objective (not a new independent change), don't create a new stacked branch for it — go back to that PR's branch directly (step 2 covers the recommit mechanics). Reserve a new branch/PR for work that's actually independent, or that must build on a *prerequisite* PR that hasn't merged yet (in which case: create an isolated worktree/branch targeting the prerequisite's branch as base, and say plainly in the PR description that it's stacked and which PR to merge first).
 
 ## 4. Run every gate for real
 

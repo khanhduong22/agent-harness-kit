@@ -35,7 +35,6 @@
 - **`codebase-memory-mcp`**: Before modifying shared functions/endpoints (mandatory for breaking changes), trace callers via `get_architecture`, `search_graph`, and `trace_path(direction="inward")`, plus `grep_search` for configs/specs.
 - **`postgres` & `redis` (`kido-mcp`)**: Inspect live DB schemas, query plans, and Redis state.
 - **`chrome-devtools-mcp` & `framefit` (`figma`)**: Verify live DOM/console and compare against Figma node specs.
-- **Arena CLI Roster (`arena-round-table` skill)**: `agy -p --model gemini-2.5-pro` (Auditor) & `claude -p --model claude-fable-5` (Architect).
 
 ## 4. Figma Links, Slack Handover & Closed-Loop E2E Video Gate
 - **Clickable Figma URLs**: Always format Figma nodes as clickable links (`[Figma Node 12077:253458](https://www.figma.com/design/...-id=12077-253458)`) and include an updated file tree in every PR description.

@@ -10,7 +10,7 @@ Phase 3 of the pipeline: `OPENSPEC (/opsx) → PLAN (/plan-sdlc) → BUILD (/bui
 ## Before starting
 
 1. Load `openspec/changes/<change-name>/tasks.md` and `design.md`. If neither exists, there's nothing to execute against `/build` mode — fall back to a normal implementation conversation instead of pretending there's a checklist.
-2. Check `git status` and the current branch against `parallel-worktree-isolation`'s classification — confirm this worktree is actually assigned to this change before editing.
+2. Check `git status` and the current branch to confirm this worktree owns only this single change objective before editing (`one worktree = one branch/PR`; isolate independent parallel streams under `~/.agent-worktrees/<repo>/<branch-slug>`).
 
 ## Execution loop
 

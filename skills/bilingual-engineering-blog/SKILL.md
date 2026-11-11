@@ -37,34 +37,33 @@ Every article MUST be published simultaneously in both languages with the **exac
 - **STRICTLY PROHIBITED in Filename Slugs**:
   - ❌ **NEVER derive slugs from raw `git log` / commit messages** (which leak commit typos like `fearture-chuy-nay`, `change-projec-structre-init`, `mabye-get`, or internal employee/ticket/bank tokens like `staff-member`, `proj-admin`, `scraper-bank-sync`).
   - ❌ **NEVER append date suffixes (`-YYYY-MM-DD.md`) to filenames.** Dates belong exclusively in frontmatter (`pubDate: "YYYY-MM-DD"`); URLs must remain timeless evergreen SEO monographs.
-  - ❌ **NEVER include Vietnamese words (`chuy`, `nay`, `nhi`), raw commit verbs (`feat`, `fix`, `chore`, `init`, `initial-commit`, `merge`), or ticket prefixes (`proj-*`) in slugs.**
+  - ❌ **NEVER include Vietnamese words (`chuy`, `nay`, `nhi`), raw commit verbs (`feat`, `fix`, `chore`, `init`, `initial-commit`, `merge`), or internal ticket prefixes (`<proj>-*`) in slugs.**
 
 ### 3. Strict OPSEC & Zero Project / Client / Commit / Ticket Disclosure Guardrail
-All blog posts on `blog.khanhdp.com` are public-facing engineering monographs. **Never expose client brand names, internal repository names, Docker container names, real VPS IP addresses, cloud/VPS host providers, bank names, Jira/Linear ticket IDs, raw git commit messages, or real customer/teammate names.**
+All blog posts on `blog.khanhdp.com` are public-facing engineering monographs. **Never expose client brand names, internal repository names, Docker container names, real VPS/Tailscale IP addresses, cloud/VPS host providers, bank names, Jira/Linear ticket IDs, raw git commit messages, or real customer/teammate names.** Load the Base64-encoded ground-truth forbidden dictionary in `~/kido-blog/src/scripts/verify-opsec-and-bilingual.mjs` (`OBFUSCATED_SANITIZATION_DEFINITIONS`) and map every internal category to its canonical public archetype:
 
-| Forbidden Internal Token | Mandatory Sanitized Replacement |
+| Forbidden Internal Token Category | Mandatory Sanitized Replacement |
 | :--- | :--- |
-| `fitness-client`, `fitnessapp`, `fitness-app`, `fitness-app-api` | `High-Concurrency Fitness Platform`, `core-api-service` |
-| `app_postgres`, `app_valkey`, `app_api`, `app_web` | `db_postgres`, `cache_valkey`, `app_api`, `app_web` |
-| `ops_bridge`, `app-infra`, `app-canary`, `auto_service_app` | `edge_proxy_bridge`, `core-infra`, `canary-stack`, `legacy_tenant_app` |
-| `art-store`, `art-store-client` | `Multi-Branch POS ERP`, `retail-pos-platform` |
-| `attendance-app`, `checkins.json`, `backup_data_*.xlsx` | `Workforce ERP Platform`, `telemetry_events.json`, `snapshot_export.xlsx` |
-| `index-web`, `index-api`, `index-data`, `index-ai`, `index-admin-cms`, `index-signoz`, `index.vn`, `idx-vn` | `enterprise-web`, `enterprise-api`, `market-data-pipeline`, `ai-agent-gateway`, `enterprise-cms`, `observability-stack` |
-| `adtech-platform`, `adtech-api`, `adtech-gateway`, `adtech-dashboard`, `adtech-admin*`, `adtech-launchpad`, `adtech-infra`, `AdTechOrg` | `shortlink-platform`, `shortlink-edge-gateway`, `shortlink-dashboard`, `shortlink-admin`, `adtech-core` |
-| `goal-tracker-api`, `goal-tracker-dashboard`, `goal-tracker-mobile`, `goal-tracker`, `retail-inventory` | `okr-execution-engine`, `perishable-inventory-erp` |
-| `proj`, `PROJ-283`, `PROJ-290`, `PROJ-291`, `PROJ-*` | `Enterprise Admin Console`, `Core Platform Architecture` (zero ticket IDs) |
-| `fintech-org`, `mozyfin`, `antofin` | `quant-trading-platform`, `financial-analytics-engine` |
-| `media-client`, `media-app.example`, `story.media-app.example`, `media-auto-gen-service` | `micro-saas-suite`, `media-saas.example.com` |
-| `200lab`, `legacy-project`, `systemdesign.200lab.io` | `Distributed Traffic Simulator`, `architecture-simulator.example.com` |
+| `<FitnessClientBrand>`, `<internal-fitness-repo>`, `<internal-fitness-api>` | `High-Concurrency Fitness Platform`, `core-api-service` |
+| `<project>_postgres`, `<project>_valkey`, `<project>_api`, `<project>_web` | `db_postgres`, `cache_valkey`, `app_api`, `app_web` |
+| `ops_bridge`, `<proj>-infra`, `<proj>-canary`, `<legacy_tenant_container>` | `edge_proxy_bridge`, `core-infra`, `canary-stack`, `legacy_tenant_app` |
+| `<RetailPosBrand>`, `<retail-pos-repo>` | `Multi-Branch POS ERP`, `retail-pos-platform` |
+| `<WorkforceCheckinRepo>`, `checkins.json`, `backup_data_*.xlsx` | `Workforce ERP Platform`, `telemetry_events.json`, `snapshot_export.xlsx` |
+| `<EnterpriseMonorepoService>` (`*-web`, `*-api`, `*-data`, `*-ai`, `*-admin-cms`, `*-signoz`) | `enterprise-web`, `enterprise-api`, `market-data-pipeline`, `ai-agent-gateway`, `enterprise-cms`, `observability-stack` |
+| `<ShortlinkPlatformBrand>` (`*-api`, `*-gateway`, `*-dashboard`, `*-admin*`, `*-infra`) | `shortlink-platform`, `shortlink-edge-gateway`, `shortlink-dashboard`, `shortlink-admin`, `adtech-core` |
+| `<OkrPlatformRepo>`, `<InventoryErpRepo>` | `okr-execution-engine`, `perishable-inventory-erp` |
+| `<TicketPrefix>-*` (`CORP-283`, `FIN-290`, `IDX-*`, etc.) | `Enterprise Admin Console`, `Core Platform Architecture` (zero ticket IDs) |
+| `<QuantTradingBrand>`, `<FinancialApiBrand>` | `quant-trading-platform`, `financial-analytics-engine` |
+| `<MediaSaasDomain>`, `<SimulatorDomain>` | `micro-saas-suite`, `media-saas.example.com`, `Distributed Traffic Simulator`, `architecture-simulator.example.com` |
 | `Techcombank`, `Vietcombank`, `MBBank`, `BIDV`, `VPBank`, `TPBank`, `Sacombank`, `ACB` | `Tier-1 Banking Gateway`, `ISO-8583 / OpenBanking Webhook Provider` |
 | `Contabo`, `OVH`, `Hetzner`, `DigitalOcean`, `Vultr`, `Linode`, `BunnyCDN` | `Bare-Metal Cloud VPS`, `Dedicated NVMe Compute Node`, `Edge CDN` |
-| `198.51.100.10`, `198.51.100.20`, `100.64.0.10`, `<ssh-host-alias>`, `<secondary-vps-node>`, `<workstation-host>`, `<workstation-model>` | `103.xx.xx.xx`, `100.64.0.10` (RFC 6598 placeholder), `edge-gateway-sgp`, `secondary-vps-node`, `Local GPU Workstation` |
-| `colleague-j`, `Điệp`, `colleague-b`, `staff member`, `Nhi` | `frontend-engineer-d`, `Kỹ sư Đ` (VI) / `Engineer D` (EN), `lead-reviewer`, `Staff Member #104` |
-| `Colleague I`, `Colleague A`, `Colleague C`, `Colleague H`, `Colleague G`, `Customer D`, `Colleague F`, `Customer E`, `Client Founder` | `User #8842`, `User #4012`, `User #7109`, `Master Coach`, etc. |
+| `<PublicVpsIp>`, `<TailscaleHostIp>`, `<SshHostAlias>`, `<WorkstationModel>` | `103.xx.xx.xx`, `100.64.0.10` (RFC 6598 placeholder), `edge-gateway-sgp`, `secondary-vps-node`, `Local GPU Workstation` |
+| `<ColleagueHandle>`, `<ColleagueFirstName>`, `<ReviewerHandle>` | `frontend-engineer-d`, `Kỹ sư Đ` (VI) / `Engineer D` (EN), `lead-reviewer`, `Staff Member #104` |
+| `<CustomerFullName>`, `<ClientFounderName>` | `User #8842`, `User #4012`, `User #7109`, `Master Coach`, etc. |
 
 #### 3.1 Zero Raw Commit Quotes or Internal Artifact Framing in Prose
-- ❌ **NEVER quote raw git commit messages or commit dates in prose** (e.g., never write `Trong đợt triển khai được ghi nhận qua commit ngày 2026-02-10 (\`PROJ-283...\`)`, `commit ngày YYYY-MM-DD`, or `Based on the YYYY-MM-DD commits across ...`).
-- ❌ **NEVER mention Jira/Linear ticket IDs (`PROJ-*`, `IDX-*`), raw commit SHA hashes, or raw repository folder names in article narratives.**
+- ❌ **NEVER quote raw git commit messages or commit dates in prose** (e.g., never write `Trong đợt triển khai được ghi nhận qua commit ngày 2026-02-10 (\`CORP-283...\`)`, `commit ngày YYYY-MM-DD`, or `Based on the YYYY-MM-DD commits across ...`).
+- ❌ **NEVER mention Jira/Linear ticket IDs (`CORP-*`, `IDX-*`), raw commit SHA hashes, or raw repository folder names in article narratives.**
 - ✅ **Mandatory Authoritative Framing**: Frame every article as an independent **Production Architecture Monograph, High-Concurrency Post-Mortem, or Telemetry-Driven Systems Audit** (e.g., *"Trong quá trình kiểm toán hiệu năng hệ thống ở ngưỡng tải cao..."* / *"During a production telemetry audit under peak concurrency..."*).
 
 > [!IMPORTANT]

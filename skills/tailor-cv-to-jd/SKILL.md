@@ -78,7 +78,7 @@ Before parsing requirements or drafting bullets:
   2. The **4 Columns of Section I Table** are ordered so Column 1 & Column 2 match the JD's highest-priority domains.
   3. Every core JD responsibility is backed by at least one concrete bullet in **Section II**.
 
-### Gate 2: Adversarial "Bar-Raiser / Skeptical Principal Engineer" Critique (`doubt-driven-development`)
+### Gate 2: Adversarial "Bar-Raiser / Skeptical Principal Engineer" Critique (Fresh-Context Disproof Pass)
 Switch persona to a **Skeptical Principal Engineer / Bar-Raiser at the target company** and audit every line against 6 questions:
 1. **Metric Plausibility**: Does every high-scale number include its physical mechanism (instance count, cache layer, lock mechanism, memory cap per key, bit-packing layout) so a Senior Backend interviewer nods in agreement instead of suspecting exaggeration?
 2. **Zero Buzzword Traps**: Did any technology outside the Master Template whitelist slip in? If yes, remove immediately.
@@ -137,8 +137,8 @@ For every tailoring run, generate ready-to-paste text blocks matching enterprise
 ```markdown
 # Application Form Fields — <Target Company> (<Target Role>)
 
-> **Candidate:** Duong Phuc Khanh | **Target Role:** <Target Role Title> | **Company:** <Company Name>
-> **Companion Documents:** [CV Markdown](./CV_<Role>_<Company>.md) | [Vector PDF](./Duong_Phuc_Khanh_<Role>_<Company>.pdf) | [Interview Defense](./INTERVIEW_DEFENSE_<Company>.md)
+> **Candidate:** <Candidate Full Name> | **Target Role:** <Target Role Title> | **Company:** <Company Name>
+> **Companion Documents:** [CV Markdown](./CV_<Role>_<Company>.md) | [Vector PDF](./<Candidate_Name>_<Role>_<Company>.pdf) | [Interview Defense](./INTERVIEW_DEFENSE_<Company>.md)
 
 ---
 
@@ -151,17 +151,17 @@ For every tailoring run, generate ready-to-paste text blocks matching enterprise
 
 ## 2. Concise 60-Word Project Spotlights (Problem -> Architecture -> Outcome)
 
-### Spotlight 1: High-Throughput Distributed API Gateway (AdTech Platform)
+### Spotlight 1: High-Throughput Distributed API Gateway
 - **Problem**: Cold cache misses under high concurrency caused database stampedes and high p99 latency.
 - **Physical Architecture**: Stateless async Python (FastAPI) across 3 instances with Redis caching, TTL jitter, and Redis Mutex Locks on cache misses; write-behind batching for analytics clickstream.
 - **Outcome**: Benchmarked with k6 at 50,000 req/sec with p99 < 50ms and zero DB stampede.
 
-### Spotlight 2: Multi-Stage ETL & Memory-Efficient Analytics (Index)
+### Spotlight 2: Multi-Stage ETL & Memory-Efficient Analytics
 - **Problem**: Storing exact user IDs for unique view counts on high-cardinality social feeds consumed unsustainable RAM.
 - **Physical Architecture**: Selected Redis HyperLogLog (HLL) with fixed 12KB memory cap per key; combined BullMQ background workers with Redis L2 caching and Next.js ISR.
 - **Outcome**: Cut analytics memory footprint by 98% vs exact sets with O(1) ingestion updates.
 
-### Spotlight 3: Bitwise Habit Heatmap & Web Performance (Winter Arc)
+### Spotlight 3: Bitwise Time-Series Heatmap & Web Performance
 - **Problem**: Serializing 100-day user habit records as JSON caused excessive payload and slow mobile hydration.
 - **Physical Architecture**: Packed binary bitmask array (1 Byte/day for 8 daily flags via Redis BITFIELD and bitwise ALU operations) with 3-tier dynamic overlay code-splitting.
 - **Outcome**: 250x memory compression over JSON, >98 Lighthouse Performance, and 0ms Total Blocking Time.
@@ -170,9 +170,9 @@ For every tailoring run, generate ready-to-paste text blocks matching enterprise
 
 ## 3. Availability, Notice Period & Compensation Expectations
 
-- **Current Location**: Da Nang, Vietnam (Open to Remote / Hybrid / Relocation as applicable)
+- **Current Location**: <City, Country from Master Template> (Open to Remote / Hybrid / Relocation as applicable)
 - **Notice Period**: 30 days (negotiable for immediate onboarding if required)
-- **Work Authorization**: Full Vietnamese citizenship; open to international sponsorship/remote contracts
+- **Work Authorization**: <Citizenship & Sponsorship Status from Master Template>
 - **Expected Compensation**: [Insert tailored range aligned with candidate seniority and company tier]
 
 ---
@@ -186,9 +186,9 @@ I recently submitted my application for the <Target Role Title> position at <Com
 
 With 7+ years of experience engineering high-throughput backend services (FastAPI/Node.js, PostgreSQL, Redis) and leading full-lifecycle systems—including achieving 50,000 req/sec throughput and 98% memory reduction via Redis HLL—I am eager to contribute to <Company Name>'s high-scale platform.
 
-My tailored resume and project portfolio are available at https://khanhdp.com and https://github.com/khanhduong22. I would welcome the opportunity to discuss how my background aligns with your engineering goals.
+My tailored resume and project portfolio are available at <Portfolio URL from Master Template> and <GitHub URL from Master Template>. I would welcome the opportunity to discuss how my background aligns with your engineering goals.
 
 Best regards,  
-Duong Phuc Khanh  
+<Candidate Full Name>  
 <Phone from Master Template> | <Email from Master Template>
 ```

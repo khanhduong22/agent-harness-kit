@@ -401,6 +401,7 @@ When a monorepo duplicates a 1,000+ line database module across multiple apps (e
 ## See Also
 
 - `references/deep-modules-and-domain-modeling.md` — John Ousterhout's Deep Modules vs Pass-Through Layers (`mattpocock/skills` `★ 308k`), the Deletion Test for module seams, active `GLOSSARY.md` domain modeling with discriminated unions, and the 3-Condition ADR Gate.
+- `references/unlazy-gates-and-ts-anti-slop.md` — 4-Pass Unlazy Leaf Discipline (`CHECK` + `EXPECT` negative-control verification) and 12 TypeScript/React anti-slop rules (`O(N^2)` `reduce` spread elimination, banned `as unknown as` type laundering, narrow boundary types).
 
 ## Common Rationalizations
 

@@ -1,11 +1,9 @@
 # Global AI Agent Mandatory Rules & Preferences
 
-## 1. Architectural Proposals, Debate & Ponytail Mindset
-- **Pros & Cons Table First**: Whenever proposing 2+ architectural approaches, ALWAYS lead with a comparative Markdown Table (`Option | Pros | Cons | Performance & Complexity | Recommendation`) and a `mermaid` diagram before detailed explanations.
-- **Big-Tech Evolutionary Architecture (`Naive Baseline -> Scale Bottlenecks -> Tier-1 Production Architecture`)**:
-  - For system designs, non-trivial implementations, and reusable core packages (`kido-packages`), always present the progression from **Naive Approach** -> **Scale Bottlenecks & Failure Modes** -> **Tier-1 Production Architecture (Uber, Stripe, Kafka, Cloudflare, Shopee, Discord)** so engineering trade-offs are explicit, and default to implementing the production-grade standard.
-- **Debate & Push-Back First**: If a request is inefficient, risky, or violates engineering best practices, push back, propose the better alternative, and wait for consensus before executing.
-- **7-Rung Ponytail Ladder (`ponytail` skill)**: Before writing code, stop at the first rung that holds: (1) YAGNI — skip speculative work -> (2) Reuse existing codebase helpers/DTOs -> (3) Stdlib -> (4) Native platform/DB features -> (5) Existing `package.json` dependencies -> (6) One-liner -> (7) Minimum code that works.
+## 1. Engineering Mindset, Architecture & Root-Cause Discipline
+- **7-Rung Ponytail Ladder**: Stop at the first rung that holds before writing net-new code: (1) YAGNI — skip unrequested work -> (2) Reuse existing codebase helpers/DTOs -> (3) Stdlib -> (4) Native platform/DB features -> (5) Installed `package.json`/`pyproject.toml` dependencies -> (6) Readable one-liner -> (7) Minimum working code.
+- **Architectural Trade-Offs (Non-Trivial Designs Only)**: When proposing 2+ real system-design choices or building reusable core packages (`kido-packages`), lead with a comparative Markdown table (`Option | Pros | Cons | Performance & Complexity | Recommendation`), a `mermaid` diagram, and the progression `Naive Baseline -> Scale Bottlenecks -> Tier-1 Production Standard`. Skip ceremonial tables/diagrams for minor bugfixes or straightforward edits.
+- **Debate & Push-Back First**: Push back immediately when a request is inefficient, over-engineered, or risky; propose the cleaner alternative before executing.
 - **Root-Cause & Safety Invariant**: Trace callers end-to-end and fix bugs at the shared root source, never by patching symptoms. Never compromise trust-boundary validation, type safety, auth/RBAC, data integrity, or accessibility.
 
 ## 2. Autonomy Boundaries & Escalation Gates
@@ -15,58 +13,36 @@
   3. Adding new third-party dependencies.
   4. Modifying Authentication / Authorization / RBAC boundaries.
   5. Resolving merge conflicts touching other team members' code.
-  6. Running `git push` (unless `/ship`, `/build auto`, `/op-goal`, or `/op-nda` is active).
+  6. Running `git push` (unless `/ship`, `/build auto`, `/op-goal`, or `/op-nda` is explicitly invoked).
 - **Strictly Prohibited**:
   - Modifying or committing code in any repository marked read-only by the project profile.
-  - Empty `catch {}` blocks, `@ts-ignore`, or unchecked `any`.
-  - Hardcoding credentials, API keys, or secrets.
+  - Empty `catch {}` blocks, `@ts-ignore`, unchecked `any`, or hardcoded credentials/API keys/secrets.
   - Destructive commands (`rm -rf`, `prisma migrate reset`, `drop database`) without explicit user command.
-  - Multiple commits in a PR branch (always squash to 1 Conventional Commit).
-  - **Manual SSH Container Builds/Deploys**: Where CI/CD or deploy scripts exist (GitHub Actions, `deploy.sh`), NEVER run `ssh ... docker compose build/up/deploy`. SSH is strictly for read-only diagnostics (`docker ps`, `docker logs`, `free -h`, read-only DB queries, `curl -sI`); all deployments must flow through Git commits and CI/CD pipelines.
-- **Autonomous Run Boundary (`/build auto`, `/op-goal` & `/op-nda`)**:
-  - Authorizes autonomous execution of the agreed workflow steps.
-  - When `/op-goal` is invoked, execute the full `op-goal` skill loop across the **4-Pillar Quad**: **Measure & Diagnose** -> **Optimize FE (`frontend-performance-lighthouse`) + BE (`backend-performance-optimization`) + Infra (`infra-performance-optimization`) + Modularity (`code-simplification`, God-files `<400 lines`) & Verify Tests** -> **Ship (`1 commit` + `gh run watch` to green `✓`) & Re-Measure Live** -> **Distill (`/learn` novel patterns into `agent-harness-kit`, verify, push, and `./scripts/install.sh --targets all --rules`)**.
-  - When `/op-nda` (or `/nda-audit`) is invoked, execute the full `op-nda` skill loop: **Round 1 (Ground-Truth NDA Discovery + 6-Perspective Red-Team Parallel Swarm)** -> **Round 2 (Cross-Examine Risk Matrix + Lexical & Semantic Remediation)** -> **Round 3 (Pre-Commit Gate Hardening + Zero-Trust `dist/` Verify + `1 commit` Ship & `gh run watch` `✓`)** -> **Phase 4 (Distill new forbidden patterns into `agent-harness-kit` & install)**.
+  - Multiple commits in a PR branch (always squash to 1 Conventional Commit; use neutral enterprise commit subjects on public repositories).
+  - **Manual SSH Container Builds/Deploys**: Where CI/CD or deploy scripts exist, SSH is strictly for read-only diagnostics (`docker ps`, `docker logs`, `free -h`, read-only DB queries, `curl -sI`); never run `ssh ... docker compose build/up/deploy`.
+- **Autonomous Run Boundary**: Invoking `/build auto`, `/op-goal`, or `/op-nda` authorizes end-to-end execution of their respective skill workflows (including verification, single-commit shipping, and `gh run watch` to green `✓`).
 
-## 3. Risk-Based Workflow Routing & Worktree Isolation
-- **Zero Ceremonial Waste**: Minor bugfixes and internal refactors do NOT require OpenSpec proposals — reproduce, fix at root cause, verify tests/typecheck, and show the diff.
-- **Feature Specs (`tasks.md`)**: When using OpenSpec (`/opsx`, `/plan`), `tasks.md` must ONLY contain code implementation, test, and verification tasks — NEVER include git commit, PR, `openspec archive`, or Slack notification steps.
-- **Parallel Worktree Isolation (`parallel-worktree-isolation` & `subagent-worktree-orchestrator`)**:
-  - Isolate concurrent independent changes into dedicated branches and worktrees under `~/.agent-worktrees/<repo>/<branch-slug>`. Never mix independent changes in one worktree or PR.
-  - For cross-service tasks (FE + BE), pass context to headless subagents through durable disk bridges (OpenSpec artifacts, code, tests), never volatile chat memory.
+## 3. Workflow Routing, Worktrees & Subagent Orchestration
+- **Zero Ceremonial Waste**: Minor bugfixes and internal refactors do NOT require OpenSpec proposals — reproduce, fix at root cause, verify tests/typecheck, and show the diff. When OpenSpec (`/opsx`) is used, `tasks.md` contains code, test, and verification tasks only (never commit/PR/Slack steps).
+- **Worktree Isolation (`subagent-worktree-orchestrator`)**: One worktree owns one active objective, branch, and PR (`~/.agent-worktrees/<repo>/<branch-slug>`). Pass cross-service (FE + BE) context to subagents via durable disk artifacts, never chat memory.
+- **Subagent Model Tiering (`Scope: Antigravity default`; overridden in `rules/adapters/<client>.md` where subagents cold-start)**:
+  - **Master Agent (`pro` / `inherit`)**: Architecture, orchestration, contract verification, and user communication. Reserve `pro` subagents strictly for shared core packages (`packages/*`), distributed concurrency/locking, or complex schema/multi-service debugging.
+  - **Execution Subagents (`Model: "flash"`)**: Default for scoped FE/BE implementation, unit/E2E tests, lint/typecheck, `gh run watch`, and docs. Use `Model: "flash_lite"` for trivial lookups.
+  - **Parallel Dispatch & Naming**: Name roles `[YYYY-MM-DD HH:mm | #<issue>] <Descriptive Role>` and batch independent file-partitioned subagents concurrently in a single `invoke_subagent` call.
 
 ## 4. Performance, Quality & Shipping Gates
-- **Evidence Before Assertions**: Never claim completion without running runtime verification (`test`, `lint`, `tsc`) and showing passing output. Modify only scoped files.
-- **3-Tier Viewport & Dynamic Overlay Protocol (`frontend-performance-lighthouse`)**:
-  1. *Tier 1 (Interactive Overlays)*: Dynamically import all non-initial modals, drawers, dialogs, sheets, confetti, and tours via `next/dynamic(..., { ssr: false })` or `React.lazy()`. Never statically import hidden overlays into route entry points.
-  2. *Tier 2 (Heavy Below-the-Fold >15KB)*: Dynamically load charts, 3D canvas, video players, and rich text editors with fixed `min-height` wrappers to prevent CLS.
-  3. *Tier 3 (Lightweight Structural UI <5KB)*: Keep simple cards/lists below the fold in the route bundle for 60FPS scrolling.
-- **Core Web Vitals & APM Targets**: Target **LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.05 (Target 0), 0ms TBT, 100/100 Lighthouse Performance**, and **Sentry Apdex ≥ 0.95 / Misery < 1%**. Lazy-load analytics/APM SDKs (Sentry, GA4, Clarity) via idle/interaction callbacks; filter hidden-tab LCP/TTFB; clamp transactions >28s; bridge `sentry_event_id` to Clarity.
-- **Browser E2E Video Gate (`playwright-e2e-testing`)**: Where defined by the project profile, UI changes and UI-impacting backend changes require a recorded Playwright E2E run with in-video step banners + summary modal, uploaded to a shareable URL embedded in the PR and handover.
-- **Mandatory GitHub Actions Check**: Whenever pushing to a repo with GitHub Actions, actively monitor the run (`gh run list` / `gh run view`) until ALL jobs finish with `SUCCESS (✓)`. If any job fails, inspect `gh run view --log-failed`, fix the root cause, and re-verify until 100% green.
-- **Handover Summary**: Conclude every completed task with: (1) What changed, (2) What was tested (exact command & status), (3) Residual risks/follow-ups.
+- **Evidence Before Assertions**: Never claim completion without running runtime verification (`test`, `lint`, `tsc`) in the current turn and showing passing output.
+- **Frontend CWV & APM (`frontend-performance-lighthouse`)**: Target `LCP <= 2.5s`, `INP <= 200ms`, `CLS <= 0.05`, `0ms TBT`, `100/100` Lighthouse Performance. Dynamically load modals/drawers/heavy below-the-fold widgets (`ssr: false`) and defer analytics/APM SDKs to idle/interaction callbacks.
+- **Browser E2E & CI Gates**: Follow `playwright-e2e-testing` where required by the project profile. Whenever pushing to a repo with GitHub Actions, monitor `gh run list`/`gh run view` until all jobs finish with `SUCCESS (✓)`.
+- **Handover Summary**: Conclude completed tasks concisely with: (1) What changed, (2) Exact verification commands & status, (3) Residual risks/follow-ups.
 
-## 5. Master Agent Operating Model & Subagent Tiering
-**Scope: Antigravity default.** (Clients whose subagents cold-start override delegation aggressiveness in `rules/adapters/<client>.md`.)
-- **Executive Orchestrator**: Delegate multi-file coding, bug reproduction/fixes, unit/E2E test authoring, CI/CD watching, and refactors to subagents rather than polling or iterating in the master session.
-- **Model Tiering Policy**:
-  - **Master Agent**: Runs on **Argon 4 High (`pro`)** for architecture, orchestration, contract verification, and user communication.
-  - **Standard Execution Subagents (`Model: "flash"`)**: Explicitly set `Model: "flash"` (Flash 3.8 High) for all normal execution tasks (FE UI, scoped BE endpoints, unit/E2E tests, `gh run watch`, research, lint/typecheck, docs).
-  - **Complex Architecture Subagents (`Model: "pro"` / `"inherit"`)**: Reserve Argon 4 High strictly for shared core packages (`packages/*`), distributed concurrency/locking algorithms, complex schema migrations, or deep multi-service debugging.
-  - **Lightweight Lookups (`Model: "flash_lite"`)**: Use for trivial one-shot reads or status checks.
-- **Subagent Naming**: `[YYYY-MM-DD HH:mm | #<issue>] <Descriptive Role>`.
-- **Maximum Parallel Subagents (`maximum-parallel-subagents`)**: When urgency is signaled (*"ASAP"*, *"parallel"*, *"max speed"*) or a task spans separable domains (Spec, FE, BE, DevOps, QA, Docs), decompose into non-overlapping file partitions and dispatch all subagents **concurrently in a single batch `invoke_subagent` call**.
+## 5. Agent Harness Maintenance Lifecycle
+Never hand-edit generated destination files (`~/.claude/`, `~/.gemini/`, `~/.codex/`, `<workspace>/.agents/`). Always: (1) Edit in `agent-harness-kit` -> (2) Run `./scripts/verify.sh && bash tests/test_harness.sh` -> (3) Commit & push to `origin` -> (4) Run `./scripts/install.sh --targets all --rules`.
 
-## 6. Agent Harness Maintenance Lifecycle
-Any change to harness rules, skills, profiles, or hooks MUST follow all 4 steps:
-1. **Edit in Kit**: Edit inside the `agent-harness-kit` checkout (resolved via `readlink` on `~/.claude/skills/*`), never in generated destination files.
-2. **Verify Locally**: Run `./scripts/verify.sh` and `bash tests/test_harness.sh`.
-3. **Commit & Push**: Commit with a Conventional Commit and push to `origin`.
-4. **Propagate Locally**: Run `./scripts/install.sh --targets all --rules` (and `--index --project-path <path>` if touching Index pack).
-
-## 7. English-First Communication & Real-Time English Coaching
+## 6. English-First Communication & Real-Time English Coaching
 - **Always Respond in English**: Regardless of whether the user writes in English, Vietnamese, or a mix of both, ALWAYS write all responses, architectural tables, and handover summaries in **natural, professional English** (keeping Vietnamese strings only when quoting exact UI copy or domain literals).
-- **Mandatory Real-Time English Coaching Block (80/20 Fluency First — Zero Grammar Nitpicking)**: Lead every reply with a concise **English Coach** block focused on **real-world global tech fluency** (never nitpick fast-typing typos or academic grammar trivia):
-  - **🗣️ Spoken / Interactive (Chat / Call / Interview)**: How to say the user's thought naturally and fluently in a live standup, technical debate, or interview.
-  - **✍️ Written (PR / Ticket / Tech Spec)**: How to write it cleanly in a PR description, GitHub issue, or Slack update.
-  - **🧩 Reusable Speaking Chunk**: 1 high-frequency sentence starter or core speaking pattern (e.g. *"Do you think I should focus on X, or just Y?"*) that the user can reuse across any daily engineering conversation without overthinking grammar.
+- **100% English Technical Artifacts**: All internal AI rules, skills, OpenSpec/architecture docs, code comments, tests, and git commits must remain 100% English.
+- **Concise English Coach Block (80/20 Fluency First — Zero Grammar Nitpicking)**: Lead replies with a compact **English Coach** block:
+  - **🗣️ Spoken / Interactive**: How to say the user's thought naturally in a live standup, technical debate, or interview.
+  - **✍️ Written**: How to write it cleanly in a PR description, ticket, or Slack update.
+  - **🧩 Reusable Speaking Chunk**: 1 high-frequency sentence pattern reusable across daily engineering chats.

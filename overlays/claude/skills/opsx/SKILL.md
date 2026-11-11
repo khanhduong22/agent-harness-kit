@@ -10,7 +10,7 @@ Phase 1 of the SDLC pipeline: `OPENSPEC (/opsx) → PLAN (/plan-sdlc) → BUILD 
 ## Preconditions
 
 1. Confirm the target repo actually uses OpenSpec: `ls openspec/` at the repo root. If it doesn't exist, ask whether to `openspec init` it or skip the openspec layer entirely for this task.
-2. Check `openspec list` for an already-active change with an overlapping name or scope. If one exists and isn't yours, load the `parallel-worktree-isolation` skill before proceeding — don't silently start a second change in the same worktree.
+2. Check `openspec list` for an already-active change with an overlapping name or scope. If one exists and isn't yours, isolate into a dedicated branch and worktree (`~/.agent-worktrees/<repo>/<branch-slug>`, see `subagent-worktree-orchestrator`) before proceeding — don't silently start a second change in the same worktree.
 
 ## What to produce
 

@@ -1,6 +1,6 @@
 # Security Review Checklist
 
-Companion reference for `code-review-and-quality`, `security-and-hardening`, and `shipping-and-launch`.
+Companion reference for `security-and-hardening`.
 
 ## 1. Authentication, Session & RBAC Boundaries
 - [ ] Every protected route/controller verifies both authentication identity and resource-level authorization (no IDOR / missing tenant-scoping `WHERE organizationId = $1`).

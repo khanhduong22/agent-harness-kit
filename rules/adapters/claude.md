@@ -9,8 +9,8 @@
 
 Claude Code subagents **start cold**: they inherit no conversation, no files you
 already read, and no prior tool results, and return only their final message.
-Re-deriving that context is what costs the tokens. So core.md §8's "delegation
-first" does not apply here — **default to working directly in the master
+Re-deriving that context is what costs the tokens. So core.md §3's subagent
+delegation default does not apply here — **default to working directly in the master
 session.** Delegate only when one of these holds:
 
 - The task is genuinely multi-step or parallelizable (independent review

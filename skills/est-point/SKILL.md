@@ -1,6 +1,6 @@
 ---
 name: est-point
-description: "Thực hiện ước lượng Story Point chuẩn hóa cho User Story, Task, Subtask và Bug theo Khung Quy Chuẩn Vận Hành TechPulse 2026 (1 Point = 1 Ngày Công Việc Standard, quy đổi Level Junior 1.0x / Senior 0.5x, Learning Curve Lần 1 1.0x / Lần 2 0.7x / Lần 3+ 0.4x, Bảng Mẫu Định Giá Task 0.2 - 3.0 Points, tích hợp trực tiếp với github-task-breakdown để đồng bộ trường Point Est / Point Act trên GitHub Projects V2)."
+description: "Use when estimating Story Points for User Stories, Tasks, Subtasks, or Bugs under the TechPulse 2026 Engineering Standard (1 Point = 1 Standard Day, Junior 1.0x / Senior 0.5x, Learning Curve 1.0x / 0.7x / 0.4x, 0.2 - 3.0 Point benchmark table, synced with github-task-breakdown for GitHub Projects V2). Triggers on 'est point', 'ước lượng point', 'story point', or 'tính point'."
 license: MIT
 metadata:
   version: 2.0.0

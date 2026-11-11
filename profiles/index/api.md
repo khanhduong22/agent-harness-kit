@@ -19,6 +19,7 @@ All commands run from within `index-api/`:
 - **BaseRepository Enforcement**: Use inherited `BaseRepository` methods (`this.create`, `this.update`, `this.delete`, `this.findUnique`, `this.findById`) for primary entities instead of calling `this.prismaService.<entity>` directly.
 - **Shared DTOs**: Reuse centralized DTOs from `~/shared/dtos/` (e.g., `PaginationParamsDTO`, `SearchDTO`) instead of creating duplicate DTOs in domain modules.
 - **DTO Mappers**: Keep service classes lean by separating entity-to-DTO data mapping into dedicated `*.mapper.ts` files.
+- **Swagger / OpenAPI DTO Standards**: Always use class-based response DTOs (`@ApiOkResponse({ type: SwaggerBaseApiResponse(Dto) })`) instead of inline mock `schema`/`example` objects in controllers; document query/body descriptions and `enum` options via `@ApiProperty` / `@ApiPropertyOptional` on DTO classes rather than verbose `@ApiOperation` markdown.
 - **Centralized Slugify**: Use `slugify.util.ts` for URL/entity slugs with Vietnamese locale support rather than custom regexes.
 - **Constants & Enums**: Use defined enums/constants for workflow stages, roles, and status codes.
 

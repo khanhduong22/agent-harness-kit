@@ -121,18 +121,29 @@ def format_relative_age(ts_sec: Optional[float], now_sec: float) -> str:
     return f"{days} days"
 
 
+def _record_use(stats: Dict[str, Dict[str, Any]], sname: str, ts: float, inc: int = 1) -> None:
+    if sname not in stats:
+        return
+    stats[sname]["uses_30d"] += inc
+    if stats[sname]["last_used_ts"] is None or ts > stats[sname]["last_used_ts"]:
+        stats[sname]["last_used_ts"] = ts
+
+
 def collect_usage_telemetry(skill_names: Set[str], now_sec: float) -> Dict[str, Dict[str, Any]]:
     """
-    Collects 30-day usage counts and last-used timestamps across:
+    Collects 30-day true invocation counts and last-used timestamps across:
     1. ~/.claude.json (`skillUsage`)
-    2. ~/.claude/history.jsonl
-    3. ~/.gemini/antigravity/brain/*/.system_generated/logs/transcript.jsonl
+    2. ~/.claude/projects/**/*.jsonl (`Skill` and `Read` tool_use blocks)
+    3. ~/.codex/sessions/**/*.jsonl (tool/command reads of SKILL.md)
+    4. Antigravity brains (`~/.gemini/antigravity/brain` + WSL2 `/mnt/c/Users/*/.gemini/antigravity/brain`),
+       counting ONLY real `read_file`/`view_file` tool calls (ignoring prose/audit-table mentions).
     """
     home = Path.home()
     cutoff_sec = now_sec - (30 * 86400)
     stats: Dict[str, Dict[str, Any]] = {
         name: {"uses_30d": 0, "last_used_ts": None} for name in skill_names
     }
+    skill_path_re = re.compile(r"[/\\]skills[/\\]([a-zA-Z0-9_-]+)[/\\]SKILL\.md")
 
     # 1. Read ~/.claude.json skillUsage
     claude_json = home / ".claude.json"
@@ -146,21 +157,95 @@ def collect_usage_telemetry(skill_names: Set[str], now_sec: float) -> Dict[str, 
                     if clean_name in stats and isinstance(entry, dict):
                         last_ts = (entry.get("lastUsedAt") or 0) / 1000.0
                         count = int(entry.get("usageCount") or 0)
-                        if last_ts >= cutoff_sec:
-                            stats[clean_name]["uses_30d"] += count
-                        if last_ts > 0 and (
-                            stats[clean_name]["last_used_ts"] is None
-                            or last_ts > stats[clean_name]["last_used_ts"]
-                        ):
-                            stats[clean_name]["last_used_ts"] = last_ts
+                        if last_ts >= cutoff_sec and count > 0:
+                            _record_use(stats, clean_name, last_ts, count)
+                        elif last_ts > 0:
+                            _record_use(stats, clean_name, last_ts, 0)
         except Exception:
             pass
 
-    # 2. Scan Antigravity transcripts modified in the last 30 days
-    brain_dir = home / ".gemini" / "antigravity" / "brain"
-    if brain_dir.exists():
-        skill_path_re = re.compile(r"/skills/([a-zA-Z0-9_-]+)/SKILL\.md")
-        for conv_dir in brain_dir.iterdir():
+    # 2. Scan Claude Code project transcripts (`Skill` & `Read` tool_use blocks only)
+    claude_projects = home / ".claude" / "projects"
+    if claude_projects.exists():
+        for jfile in claude_projects.rglob("*.jsonl"):
+            try:
+                mtime = jfile.stat().st_mtime
+                if mtime < cutoff_sec:
+                    continue
+                matched_in_session: Set[str] = set()
+                with jfile.open(encoding="utf-8", errors="ignore") as fh:
+                    for line in fh:
+                        if "tool_use" not in line or ("SKILL.md" not in line and '"Skill"' not in line):
+                            continue
+                        try:
+                            obj = json.loads(line)
+                            msg = obj.get("message") if isinstance(obj, dict) else None
+                            blocks = msg.get("content") if isinstance(msg, dict) else None
+                            if not isinstance(blocks, list):
+                                continue
+                            for blk in blocks:
+                                if not isinstance(blk, dict) or blk.get("type") != "tool_use":
+                                    continue
+                                tname = blk.get("name")
+                                inp = blk.get("input") or {}
+                                if tname == "Skill" and isinstance(inp, dict):
+                                    sk = str(inp.get("skill") or "").lstrip("/")
+                                    if sk in stats:
+                                        matched_in_session.add(sk)
+                                elif tname == "Read" and isinstance(inp, dict):
+                                    fpath = str(inp.get("file_path") or "")
+                                    for m in skill_path_re.findall(fpath):
+                                        if m in stats:
+                                            matched_in_session.add(m)
+                        except Exception:
+                            continue
+                for sname in matched_in_session:
+                    _record_use(stats, sname, mtime, 1)
+            except OSError:
+                continue
+
+    # 3. Scan Codex session transcripts (actual tool/function calls reading SKILL.md)
+    codex_sessions = home / ".codex" / "sessions"
+    if codex_sessions.exists():
+        for jfile in codex_sessions.rglob("*.jsonl"):
+            try:
+                mtime = jfile.stat().st_mtime
+                if mtime < cutoff_sec:
+                    continue
+                matched_in_session = set()
+                with jfile.open(encoding="utf-8", errors="ignore") as fh:
+                    for line in fh:
+                        if "SKILL.md" not in line or ("call" not in line and "arguments" not in line):
+                            continue
+                        for m in skill_path_re.findall(line):
+                            if m in stats:
+                                matched_in_session.add(m)
+                for sname in matched_in_session:
+                    _record_use(stats, sname, mtime, 1)
+            except OSError:
+                continue
+
+    # 4. Scan Antigravity brains (local home + WSL2 Windows dual-home if present)
+    brain_dirs: List[Path] = [home / ".gemini" / "antigravity" / "brain"]
+    wsl_win_users = Path("/mnt/c/Users")
+    if wsl_win_users.is_dir():
+        try:
+            for udir in wsl_win_users.iterdir():
+                if udir.is_dir() and udir.name not in {"Public", "Default", "Default User", "All Users"}:
+                    wbrain = udir / ".gemini" / "antigravity" / "brain"
+                    if wbrain.is_dir() and wbrain not in brain_dirs:
+                        brain_dirs.append(wbrain)
+        except OSError:
+            pass
+
+    for brain_dir in brain_dirs:
+        if not brain_dir.exists():
+            continue
+        try:
+            conv_dirs = list(brain_dir.iterdir())
+        except OSError:
+            continue
+        for conv_dir in conv_dirs:
             if not conv_dir.is_dir():
                 continue
             tfile = conv_dir / ".system_generated" / "logs" / "transcript.jsonl"
@@ -170,16 +255,25 @@ def collect_usage_telemetry(skill_names: Set[str], now_sec: float) -> Dict[str, 
                 mtime = tfile.stat().st_mtime
                 if mtime < cutoff_sec:
                     continue
-                text = tfile.read_text(encoding="utf-8", errors="ignore")
-                matched_in_conv = set(skill_path_re.findall(text))
+                matched_in_conv: Set[str] = set()
+                with tfile.open(encoding="utf-8", errors="ignore") as fh:
+                    for line in fh:
+                        if "SKILL.md" not in line or "tool_calls" not in line:
+                            continue
+                        try:
+                            obj = json.loads(line)
+                            for tc in obj.get("tool_calls") or []:
+                                if not isinstance(tc, dict):
+                                    continue
+                                if tc.get("name") in ("read_file", "view_file"):
+                                    args_raw = json.dumps(tc.get("arguments") or tc.get("args") or {})
+                                    for m in skill_path_re.findall(args_raw):
+                                        if m in stats:
+                                            matched_in_conv.add(m)
+                        except Exception:
+                            continue
                 for sname in matched_in_conv:
-                    if sname in stats:
-                        stats[sname]["uses_30d"] += 1
-                        if (
-                            stats[sname]["last_used_ts"] is None
-                            or mtime > stats[sname]["last_used_ts"]
-                        ):
-                            stats[sname]["last_used_ts"] = mtime
+                    _record_use(stats, sname, mtime, 1)
             except OSError:
                 continue
 

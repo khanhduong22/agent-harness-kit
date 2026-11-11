@@ -600,7 +600,7 @@ fi
 # Auto-detect: if WSL_DISTRO_NAME is set and we can resolve the Windows user
 # profile automatically via /mnt/c/Users/<USERPROFILE basename>, do so.
 # Override with WINDOWS_GEMINI_HOME env var or --windows-home flag.
-if [[ "$dry_run" == false && -n "${WSL_DISTRO_NAME:-}" ]]; then
+if [[ "$dry_run" == false && -z "${AGENT_HARNESS_HOME:-}" && "$seen_adapters" == *",gemini,"* && ( -n "$windows_gemini_home" || -n "${WSL_DISTRO_NAME:-}" || -e /proc/sys/fs/binfmt_misc/WSLInterop ) ]]; then
   # Auto-detect Windows .gemini home if not explicitly set
   if [[ -z "$windows_gemini_home" ]]; then
     win_userprofile="$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r\n' | sed 's|\\|/|g' | sed 's|C:|/mnt/c|')" 2>/dev/null || true
@@ -612,18 +612,33 @@ if [[ "$dry_run" == false && -n "${WSL_DISTRO_NAME:-}" ]]; then
   if [[ -n "$windows_gemini_home" ]]; then
     printf '\n── WSL2 dual-home sync → %s ──\n' "$windows_gemini_home"
     win_skills_dir="${windows_gemini_home}/config/skills"
+    win_manifest="${win_skills_dir}/.kit-managed-skills"
     /bin/mkdir -p "$win_skills_dir"
-    # Rsync (copy, not symlink) all kit skills to Windows .gemini/config/skills/
+    # Prune previously kit-managed skills that were removed from agent-harness-kit
+    if [[ -f "$win_manifest" ]]; then
+      while IFS= read -r prev_skill; do
+        [[ -n "$prev_skill" ]] || continue
+        if [[ ! -f "$kit_root/skills/$prev_skill/SKILL.md" && -d "${win_skills_dir}/${prev_skill}" ]]; then
+          /bin/rm -rf "${win_skills_dir:?}/${prev_skill:?}"
+          printf 'win-sync pruned removed kit skill: %s\n' "${win_skills_dir}/${prev_skill}"
+        fi
+      done < "$win_manifest"
+    fi
+    # Sync (copy/refresh) all active kit skills and refresh manifest
+    : > "$win_manifest"
     for source_skill in "$kit_root"/skills/*/; do
-      [[ -f "${source_skill}SKILL.md" ]] || continue
+      source_skill="${source_skill%/}"
+      [[ -f "${source_skill}/SKILL.md" ]] || continue
       skill_name="$(basename "$source_skill")"
+      printf '%s\n' "$skill_name" >> "$win_manifest"
       win_dest="${win_skills_dir}/${skill_name}"
-      if [[ -d "$win_dest" ]]; then
-        printf 'win-sync unchanged: %s\n' "$win_dest"
+      if command -v rsync >/dev/null 2>&1; then
+        rsync -a --delete "${source_skill}/" "$win_dest/"
       else
+        /bin/rm -rf "${win_dest:?}"
         /bin/cp -R "$source_skill" "$win_dest"
-        printf 'win-sync installed (copy): %s\n' "$win_dest"
       fi
+      printf 'win-sync synced: %s\n' "$win_dest"
     done
     # Also sync the GEMINI.md rule file if it was updated
     linux_gemini_md="${kit_home_root}/.gemini/GEMINI.md"

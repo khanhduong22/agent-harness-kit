@@ -13,7 +13,7 @@ Whenever a user says *"fix cái chat bên index"*, *"check slack index-dev"*, *"
 2. Downloads all attached screenshots, images, and video recordings to local disk (`/tmp/slack-thread-<ts>/attachments/`).
 3. Discovers linked GitHub tickets/issues and filters direct/shared tasks for `@Khánh Dương P.` (`U09NR1YEC3Y` / GitHub `khanhduong22`).
 4. Creates any missing GitHub Native Sub-Issues linked to the parent issue via `github-task-breakdown`.
-5. Dispatches parallel subagents (`maximum-parallel-subagents`) to fix each task at root cause in `index-web`, `index-api`, or `index-admin-cms`, verifies with tests + `tsc --noEmit`, and ships via 1-commit PRs.
+5. Dispatches parallel subagents (`subagent-worktree-orchestrator`) to fix each task at root cause in `index-web`, `index-api`, or `index-admin-cms`, verifies with tests + `tsc --noEmit`, and ships via 1-commit PRs.
 
 ---
 
@@ -44,7 +44,7 @@ flowchart TD
     A["Step 1: Scan Channel or Fetch Thread<br/>(node .agents/scripts/fetch-slack-thread.mjs --latest)"] --> B["Step 2: Read summary.md, Inspect Screenshots<br/>& Check Existing GitHub Sub-Issues / Root Cause"]
     B --> G{"Step 2.5: Mandatory Confirmation Gate<br/>Present Triage Table & Ask User (ask_question)"}
     G -- "Approved by User" --> C["Step 3: Create Missing GitHub Native Sub-Issues<br/>(github-task-breakdown)"]
-    C --> D["Step 4: Dispatch Parallel Subagents<br/>(maximum-parallel-subagents: fix root cause & run tests)"]
+    C --> D["Step 4: Dispatch Parallel Subagents<br/>(subagent-worktree-orchestrator: fix root cause & run tests)"]
     D --> E["Step 5: Ship via 1-Commit PRs<br/>& Output Handover Summary Table"]
 ```
 
@@ -118,7 +118,7 @@ The script outputs:
 
 ### Step 4: Dispatch Parallel Subagents & Fix at Root Cause
 
-For independent sub-issues across different components or services (`index-web`, `index-api`, `index-admin-cms`), leverage **`maximum-parallel-subagents`**:
+For independent sub-issues across different components or services (`index-web`, `index-api`, `index-admin-cms`), leverage **`subagent-worktree-orchestrator`**:
 
 1. **Decompose by Domain/File Boundary**:
    - Subagent A (`Model: "flash"`): Fix authentication gate and default empty state on alerts.
