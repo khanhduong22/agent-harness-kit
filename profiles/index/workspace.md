@@ -58,9 +58,5 @@ Adding a field to `schema.json` and `strapi_core_store_settings` does NOT grant 
 5. **Non-SuperAdmin Verification**: Test with an `editor` account/token (never Super Admin alone) to prove field visibility and mutation.
 
 ## 6. Deterministic Morning Pre-Flight & Pre-Report Scope Saturation
-- **Standard Working Day Cap**: Target `<= 1.0 Pt/day` (`0.5 - 1.0 Pt`) standard planned work per session.
-- **Scope Saturation Gate Before Reporting**: Never deliver the Slack Daily Report DM with `0 Pt` / empty scope. If the active sprint has no pending tasks, the workflow must:
-  1. Inspect upcoming sprint / backlog candidates assigned to `@khanhduong22` in `Ready` status.
-  2. Inspect `#index-dev` Slack thread feedback to break down urgent sub-tasks via `est-point`.
-  3. Promote candidate tasks into the current sprint scope.
-  4. Only deliver the Slack Daily Report DM after today's `<= 1.0 Pt` scope is finalized.
+- **Standard Working Day Cap**: Target `<= 1.0 Pt/day` (`0.9 - 1.0 Pt`) standard planned work per session.
+- **Scope Saturation Gate Before Reporting**: If planned points `< 0.9 Pt` (or `0 Pt`), the sidecar MUST automatically query upcoming sprint (`Sprint N+1`) and backlog candidates in `Ready` or `In progress` assigned to `@khanhduong22`, or inspect `#index-dev` chat history, to saturate scope up to `0.9 - 1.0 Pt` before sending the Slack Daily Report DM. Never deliver an empty or under-saturated report.
