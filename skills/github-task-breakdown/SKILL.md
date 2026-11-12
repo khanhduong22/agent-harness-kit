@@ -35,6 +35,7 @@ Before creating or updating any task/sub-issue/bug:
 2. **Populate `Point Est` (and `Point Act`) in GitHub Projects V2 (`PVT_kwDODcsuC84BDOQk`)**:
    - `Point Est` (`PVTF_lADODcsuC84BDOQkzhoOFI0`): Required on every task/bug in Sprint 60+.
    - `Point Act` (`PVTF_lADODcsuC84BDOQkzhoOFJM`): Populate when the task is completed (`Done`).
+   - **Planned Cap vs. Actual Delivery**: The `0.9 - 1.0 Pt/day` standard cap applies solely to **morning standup planning** (pre-flight daily report). Unplanned production bugs, regressions, or hotfixes executed during the day are estimated at their true standalone weight (`Point Est` & `Point Act`), and total actual daily output can naturally exceed 1.0 Pt (`1.2 - 1.5+ Pt`).
 
 ---
 

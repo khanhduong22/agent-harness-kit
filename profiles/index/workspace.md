@@ -57,5 +57,6 @@ Adding a field to `schema.json` and `strapi_core_store_settings` does NOT grant 
 5. **Non-SuperAdmin Verification**: Test with an `editor` account/token (never Super Admin alone) to prove field visibility and mutation.
 
 ## 6. Deterministic Morning Pre-Flight & Pre-Report Scope Saturation
-- **Standard Working Day Cap**: Target `<= 1.0 Pt/day` (`0.9 - 1.0 Pt`) standard planned work per session.
+- **Standard Working Day Cap (Morning Standup Planning Only)**: Target `<= 1.0 Pt/day` (`0.9 - 1.0 Pt`) standard planned work per session. This cap applies strictly to morning pre-flight planning and the Slack Daily Report DM.
+- **Uncapped Actual Execution & Ad-Hoc Hotfixes**: Urgent production bugs, regressions, or ad-hoc hotfixes executed throughout the day are evaluated at their true standalone engineering weight (`Point Est` and `Point Act`) via `est-point` without being artificially squeezed by the 1.0 Pt planning ceiling. Total actual delivered points (`Point Act`) for the day can naturally exceed 1.0 Pt (e.g. 1.2 - 1.5+ Pt).
 - **Scope Saturation Gate Before Reporting**: If planned points `< 0.9 Pt` (or `0 Pt`), the sidecar MUST automatically query upcoming sprint (`Sprint N+1`) and backlog candidates in `Ready` or `In progress` assigned to `@khanhduong22`, or inspect `#index-dev` chat history, to saturate scope up to `0.9 - 1.0 Pt` before sending the Slack Daily Report DM. Never deliver an empty or under-saturated report.

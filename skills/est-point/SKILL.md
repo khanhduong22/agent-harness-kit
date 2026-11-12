@@ -144,3 +144,6 @@ Khi tạo mới hoặc cập nhật Task / Sub-issue / Bug trên GitHub Projects
 3. **Đồng bộ lên GitHub Projects V2**:
    - **`Point Est`** (`PVTF_lADODcsuC84BDOQkzhoOFI0`, kiểu `NUMBER`): Điền số thập phân chuẩn (`0.2`, `0.25`, `0.3`, `0.5`, `0.7`, `1.0`, `1.5`, `2.0`).
    - **`Point Act`** (`PVTF_lADODcsuC84BDOQkzhoOFJM`, kiểu `NUMBER`): Điền khi task chuyển sang `Ready for QA` / `Done`.
+4. **Phân Biệt Định Mức Kế Hoạch Sáng (`Planned Cap`) & Năng Suất Thực Tế (`Actual Velocity`)**:
+   - Mốc định mức `<= 1.0 Point/ngày` (`0.9 - 1.0 Pt`) chỉ áp dụng cho **kế hoạch dự kiến buổi sáng** (Morning Standup / Daily Report scope saturation).
+   - Khi có các bug phát sinh, hotfix production, hoặc yêu cầu đột xuất trong ngày, các task này được đánh `Point Est` & `Point Act` theo đúng độ phức tạp kỹ thuật độc lập (`0.2 - 0.5+ Pt/task`), **không bị giới hạn hay ép giảm điểm bởi trần 1.0 Pt kế hoạch**. Tổng điểm thực tế (`Point Act`) hoàn thành trong ngày có thể tự nhiên đạt `1.2 - 1.5+ Points`.
