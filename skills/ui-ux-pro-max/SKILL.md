@@ -1,6 +1,6 @@
 ---
 name: ui-ux-pro-max
-description: "UI/UX design intelligence for web, mobile, and desktop (79 styles, 192 palettes, 74 font pairings, 119 UX guidelines, 25 chart types, 22 stacks). Use when designing, building, reviewing, or fixing interfaces, components, palettes, typography, charts, or responsive layouts."
+description: "UI/UX design intelligence and motion specs for web, mobile, and desktop (79 styles, 192 palettes, 74 font pairings, 119 UX guidelines, 18 motion patterns, 25 chart types, 22 stacks). Use when designing, building, reviewing, or fixing interfaces, components, palettes, typography, micro-interactions, animations, or responsive layouts."
 ---
 
 # UI/UX Pro Max - Design Intelligence
@@ -30,7 +30,7 @@ Skip it for pure backend logic, API/database design, non-visual performance work
 | 9 | Navigation Patterns | HIGH | `ux` | Predictable back, Bottom nav ≤5, Deep linking | Overloaded nav, Broken back behavior, No deep links |
 | 10 | Charts & Data | LOW | `chart` | Legends, Tooltips, Accessible colors | Relying on color alone to convey meaning |
 
-For the full rule list per category (all 119 UX guidelines with rationale), read `references/quick-reference.md`. For app-specific polish rules (icons, touch feedback, dark mode contrast, safe areas) and the canonical pre-delivery checklist, read `references/pro-rules.md`.
+For the full rule list per category (all 119 UX guidelines with rationale), read `references/quick-reference.md`. For verified micro-interaction timings, easing curves, spring parameters, and 18 canonical patterns (toast, accordion, switch, sheet, checkmark), read `references/motion-ui.md`. For app-specific polish rules (icons, touch feedback, dark mode contrast, safe areas) and the canonical pre-delivery checklist, read `references/pro-rules.md`.
 
 ---
 
@@ -203,7 +203,7 @@ Then synthesize the design system + detailed searches and implement.
 |---------|------------|
 | Can't decide on style/color | Re-run `--design-system` with different keywords |
 | Dark mode contrast issues | `references/quick-reference.md` §6: `color-dark-mode` + `color-accessible-pairs` |
-| Animations feel unnatural | `references/quick-reference.md` §7: `spring-physics` + `easing` + `exit-faster-than-enter` |
+| Animations feel unnatural / micro-interactions | `references/motion-ui.md` + `references/quick-reference.md` §7: spring-physics, exit-faster-than-enter (66%), scale 0.9+, composite-only |
 | Form UX is poor | `references/quick-reference.md` §8: `inline-validation` + `error-clarity` + `focus-management` |
 | Navigation feels confusing | `references/quick-reference.md` §9: `nav-hierarchy` + `bottom-nav-limit` + `back-behavior` |
 | Layout breaks on small screens | `references/quick-reference.md` §5: `mobile-first` + `breakpoint-consistency` |
