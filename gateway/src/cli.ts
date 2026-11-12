@@ -8,6 +8,9 @@
  * without reading logs.
  */
 
+import { realpathSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { loadConfig } from "./config.js";
@@ -76,10 +79,17 @@ export async function main(argv: string[]): Promise<number> {
   return 1;
 }
 
-const invokedDirectly =
-  process.argv[1] !== undefined && import.meta.url === new URL(`file://${process.argv[1]}`).href;
+function isInvokedDirectly(): boolean {
+  if (!process.argv[1]) return false;
+  try {
+    const realArgv1 = realpathSync(process.argv[1]);
+    return import.meta.url === pathToFileURL(realArgv1).href;
+  } catch {
+    return import.meta.url === new URL(`file://${process.argv[1]}`).href;
+  }
+}
 
-if (invokedDirectly) {
+if (isInvokedDirectly()) {
   const code = await main(process.argv.slice(2));
   if (code !== 0 || process.argv[2] === "status") {
     process.exit(code);
