@@ -461,3 +461,5 @@ Read [`references/nextjs-turbopack-and-edge-patterns.md`](references/nextjs-turb
 - **§9.9 – §9.12**: Next.js 16 RSC `<Suspense>` `div[hidden]#S:0` (`$RV` 2.3s paint-holding trap), Turbopack `entryJSFiles` server-to-client manifest isolation (`760 KB` $\to$ `41.1 KB`), RSC Flight `self.__next_f.push` payload diet, and `next/font/google` `latin-ext` (`84.37 KiB`) vs `vietnamese` (`10.8 KiB`) cascade overlap fix.
 - **§9.13 – §9.18**: Unlocking `bf-cache` on dynamic Next.js routes (`send-payload.js` `Cache-Control` override), PWA Service Worker (`sw.js`) instant HTML SWR (`<10ms` TTFB) + 404 chunk self-healing, `history.replaceState` coordinator shell routing, React 19 Hydration `#418` DOM-wipe guard, `createPreloadableTab` synchronous preload cache, and `app/global-error.tsx` dynamic `@sentry/nextjs` loading.
 
+Also read [`references/modern-browser-scheduling-and-speculation.md`](references/modern-browser-scheduling-and-speculation.md) (`GoogleChrome/modern-web-guidance`) for `scheduler.postTask` / `TaskController` / `scheduler.yield()` INP loop slicing, Speculation Rules API (`<script type="speculationrules">`), `fetchpriority`, and `scrollend`.
+

@@ -26,6 +26,8 @@ The following top-starred GitHub repositories have already been audited, distill
 | `Graphify-Labs/graphify` | `★ 140k+` | `llm-wiki/references/graphify-knowledge-graph-architecture.md` |
 | `paperclipai/paperclip` | `★ 109k+` | `security-and-hardening/references/pr-head-sha-gate-and-caller-validation.md`, `llm-eval-design/references/ecc-head-to-head-agent-eval.md` |
 | `AgriciDaniel/claude-seo` | `★ 30k+` | `geo-seo/references/claude-seo-agentic-and-webmcp.md`, `geo-seo/references/claude-seo-technical-schema-and-sxo.md`, `geo-seo/scripts/agentic_and_schema_check.py` |
+| `emilkowalski/skills` | `★ 1k+` | `ui-ux-pro-max/references/emil-motion-craft.md` |
+| `GoogleChrome/modern-web-guidance` | `★ 22k+` | `frontend-ui-engineering/references/modern-web-platform-apis.md`, `frontend-performance-lighthouse/references/modern-browser-scheduling-and-speculation.md`, `security-and-hardening/references/browser-platform-defenses-and-passkeys.md` |
 
 ---
 

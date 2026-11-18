@@ -206,6 +206,7 @@ Then synthesize the design system + detailed searches and implement.
 | Animations feel unnatural / micro-interactions | `references/motion-ui.md` + `references/emil-motion-craft.md` + `references/quick-reference.md` §7: button scale 0.97, origin-aware popovers, never scale(0), exit-faster-than-enter (66%), composite-only |
 | Review / audit animation code against craft bar | `references/emil-motion-craft.md` §4–5: Ten Non-Negotiable Standards, Findings Table (`Before \| After \| Why`), and Block/Approve verdict |
 | Audit / improve motion across full codebase | `references/emil-motion-craft.md` §6: Recon sweeps (`grep`), leverage prioritization (Impact ÷ Effort), and actionable execution plans |
+| Native web APIs (dialogs, popovers, custom select, forms, oklch) | `../frontend-ui-engineering/references/modern-web-platform-apis.md`: `commandfor`, `closedby="any"`, `appearance: base-select`, `field-sizing: content`, `:user-invalid`, IME `isComposing`, `light-dark()` |
 | Form UX is poor | `references/quick-reference.md` §8: `inline-validation` + `error-clarity` + `focus-management` |
 | Navigation feels confusing | `references/quick-reference.md` §9: `nav-hierarchy` + `bottom-nav-limit` + `back-behavior` |
 | Layout breaks on small screens | `references/quick-reference.md` §5: `mobile-first` + `breakpoint-consistency` |

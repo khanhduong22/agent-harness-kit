@@ -63,6 +63,8 @@ ABSORBED_REPOS: dict[str, str] = {
     "paperclipai/paperclip": "security-and-hardening/references/pr-head-sha-gate-and-caller-validation.md, llm-eval-design/references/ecc-head-to-head-agent-eval.md",
     "thedotmack/claude-mem": "llm-wiki",
     "agricidaniel/claude-seo": "geo-seo/references/claude-seo-agentic-and-webmcp.md, geo-seo/references/claude-seo-technical-schema-and-sxo.md",
+    "emilkowalski/skills": "ui-ux-pro-max/references/emil-motion-craft.md",
+    "googlechrome/modern-web-guidance": "frontend-ui-engineering/references/modern-web-platform-apis.md, frontend-performance-lighthouse/references/modern-browser-scheduling-and-speculation.md, security-and-hardening/references/browser-platform-defenses-and-passkeys.md",
 }
 
 # Popular repos that match "skills" queries but are awesome-lists, GUI apps, or non-skill tools
