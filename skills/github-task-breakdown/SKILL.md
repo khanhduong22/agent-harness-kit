@@ -114,9 +114,28 @@ GitHub now supports native sub-issues (hierarchy trees) via GraphQL mutation `ad
      --title "[Task] [FE] [index-web] [Home] Global Search Bar" \
      --assignee "<username>" \
      --body "<structured_body>")
+   ISSUE_NODE_ID=$(gh issue view "$ISSUE_URL" --json id -q .id)
    ```
 
-2. **Link as Native Sub-Issue**:
+2. **Assign Native Issue Type (MANDATORY — Never Leave `Type` Empty)**:
+   In GitHub Projects V2, the built-in **`Type`** column maps directly to native Organization `IssueType`. When creating any issue, immediately set its `issueType`:
+   - **`Task`** (`IT_kwDODcsuC84Bt_sR`): Default for all implementation tasks, sub-tasks, and routine work items.
+   - **`Feature`** (`IT_kwDODcsuC84Bt_sT`): For all `[Epic]` or `[Feature]` level issues.
+   - **`Bug`** (`IT_kwDODcsuC84Bt_sS`): Exclusively for confirmed bug reports / regressions.
+
+   ```bash
+   gh api graphql -f query='
+   mutation($issueId: ID!, $issueTypeId: ID!) {
+     updateIssue(input: {
+       id: $issueId,
+       issueTypeId: $issueTypeId
+     }) {
+       issue { number issueType { name } }
+     }
+   }' -F issueId="$ISSUE_NODE_ID" -F issueTypeId="IT_kwDODcsuC84Bt_sR"
+   ```
+
+3. **Link as Native Sub-Issue**:
    ```bash
    gh api graphql -f query='
    mutation($parentIssueId: ID!, $subIssueUrl: String!) {
@@ -212,16 +231,21 @@ Once authenticated with `project` scope:
    ```
    *Note: Pass existing iteration IDs to preserve them, omit `id` for new iterations to generate them.*
 
-4. **Resolve Native Organization IssueType (`Task`)**:
-   Query organization `issueTypes`:
+4. **Resolve Native Organization IssueType (`Task`, `Feature`, `Bug`)**:
+   In GitHub Projects V2, the built-in **`Type`** column reflects the GitHub organization's native `IssueType`. For organization `idx-vn`, the exact IDs are:
+   - **`Task`**: `IT_kwDODcsuC84Bt_sR` (Default for sub-tasks, implementation items, chore, infra)
+   - **`Feature`** (Epic / Feature): `IT_kwDODcsuC84Bt_sT` (For all `[Epic]` or `[Feature]` level issues)
+   - **`Bug`**: `IT_kwDODcsuC84Bt_sS` (Exclusively for confirmed bugs / regressions)
+
+   Query to inspect or verify organization issue types:
    ```graphql
    query($org: String!) {
      organization(login: $org) {
-       issueTypes(first: 10) { nodes { id name } }
+       issueTypes(first: 10) { nodes { id name isEnabled } }
      }
    }
    ```
-   Match name `"Task"` -> `issueTypeId: "IT_kw..."`.
+   Whenever creating or batch-updating issues, **ALWAYS** call `updateIssue(input: { id: $issueId, issueTypeId: $issueTypeId })` so the `Type` column is never left empty.
 
 ---
 
@@ -233,7 +257,7 @@ For the **Index** GitHub Project V2 (`PVT_kwDODcsuC84BDOQk`), the canonical fiel
 - **`Point Act`**: `PVTF_lADODcsuC84BDOQkzhoOFJM` (`NUMBER` — Actual Story Points when completed)
 - **`Estimate`**: `PVTF_lADODcsuC84BDOQkzg1NEgA` (`NUMBER` — legacy/parallel numeric estimate field)
 - **`Sprint`**: `PVTIF_lADODcsuC84BDOQkzg1NEgE` (`Sprint 60`: `eb7091f1`, `Sprint 61`: `0760d96a`, `Sprint 62`: `73fee5ea`, `Sprint 63`: `f01d7afe`, `Sprint 64`: `c5ff0599`, `Sprint 65`: `97a30e92`, `Sprint 66`: `eef2ec0a`, `Sprint 67`: `aaac6376`, `Sprint 68`: `d97432d5`, `Sprint 69`: `5788f6b8`)
-- **`Type`**: `PVTSSF_lADODcsuC84BDOQkzgz79-I` (`Task`: `997d2238`, `Bug`: `492c2999`, `Feat`: `0b98368f`, `Epic`: `b0245420`)
+- **`Type` (MANDATORY)**: Built-in `issueType` (`Task`: `IT_kwDODcsuC84Bt_sR`, `Feature`/`Epic`: `IT_kwDODcsuC84Bt_sT`, `Bug`: `IT_kwDODcsuC84Bt_sS`)
 
 When updating 5+ tasks, execute batch updates via a Python/Node script with combined GraphQL aliases to avoid rate limits (note: always pass string IDs with `-f` in `gh api graphql` so all-digit option IDs like `98236657` are not coerced to integers):
 
@@ -248,11 +272,18 @@ POINT_EST_FIELD_ID = "PVTF_lADODcsuC84BDOQkzhoOFI0"
 POINT_ACT_FIELD_ID = "PVTF_lADODcsuC84BDOQkzhoOFJM"
 SPRINT_FIELD_ID = "PVTIF_lADODcsuC84BDOQkzg1NEgE"
 SPRINT_IDS = {60: "eb7091f1", 61: "0760d96a", 62: "73fee5ea"}
-TYPE_TASK_ID = "IT_kwDODcsuC84BDOQk..."
+TYPE_IDS = {
+    "Task": "IT_kwDODcsuC84Bt_sR",
+    "Feature": "IT_kwDODcsuC84Bt_sT",
+    "Epic": "IT_kwDODcsuC84Bt_sT",
+    "Bug": "IT_kwDODcsuC84Bt_sS",
+}
 
-items = [...]  # [{num, itemId, issueId, sprint, pointEst, pointAct}]
+items = [...]  # [{num, itemId, issueId, sprint, pointEst, pointAct, type}]
 
 for it in items:
+    target_type = it.get("type", "Task")
+    type_id = TYPE_IDS.get(target_type, TYPE_IDS["Task"])
     mutation = f"""
     mutation {{
       mStatus: updateProjectV2ItemFieldValue(input: {{
@@ -275,6 +306,11 @@ for it in items:
         fieldId: "{SPRINT_FIELD_ID}",
         value: {{ iterationId: "{SPRINT_IDS[it['sprint']]}" }}
       }}) {{ projectV2Item {{ id }} }}
+
+      mType: updateIssue(input: {{
+        id: "{it['issueId']}",
+        issueTypeId: "{type_id}"
+      }}) {{ issue {{ id issueType {{ name }} }} }}
     }}
     """
     subprocess.run(["env", "-u", "GITHUB_TOKEN", "gh", "api", "graphql", "-f", f"query={mutation}"], check=True)
@@ -290,5 +326,5 @@ Before concluding task breakdown:
 - [ ] Every task has Status set to requested state (e.g. `Ready` or `Done`).
 - [ ] Every task has **Story Points (`Point Est`)** calculated via `est-point` and filled in the Project table (`Point Act` also filled if `Done`).
 - [ ] Tasks are balanced across target Sprints (no single sprint overloaded).
-- [ ] Type column displays `Task` or `Bug` icon and corresponding label is attached.
+- [ ] **Type column is explicitly populated** via native Organization IssueType (`Task: IT_kwDODcsuC84Bt_sR`, `Feature: IT_kwDODcsuC84Bt_sT`, `Bug: IT_kwDODcsuC84Bt_sS`) and is **NEVER blank** in GitHub Projects V2 table.
 - [ ] Handover report shows a clean Markdown table with direct issue links, sprint allocations, Casebook IDs, and Story Points (`Point Est` / `Point Act`).
