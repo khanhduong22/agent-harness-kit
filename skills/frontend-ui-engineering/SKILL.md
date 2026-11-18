@@ -1,6 +1,6 @@
 ---
 name: frontend-ui-engineering
-description: "Builds production-quality, accessible, responsive user-facing UIs and audits design systems. Combines Anthropic's official `/design-system` (audit, document, extend), `frontend-design` (Anti-AI-Slop Studio Direction), `design-critique`, `ux-copy`, and WCAG 2.1 AA accessibility review with deterministic codebase scanning (`scripts/audit_design_system.py`)."
+description: "Builds production-quality, accessible, responsive UIs and audits design systems (shadcn/ui CLI & Base/Radix composition, Google Stitch screen prompting). Combines Anthropic's `/design-system`, `frontend-design` (Anti-AI-Slop Studio Direction), `design-critique`, `ux-copy`, and WCAG 2.1 AA review with `scripts/audit_design_system.py`."
 ---
 
 # Frontend UI Engineering & Design System Auditor
@@ -319,6 +319,8 @@ function useToggleTask() {
 - `references/motion-and-scroll-craft.md` — Synthesized from `nateherkai/scroll-craft` (`★ 4.3k`) and `LottieFiles/motion-design-skill` (`★ 2.6k`): the 6-Beat Scrollytelling Spine, 4-Plane Dimensional Hero Layering, 4 Motion Personality Archetypes, Duration & Easing Tables, and the `1/3` Choreography Rule.
 - `../ui-ux-pro-max/references/emil-motion-craft.md` — Emil Kowalski's motion craft & animation review: 10 Non-Negotiable Standards, anti-AI-slop rules (never scale(0), origin-aware popovers, button active scale 0.97, tabular-nums), review verdict rubric (`review-animations`), and codebase motion improvement roadmap (`improve-animations`).
 - `references/modern-web-platform-apis.md` — Distilled from `GoogleChrome/modern-web-guidance` (`★ 22k+`): Invoker Commands (`commandfor`), `<dialog closedby="any">`, top-layer `@starting-style` + `allow-discrete` + `overlay`, Anchor Positioning, `interpolate-size`, `appearance: base-select`, `field-sizing: content`, `:user-invalid`, IME-safe `isComposing`, `color-mix(in oklab)`, `Temporal`, and `WebMCP`.
+- `references/shadcn-cli-and-composition.md` — shadcn/ui CLI v4 workflows (`info --json`, `--dry-run`/`--diff`, `preset`), Radix `asChild` vs. Base UI `render`/`nativeButton={false}`, semantic tokens, `FieldGroup`+`Field`, `data-icon`, and built-in chat primitives (`MessageScroller`, `Bubble`, `Trace`).
+- `references/stitch-mcp-screen-prompting.md` — 5-part Google Stitch MCP screen-prompting contract, mandatory `projectId`/`designSystem`/`deviceType` parameters, and anti-hallucination constraints.
 - `references/accessibility-checklist.md` — WCAG 2.1 Level AA contrast matrix, keyboard focus lifecycle, semantic ARIA checklist, and severity-ranked accessibility review template.
 - `scripts/audit_design_system.py` — Deterministic Python CLI scanner for token naming, hardcoded hex/pixel bypasses, 7-state component matrix, Anti-AI-Slop tells, and WCAG 2.1 AA static checks.
 

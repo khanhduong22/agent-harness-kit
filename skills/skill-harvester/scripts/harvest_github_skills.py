@@ -65,6 +65,16 @@ ABSORBED_REPOS: dict[str, str] = {
     "agricidaniel/claude-seo": "geo-seo/references/claude-seo-agentic-and-webmcp.md, geo-seo/references/claude-seo-technical-schema-and-sxo.md",
     "emilkowalski/skills": "ui-ux-pro-max/references/emil-motion-craft.md",
     "googlechrome/modern-web-guidance": "frontend-ui-engineering/references/modern-web-platform-apis.md, frontend-performance-lighthouse/references/modern-browser-scheduling-and-speculation.md, security-and-hardening/references/browser-platform-defenses-and-passkeys.md",
+    "muratcankoylan/agent-skills-for-context-engineering": "ai-agent-and-rag-engineering",
+    "qdrant/skills": "ai-agent-and-rag-engineering",
+    "redis/agent-skills": "ai-agent-and-rag-engineering, backend-performance-optimization/references/clickhouse-olap-and-redis-cluster.md",
+    "clickhouse/agent-skills": "backend-performance-optimization/references/clickhouse-olap-and-redis-cluster.md",
+    "planetscale/database-skills": "backend-performance-optimization/references/clickhouse-olap-and-redis-cluster.md",
+    "temporalio/skill-temporal-developer": "backend-performance-optimization/references/temporal-durable-workflows-and-sagas.md",
+    "alibaba/open-code-review": "backend-performance-optimization/references/temporal-durable-workflows-and-sagas.md",
+    "cloudflare/skills": "infra-performance-optimization/references/otel-grafana-sre-and-cloudflare-workers.md",
+    "grafana/skills": "infra-performance-optimization/references/otel-grafana-sre-and-cloudflare-workers.md",
+    "docker/skills": "infra-performance-optimization/references/otel-grafana-sre-and-cloudflare-workers.md",
 }
 
 # Popular repos that match "skills" queries but are awesome-lists, GUI apps, or non-skill tools
@@ -106,11 +116,12 @@ NON_SKILL_REPOS: set[str] = {
 }
 
 DOMAIN_ROUTING: list[tuple[list[str], str]] = [
+    (["rag", "vector", "qdrant", "pgvector", "embedding", "rerank", "context-engineering", "semantic-cache", "mcp", "multi-agent", "agent-memory"], "ai-agent-and-rag-engineering"),
     (["react", "nextjs", "next.js", "rsc", "app-router"], "next-best-practices"),
     (["lighthouse", "cwv", "web-vitals", "lcp", "cls", "inp"], "frontend-performance-lighthouse"),
     (["design-system", "ui", "ux", "tailwind", "css", "a11y", "accessibility", "taste", "scroll", "motion"], "frontend-ui-engineering"),
-    (["postgres", "postgresql", "sql", "supabase", "timescale", "redis", "prisma", "drizzle", "database", "query"], "backend-performance-optimization"),
-    (["cloudflare", "nginx", "caddy", "docker", "vps", "linux", "kubernetes", "k8s", "terraform", "opentofu"], "infra-performance-optimization"),
+    (["postgres", "postgresql", "sql", "supabase", "timescale", "redis", "prisma", "drizzle", "database", "query", "clickhouse", "olap", "vitess", "mysql", "temporal", "saga", "kafka"], "backend-performance-optimization"),
+    (["cloudflare", "nginx", "caddy", "docker", "vps", "linux", "kubernetes", "k8s", "terraform", "opentofu", "opentelemetry", "otel", "grafana", "prometheus", "loki", "tempo", "workers", "durable-objects", "sre"], "infra-performance-optimization"),
     (["security", "owasp", "pentest", "vulnerability", "audit", "cve", "appsec", "crypto"], "security-and-hardening"),
     (["nda", "opsec", "pii", "red-team", "sanitize"], "op-nda"),
     (["refactor", "simplify", "architecture", "domain-modeling", "clean-code", "anti-slop", "lint"], "code-simplification"),
@@ -172,7 +183,9 @@ def recommend_target_skill(text: str) -> str:
     best_skill = "code-simplification/references/"
     best_hits = 0
     for keywords, target in DOMAIN_ROUTING:
-        hits = sum(1 for kw in keywords if kw in lower)
+        hits = sum(
+            1 for kw in keywords if re.search(rf"(?<![a-z0-9]){re.escape(kw)}(?![a-z0-9])", lower)
+        )
         if hits > best_hits:
             best_hits = hits
             best_skill = f"{target}/references/"

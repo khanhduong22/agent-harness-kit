@@ -28,6 +28,16 @@ The following top-starred GitHub repositories have already been audited, distill
 | `AgriciDaniel/claude-seo` | `★ 30k+` | `geo-seo/references/claude-seo-agentic-and-webmcp.md`, `geo-seo/references/claude-seo-technical-schema-and-sxo.md`, `geo-seo/scripts/agentic_and_schema_check.py` |
 | `emilkowalski/skills` | `★ 1k+` | `ui-ux-pro-max/references/emil-motion-craft.md` |
 | `GoogleChrome/modern-web-guidance` | `★ 22k+` | `frontend-ui-engineering/references/modern-web-platform-apis.md`, `frontend-performance-lighthouse/references/modern-browser-scheduling-and-speculation.md`, `security-and-hardening/references/browser-platform-defenses-and-passkeys.md` |
+| `muratcankoylan/Agent-Skills-for-Context-Engineering` | `★ 18k+` | `ai-agent-and-rag-engineering` |
+| `qdrant/skills` | `★ 270+` | `ai-agent-and-rag-engineering` |
+| `redis/agent-skills` | `★ 177+` | `ai-agent-and-rag-engineering`, `backend-performance-optimization/references/clickhouse-olap-and-redis-cluster.md` |
+| `ClickHouse/agent-skills` | `★ 570+` | `backend-performance-optimization/references/clickhouse-olap-and-redis-cluster.md` |
+| `planetscale/database-skills` | `★ 740+` | `backend-performance-optimization/references/clickhouse-olap-and-redis-cluster.md` |
+| `temporalio/skill-temporal-developer` | `★ 239+` | `backend-performance-optimization/references/temporal-durable-workflows-and-sagas.md` |
+| `alibaba/open-code-review` | `★ 54k+` | `backend-performance-optimization/references/temporal-durable-workflows-and-sagas.md` |
+| `cloudflare/skills` | `★ 3.4k+` | `infra-performance-optimization/references/otel-grafana-sre-and-cloudflare-workers.md` |
+| `grafana/skills` | `★ 313+` | `infra-performance-optimization/references/otel-grafana-sre-and-cloudflare-workers.md` |
+| `docker/skills` | `★ 640+` | `infra-performance-optimization/references/otel-grafana-sre-and-cloudflare-workers.md` |
 
 ---
 
@@ -37,11 +47,12 @@ When harvesting a new upstream skill, route its rules into the matching existing
 
 | Upstream Domain Keywords | Target Existing Skill in `agent-harness-kit` |
 |---|---|
+| `rag`, `vector`, `qdrant`, `pgvector`, `context-engineering`, `semantic-cache`, `mcp`, `agent-memory` | `ai-agent-and-rag-engineering` |
 | `react`, `nextjs`, `rsc`, `hydration`, `app-router` | `next-best-practices` |
 | `lighthouse`, `cwv`, `lcp`, `cls`, `inp`, `tbt`, `bundle` | `frontend-performance-lighthouse` |
 | `ui`, `ux`, `design-system`, `tailwind`, `css`, `accessibility`, `a11y`, `taste` | `frontend-ui-engineering` |
-| `postgres`, `sql`, `redis`, `caching`, `singleflight`, `prisma`, `drizzle`, `n+1` | `backend-performance-optimization` |
-| `cloudflare`, `nginx`, `caddy`, `docker`, `vps`, `sysctl`, `bbr`, `cdn` | `infra-performance-optimization` |
+| `postgres`, `sql`, `redis`, `clickhouse`, `olap`, `temporal`, `saga`, `vitess`, `caching`, `singleflight`, `n+1` | `backend-performance-optimization` |
+| `cloudflare`, `workers`, `durable-objects`, `otel`, `grafana`, `prometheus`, `nginx`, `caddy`, `docker`, `vps`, `sre`, `cdn` | `infra-performance-optimization` |
 | `security`, `owasp`, `ssrf`, `xss`, `auth`, `rbac`, `audit`, `cve`, `gh-actions`, `idempotency` | `security-and-hardening` |
 | `nda`, `opsec`, `pii`, `sanitization`, `red-team`, `leak` | `op-nda` |
 | `refactor`, `simplify`, `architecture`, `deep-modules`, `clean-code`, `anti-slop` | `code-simplification` |

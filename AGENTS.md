@@ -8,6 +8,13 @@
 - **Portable Skills (`skills/`)**: Modular, cross-agent capabilities installed into downstream harness environments.
 - **Strict Anti-Drift Principle**: Machine-local configurations (`~/.claude/`, `~/.gemini/`, `~/.codex/`, `<workspace>/.agents/`) are downstream deployment targets. Never hand-edit local generated files or symlink destinations directly.
 
+## Skill Portfolio & Zero-Tax Harvesting Philosophy
+Future agents harvesting external repositories or reorganizing `skills/` MUST obey three portfolio invariants (full rules live in `skills/skill-harvester/SKILL.md`):
+
+1. **Frontmatter Token Share $\neq$ Engineering Depth**: Never add standalone top-level skills just to visually inflate a domain's always-on frontmatter share. Always-on token share measures trigger breadth; real engineering depth lives in on-demand `references/` (`+0 tokens/turn`).
+2. **Staff Backend + Infrastructure + AI Engineering First**: Prioritize deepening Backend/Data (`backend-performance-optimization/references/`), Infra/SRE/Observability (`infra-performance-optimization/references/`), AI Agents/RAG (`ai-agent-and-rag-engineering/references/`), and Security (`security-and-hardening/references/`) via `references/`. Fold narrow UI, library, or MCP prompt specs into `frontend-ui-engineering/references/` or `ui-ux-pro-max/references/`—never leave them as separate top-level skills.
+3. **Strict Top-Level Admission & Consolidation Gate**: Add a new `skills/<domain>/SKILL.md` ONLY when no existing top-level trigger fits (`Jaccard < 0.35`, `/skill-doctor = 100/100`), sanitize/strip unsafe flags or paths first, and consolidate a narrow (`0x–1x`) wrapper into `references/` to keep always-on context tax `< 3,000 tokens/turn`. Consult the curated backlog in `skills/skill-harvester/references/top-100-be-infra-ai-catalog.md` before scanning GitHub from scratch.
+
 ## Mandatory Harness Modification Lifecycle
 Any modification to agent harness rules, skills, profiles, or hooks MUST strictly follow this 4-step lifecycle:
 

@@ -76,12 +76,13 @@ Never copy raw third-party `SKILL.md` files blindly into your agent harness. A c
 7. **Path Portability**: Strips any hardcoded user home paths so `scripts/verify.py` passes cleanly.
 8. **Context Tax Budget Check**: Predicts whether adding the skill would push total context tax over `4,500 tokens/turn`.
 
-### Stage 4: Zero-Tax Progressive Disclosure (`references/` Merge First)
-To keep `/skill-doctor` at **`100/100`**, always prefer **Option A (Reference Merge)** over **Option B (New Standalone Skill)**:
-- **Option A — `references/` Merge (`+0 tokens/turn` Context Tax, Recommended 90% of the time)**:
-  Distill the upstream repo's unique rules into `skills/<existing-skill>/references/<upstream-topic>.md` and add a 1-line pointer under `## See Also` in `skills/<existing-skill>/SKILL.md`.
-- **Option B — New Standalone Skill (`+45–75 tokens/turn` Context Tax)**:
-  Only create a new `skills/<new-skill>/SKILL.md` when the capability represents a genuinely distinct trigger domain not covered by any existing skill. Keep `SKILL.md` `< 300 lines` and frontmatter `description` `< 65 tokens`.
+### Stage 4: Zero-Tax Progressive Disclosure & Portfolio Balance Law
+To keep `/skill-doctor` at **`100/100`** and prevent frontend/creative wrapper creep from crowding out **Backend, Infrastructure/SRE, Security, and AI Engineering** capability:
+- **Option A — `references/` Merge (`+0 tokens/turn` Context Tax, Default Rule)**:
+  Distill the upstream repo's unique engineering rules into `skills/<existing-skill>/references/<upstream-topic>.md` and add a 1-line pointer under `## See Also` in `skills/<existing-skill>/SKILL.md`.
+- **Option B — New Standalone Skill (`+45–85 tokens/turn` Context Tax, Rare Exception)**:
+  Create a net-new `skills/<new-skill>/SKILL.md` ONLY when no existing top-level skill covers the runtime trigger (`description < 90 tokens`, `Jaccard < 0.35`, `/skill-doctor = 100/100`). Pair any new standalone addition with **One-In, Consolidate-One**: fold an under-used or narrow wrapper skill (`0x–1x` usage in 30 days) into a parent `references/` file so net always-on context tax stays flat or drops (`< 3,000 tokens/turn`).
+- **Frontmatter Token Share $\neq$ Engineering Depth**: Never add top-level skills just to visually inflate a domain's share of always-on frontmatter tokens. Grow Staff **Backend, Infra, AI, and Security** depth horizontally inside `references/`, and keep narrow UI/library/MCP tools (`shadcn`, `stitch`, motion packs) nested inside `frontend-ui-engineering/references/` or `ui-ux-pro-max/references/`.
 
 ### Stage 5: Post-Harvest Paired A/B Eval & 60/40 Trigger Optimization Gate (`skill-creator`)
 Whenever the Monday Weekly Harvester absorbs a new skill or merges significant upstream commits into an existing skill, validate it with the `skill-creator` evaluation suite in [`self-improving-distiller`](../self-improving-distiller/SKILL.md):
@@ -95,5 +96,6 @@ Whenever the Monday Weekly Harvester absorbs a new skill or merges significant u
 ## See Also
 
 - `references/harvester-security-and-dedup.md` — Absorbed Upstream Registry, 8-Point Security Gate regex patterns, and domain-to-skill mapping table.
+- `references/top-100-be-infra-ai-catalog.md` — Curated Top-100 & official vendor Backend, Infrastructure, and AI Engineering skill catalog, security gate notes, and Phase-2 backlog.
 - `scripts/harvest_github_skills.py` — Executable Star-Band GitHub Skill Harvester & Security Inspector.
 - [`self-improving-distiller`](../self-improving-distiller/SKILL.md) — Paired A/B Subagent Eval (`with_skill` vs `without_skill`), `aggregate_benchmark.py`, and 60/40 `run_loop.py` trigger optimizer.
