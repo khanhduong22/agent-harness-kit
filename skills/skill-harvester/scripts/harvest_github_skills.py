@@ -62,6 +62,7 @@ ABSORBED_REPOS: dict[str, str] = {
     "browser-use/browser-use": "playwright-e2e-testing",
     "paperclipai/paperclip": "security-and-hardening/references/pr-head-sha-gate-and-caller-validation.md, llm-eval-design/references/ecc-head-to-head-agent-eval.md",
     "thedotmack/claude-mem": "llm-wiki",
+    "agricidaniel/claude-seo": "geo-seo/references/claude-seo-agentic-and-webmcp.md, geo-seo/references/claude-seo-technical-schema-and-sxo.md",
 }
 
 # Popular repos that match "skills" queries but are awesome-lists, GUI apps, or non-skill tools

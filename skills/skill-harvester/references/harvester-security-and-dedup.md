@@ -25,6 +25,7 @@ The following top-starred GitHub repositories have already been audited, distill
 | `msitarzewski/agency-agents` | `★ 165k+` | `frontend-ui-engineering/references/ui-finish-gate-and-design-contract.md` |
 | `Graphify-Labs/graphify` | `★ 140k+` | `llm-wiki/references/graphify-knowledge-graph-architecture.md` |
 | `paperclipai/paperclip` | `★ 109k+` | `security-and-hardening/references/pr-head-sha-gate-and-caller-validation.md`, `llm-eval-design/references/ecc-head-to-head-agent-eval.md` |
+| `AgriciDaniel/claude-seo` | `★ 30k+` | `geo-seo/references/claude-seo-agentic-and-webmcp.md`, `geo-seo/references/claude-seo-technical-schema-and-sxo.md`, `geo-seo/scripts/agentic_and_schema_check.py` |
 
 ---
 

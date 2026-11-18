@@ -19,8 +19,9 @@ description: "GEO-SEO Suite & AI Search Optimization (Generative Engine Optimiza
 | `/geo llmstxt <url>` | Validate or generate `/llms.txt` and `/llms-full.txt` for LLM ingestion | `scripts/llmstxt_generator.py` |
 | `/geo brands <url>` | Scan off-site brand mentions & entity authority across Reddit, YouTube, Wikipedia, Wikidata, ORCID, GitHub, LinkedIn | `scripts/brand_scanner.py` |
 | `/geo platforms <url>` | Platform-specific readiness for Google AI Overviews, ChatGPT, Perplexity, Gemini, Claude, Copilot | `references/geo-platform-analysis.md` & `references/platform-algorithms.md` |
-| `/geo schema <url>` | Detect, validate, and generate SSR JSON-LD (`Person`, `ProfilePage`, `Organization`, `SoftwareApplication`, `Article`, `FAQPage`) | `references/geo-schema.md` & `schema/*.json` |
-| `/geo technical <url>` | Technical SEO, Core Web Vitals, SSR vs CSR check, HTTP `Accept: text/markdown` Content Negotiation, and RFC 8288 `Link` headers | `scripts/fetch_page.py`, `scripts/seo_audit.py` & `references/geo-technical.md` |
+| `/geo schema <url>` | Detect, validate, and generate SSR JSON-LD (`Person`, `ProfilePage`, `Organization`, `Product`, `Article`, `@graph`) & flag 2024–2026 retired types | `references/geo-schema.md`, `references/claude-seo-technical-schema-and-sxo.md` & `schema/*.json` |
+| `/geo technical <url>` | Technical SEO, CWV, SSR vs CSR, transport/stack CVE exposure, hreflang/MT QA, SXO page-type fit & 17-rule SEO drift | `scripts/agentic_and_schema_check.py`, `scripts/fetch_page.py`, `scripts/seo_audit.py` & `references/claude-seo-technical-schema-and-sxo.md` |
+| `/geo agentic <url>` | Lighthouse Agentic Browsing (`X/N`), WebMCP (`document.modelContext`), ARD `ai-catalog.json`, RFC 9309 `Content-Signal`, `Accept: text/markdown` & RFC 8288 `Link` | `scripts/agentic_and_schema_check.py` & `references/claude-seo-agentic-and-webmcp.md` |
 | `/geo content <url>` | E-E-A-T evaluation + **9 Princeton GEO Methods** (+40% citations, +37% stats) + **4-Bullet Executive Summary Grounding Block** | `references/geo-content.md` & `references/princeton-geo-research.md` |
 | `/geo entity <name/id>` | **Knowledge Graph & Share-of-SERP v2.0 Audit**: Google Knowledge Panel (`/g/...`), Wikidata (`Q...`), ORCID (`0009-...`), and Page-1 SERP Monopoly (`X/10 Slots`) | Section 5 below |
 
@@ -44,8 +45,8 @@ GEO_Score = (Citability * 0.25)
 | **1. AI Citability & Visibility** | **25%** | `references/geo-ai-visibility.md` | `python3 scripts/citability_scorer.py <url>` |
 | **2. Brand & Entity Authority** | **20%** | `references/geo-ai-visibility.md` | `python3 scripts/brand_scanner.py <url>` |
 | **3. Content Quality & E-E-A-T** | **20%** | `references/geo-content.md` | `references/princeton-geo-research.md` |
-| **4. Technical & Agent-Readiness** | **15%** | `references/geo-technical.md` | `python3 scripts/fetch_page.py <url>` |
-| **5. Structured Data (JSON-LD)** | **10%** | `references/geo-schema.md` | `schema/*.json` & `references/schema-templates.md` |
+| **4. Technical & Agent-Readiness** | **15%** | `references/geo-technical.md` & `references/claude-seo-agentic-and-webmcp.md` | `python3 scripts/agentic_and_schema_check.py <url>` |
+| **5. Structured Data (JSON-LD)** | **10%** | `references/geo-schema.md` & `references/claude-seo-technical-schema-and-sxo.md` | `schema/*.json` & `references/schema-templates.md` |
 | **6. Platform Optimization** | **10%** | `references/geo-platform-analysis.md` | `references/platform-algorithms.md` |
 
 ### Score Rating Bands
@@ -124,6 +125,9 @@ Beyond standard SEO (`title`, `meta description`, `canonical`, `sitemap.xml`, Co
    - Pair `scripts/autocomplete_ideas.py` with a 3-tier topical hierarchy (*Level 1: Pillar Hub ➔ Level 2: Subtopic Cluster ➔ Level 3: Supporting Keywords*). Never target the same intent cluster across two URLs; map modifiers deterministically (`how to X` ➔ Tutorial, `X vs Y` ➔ Comparison Matrix, `best X` ➔ Benchmark List).
 7. **Bilingual / Multilingual `hreflang` Reciprocity & Self-Canonical Guardrail**:
    - Every localized page (`/vi/...`, `/en/...`) MUST use a **self-referencing `<link rel="canonical">`** (never canonicalize a translated page back to the default language, which de-indexes the translation) paired with reciprocal `<link rel="alternate" hreflang="vi|en|x-default" />` links across all language variants.
+8. **WebMCP, ARD Discovery, 2026 Schema & SXO/Drift Playbooks**:
+   - Follow `references/claude-seo-agentic-and-webmcp.md` for Lighthouse Agentic Browsing (`X/N` fraction, 33 axe rules), imperative WebMCP (`document.modelContext` + confirmation guardrails), ARD `ai-catalog.json` (vs closed `/.well-known/mcp.json`), and RFC 9309 `Content-Signal` group repetition.
+   - Follow `references/claude-seo-technical-schema-and-sxo.md` for `@graph` singleton rules, 2024–2026 retired rich-result types (`HowTo`, `SpecialAnnouncement`, `CourseInfo`, `EstimatedSalary`, `LearningVideo`, `VehicleListing`, `PracticeProblem`, and May 2026 retired `FAQPage` as Info), passive stack CVE checks, SXO mismatch gates, and 17-rule SEO drift diffs.
 
 ---
 
@@ -246,4 +250,9 @@ python3 scripts/brand_scanner.py "https://example.com" "Brand Name"
 
 # 6. Zero-API Google Autocomplete Keyword & Question Expander
 python3 scripts/autocomplete_ideas.py "target keyword"
+
+# 7. SSRF-Safe Agentic, Transport/CVE, Robots, Hreflang & 2026 JSON-LD Checker (zero-dep stdlib)
+python3 scripts/agentic_and_schema_check.py "https://example.com" "https://example.com/en" --json
 ```
+
+See also: [agentic_and_schema_check.py](scripts/agentic_and_schema_check.py), `references/claude-seo-agentic-and-webmcp.md`, `references/claude-seo-technical-schema-and-sxo.md`, and `references/geo-technical.md`.
