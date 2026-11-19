@@ -556,4 +556,44 @@ assert "verify passes when rule frontmatter globs is a string" \
 
 printf 'Passed: Duplicate rules guardrail and rule frontmatter validation\n'
 
+printf '=== Test 15: Offline Harness Eval Gate ===\n'
+eval_live_out=$(/usr/bin/env python3 "$kit_root/scripts/eval_harness.py")
+assert "eval_harness.py outputs ALLOW_RELEASE on live kit" \
+  grep -q 'ALLOW_RELEASE' <<< "$eval_live_out"
+assert "eval_harness.py --self-test passes live and catches all seeded regressions" \
+  /usr/bin/env python3 "$kit_root/scripts/eval_harness.py" --self-test >/dev/null
+
+eval_mut_rule="$test_root/eval-mut-rule"
+/bin/mkdir -p "$eval_mut_rule"
+/bin/cp "$kit_root/AGENTS.md" "$eval_mut_rule/AGENTS.md"
+/bin/cp -R "$kit_root/rules" "$kit_root/skills" "$kit_root/evals" "$eval_mut_rule/"
+/usr/bin/env python3 - "$eval_mut_rule/rules/core.md" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+p.write_text("\n".join(l for l in p.read_text(encoding="utf-8").splitlines() if "git push" not in l), encoding="utf-8")
+PY
+refute "eval_harness.py fails when git push escalation gate is removed" \
+  /usr/bin/env python3 "$kit_root/scripts/eval_harness.py" --root "$eval_mut_rule" >/dev/null 2>&1
+eval_rule_fail=$(/usr/bin/env python3 "$kit_root/scripts/eval_harness.py" --root "$eval_mut_rule" 2>&1 || true)
+assert "eval_harness.py prints BLOCK_RELEASE on rule regression" \
+  grep -q 'BLOCK_RELEASE' <<< "$eval_rule_fail"
+
+eval_mut_trig="$test_root/eval-mut-trig"
+/bin/mkdir -p "$eval_mut_trig"
+/bin/cp "$kit_root/AGENTS.md" "$eval_mut_trig/AGENTS.md"
+/bin/cp -R "$kit_root/rules" "$kit_root/skills" "$kit_root/evals" "$eval_mut_trig/"
+printf -- '---\nname: pattern-to-prod\ndescription: "Handles unrelated archival notes."\n---\n' \
+  > "$eval_mut_trig/skills/pattern-to-prod/SKILL.md"
+refute "eval_harness.py fails when critical pattern-to-prod trigger is broken" \
+  /usr/bin/env python3 "$kit_root/scripts/eval_harness.py" --root "$eval_mut_trig" >/dev/null 2>&1
+eval_trig_fail=$(/usr/bin/env python3 "$kit_root/scripts/eval_harness.py" --root "$eval_mut_trig" 2>&1 || true)
+assert "eval_harness.py prints BLOCK_RELEASE on broken trigger regression" \
+  grep -q 'BLOCK_RELEASE' <<< "$eval_trig_fail"
+
+refute "eval_harness.py blocks release when context tax exceeds ceiling" \
+  /usr/bin/env python3 "$kit_root/scripts/eval_harness.py" --root "$kit_root" --max-context-tokens 100 >/dev/null 2>&1
+
+printf 'Passed: Offline Harness Eval Gate\n'
+
 printf '\nALL HARNESS BEHAVIORAL TESTS PASSED SUCCESSFULLY!\n'
