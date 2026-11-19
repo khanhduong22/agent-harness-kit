@@ -328,3 +328,22 @@ Before concluding task breakdown:
 - [ ] Tasks are balanced across target Sprints (no single sprint overloaded).
 - [ ] **Type column is explicitly populated** via native Organization IssueType (`Task: IT_kwDODcsuC84Bt_sR`, `Feature: IT_kwDODcsuC84Bt_sT`, `Bug: IT_kwDODcsuC84Bt_sS`) and is **NEVER blank** in GitHub Projects V2 table.
 - [ ] Handover report shows a clean Markdown table with direct issue links, sprint allocations, Casebook IDs, and Story Points (`Point Est` / `Point Act`).
+
+---
+
+## 7. Retroactive PR-to-Issue Backfill Protocol (Zero `(no issue)` Morning Report Gate)
+
+Whenever ad-hoc chores, CVE upgrades, hotfixes, or multi-repo PRs are merged without a pre-existing GitHub issue (or when `morning-preflight.py` flags `untrackedMergedPrs`), complete all 7 steps **before** sending the Daily Report:
+
+1. **Group Related PRs**: Collapse paired `dev` + `staging` promotion PRs covering the same deliverable (e.g. a feature/chore PR and its `develop -> staging` promotion PR) into one tracked issue.
+2. **Estimate True Points via `est-point`**: Compute standalone Story Points (`Senior = 0.5x`, never `0.0 Pt` for real merged engineering work).
+3. **Create the Issue**:
+   - Use standard title format: `[Task] [BE/FE/Infra] [<Repo>] [<Domain>] <Concise Title>`.
+   - Assign `khanhduong22` and document shipped PR links + verification results in the body.
+4. **Set Native `IssueType`**: Always run `updateIssue` with `IT_kwDODcsuC84Bt_sR` (`Task`) or `IT_kwDODcsuC84Bt_sS` (`Bug`).
+5. **Populate GitHub Projects V2 (`PVT_kwDODcsuC84BDOQk`)**:
+   - Add the issue (`addProjectV2ItemById`) and set active `Sprint`, `Status = Done` (`98236657`), `Point Est`, and `Point Act` equal to the delivered points.
+6. **Close Issue & Backfill PR Links**:
+   - Close the issue referencing the merged PR(s).
+   - Append `Closes #<issue_number>` (or `Closes idx-vn/<repo>#<issue_number>` for cross-repo) to the existing body of each merged PR via `env -u GITHUB_TOKEN gh pr edit <pr> --repo idx-vn/<repo> --body "..."` (preserving original PR content).
+7. **Re-Run Pre-Flight Report**: Run `python3 <workspace>/.agents/scripts/morning-preflight.py --project index --skip-brain` and confirm `"untrackedMergedPrs": []` and zero `(no issue)` rows in the delivered report.

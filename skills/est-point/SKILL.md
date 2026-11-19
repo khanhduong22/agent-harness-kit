@@ -147,3 +147,6 @@ When creating or updating Tasks, Sub-issues, or Bugs on GitHub Projects V2 (`Ind
 4. **Distinguish Morning Planning Cap (`Planned Cap`) vs. Actual Velocity (`Actual Delivery`)**:
    - The `<= 1.0 Point/day` (`0.9 - 1.0 Pt`) standard cap applies strictly to **morning pre-flight planning** (Morning Standup / Daily Report scope saturation).
    - When urgent bugs, production hotfixes, or ad-hoc tasks arise during the day, they are estimated at their true standalone engineering weight (`0.2 - 0.5+ Pt/task`) via `est-point`, **without being constrained or compressed by the 1.0 Pt planning ceiling**. Total actual delivered points (`Point Act`) for the day can naturally reach **`1.2 - 1.5+ Points`**.
+5. **Retroactive Chore / CVE / Ad-Hoc Hotfix Backfill**:
+   - Never leave merged chores, framework/CVE upgrades, or hotfixes at `0.0 Pt` or `(no issue)` in the Daily Report.
+   - Evaluate them at their true standalone TechPulse weight (e.g. framework CVE upgrade + prerender compatibility fixes across multiple routes = **`0.5 Pt`** via `BE/FE/Infra` `1.0 * 0.5` Senior; scoped Nginx/config fix = **`0.25 Pt`**) and populate both `Point Est` and `Point Act` as `Done` in GitHub Projects V2 before sending the Daily Report.
